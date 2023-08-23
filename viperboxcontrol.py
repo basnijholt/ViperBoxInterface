@@ -184,5 +184,4 @@ controller.control_rec_setup(
 controller.control_rec_start()
 print(controller)
 controller.control_rec_stop()
-# controller.send_data_to_socket()
 print(controller)
