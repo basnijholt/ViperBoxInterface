@@ -9,11 +9,16 @@ logging.basicConfig(level=logging.INFO)
 
 
 class ViperBoxControl:
+    """
+    Controller class for handling recordings from the ViperBox device.
+    """
+
     BUFFER_SIZE = 500
     SKIP_SIZE = 20
     FREQ = 20000
 
     def __init__(self):
+        """Initializes the ViperBoxControl object."""
         self._recording = False
         self._recording_file_name = None
         self._recording_file_location = None
@@ -23,12 +28,14 @@ class ViperBoxControl:
 
     @property
     def _recording_path(self):
+        """Return the combined path of the recording file location and name."""
         if self._recording_file_name and self._recording_file_location:
             return self._recording_file_location + self._recording_file_name
         return None
 
     @staticmethod
     def _currentTime():
+        """Return the current time in seconds since the epoch."""
         return time.time_ns() / (10**9)
 
     def control_rec_setup(
@@ -41,13 +48,27 @@ class ViperBoxControl:
         metadata_stream: list = None,
         emulated: bool = False,
     ) -> bool:
+        """
+        Set up the recording controller.
+
+        :param file_name: Name of the recording file.
+        :param file_location: Directory location to save the recording file.
+        :param probe: Probe number.
+        :param reference_electrode: Reference electrode number.
+        :param electrode_mapping: (Optional) Electrode mapping as bytes.
+        :param metadata_stream: (Optional) Metadata stream.
+        :param emulated: (Optional) Flag to set the device up in emulation mode.
+
+        :return: True if setup was successful, False otherwise.
+        """
+
         if not (0 <= probe <= 3):
             raise ValueError(
                 "Error: Invalid probe value. Expected a value between 0 and 3."
             )
         if not (0 <= reference_electrode <= 8):
             raise ValueError(
-                "Error: Invalid reference electrode value. Expected a value between 0 and 8."
+                "Error: Invalid reference electrode. Expected a value between 0 and 8."
             )
 
         self._metadata_stream = metadata_stream
@@ -86,10 +107,16 @@ class ViperBoxControl:
         return True
 
     def combine(self, metadata_stream):
-        # Placeholder for metadata stream processing
+        """
+        Placeholder method for processing metadata stream.
+
+        :param metadata_stream: Metadata stream to process.
+        """
         pass
 
     def send_data_to_socket(self):
+        """Send data packets to a socket."""
+
         bufferInterval = self.BUFFER_SIZE / self.FREQ
 
         serverAddressPort = ("127.0.0.1", 9001)
@@ -97,7 +124,8 @@ class ViperBoxControl:
 
         read_handle = NVP.streamOpenFile("exp1.bin", self._probe)
 
-        # reads one packet to get session id of last fifo, then skip all packets with that session id.
+        # reads one packet to get session id of last fifo,
+        # then skip all packets with that session id.
         idpacket = NVP.streamReadData(read_handle, 1)  # 1 packet
         id = idpacket[0].sessionID
         if id != 3:
@@ -134,6 +162,13 @@ class ViperBoxControl:
         NVP.streamClose(read_handle)
 
     def control_rec_start(self, sleep_time: int = 2, store_NWB: bool = True):
+        """
+        Start the recording.
+
+        :param sleep_time: (Optional) Time in seconds to sleep during recording.
+        :param store_NWB: (Optional) Flag to determine if data should stored as NWB.
+        """
+
         if self._recording:
             logging.info(
                 f"Already recording under the name: {self._recording_file_name}"
@@ -152,6 +187,8 @@ class ViperBoxControl:
         self.control_rec_stop()
 
     def control_rec_stop(self):
+        """Stop the ongoing recording."""
+
         if not self._recording:
             logging.info("No recording in progress.")
             return
@@ -165,9 +202,21 @@ class ViperBoxControl:
         self._recording_file_name = None
 
     def control_rec_status(self) -> bool:
+        """
+        Check the recording status.
+
+        :return: True if currently recording, False otherwise.
+        """
+
         return self._recording
 
     def __str__(self) -> str:
+        """
+        Return a string representation of the recording status and name.
+
+        :return: Status of recording and name of the recording file.
+        """
+
         status = "Recording" if self._recording else "Not Recording"
         return f"Status: {status}, Recording Name: {self._recording_file_name}"
 
