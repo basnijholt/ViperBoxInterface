@@ -52,8 +52,6 @@ class ViperBoxControl:
         # NVP.setReference(self._handle, probe, 0, reference_electrode)
         # NVP.writeChannelConfiguration(self._handle, probe)
 
-        return True
-
     def combine(self, metadata_stream):
         # Do something with metadata_stream
         pass
@@ -71,7 +69,7 @@ class ViperBoxControl:
         def currentTime():
             return time.time_ns() / (10 ** 9)
 
-        # read_handle = NVP.streamOpenFile(self._recording_file_location, self.probe)
+        # read_handle = NVP.streamOpenFile(self._recording_file_location, self._probe)
         read_handle = NVP.streamOpenFile("exp1.bin", self._probe)
         
         
@@ -118,10 +116,12 @@ class ViperBoxControl:
             threading.Thread(target=self.combine, args=(self._metadata_stream,)).start()
 
         NVP.setSWTrigger(self._handle)
-        # self.send_data_to_socket()
-        time.sleep(sleep_time)
         self._recording = True
         print(f"Started recording: {self._recording_file_name}")
+        threading.Thread(target=self.send_data_to_socket()).start()
+        time.sleep(sleep_time)
+        print('slept enough')
+        self.control_rec_stop()
 
     def control_rec_stop(self):
         if not self._recording:
@@ -145,9 +145,9 @@ class ViperBoxControl:
 
 # Example usage:
 controller = ViperBoxControl()
-# controller.control_rec_setup(file_name="exp1.bin", file_location="./", probe=0, reference_electrode=2, emulated=True)
-# controller.control_rec_start()
-# print(controller)
-# controller.control_rec_stop()
-controller.send_data_to_socket()
+controller.control_rec_setup(file_name="exp1.bin", file_location="./", probe=0, reference_electrode=2, emulated=True)
+controller.control_rec_start()
+print(controller)
+controller.control_rec_stop()
+# controller.send_data_to_socket()
 print(controller)
