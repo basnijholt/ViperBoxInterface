@@ -6,3 +6,4 @@ FTD3XX.dll
 NeuraviperAPI_1_0_x64.dll
 .pytest_cache
 .ruff_cache
+mypy.ini

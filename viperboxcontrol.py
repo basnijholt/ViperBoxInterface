@@ -44,8 +44,8 @@ class ViperBoxControl:
         file_location: str,
         probe: int,
         reference_electrode: int,
-        electrode_mapping: bytes = None,
-        metadata_stream: list = None,
+        electrode_mapping: bytes | None = None,
+        metadata_stream: list | None = None,
         emulated: bool = False,
     ) -> bool:
         """
