@@ -21,7 +21,6 @@ release = "0.0.1"
 print("sys.executable: ", sys.executable)
 
 # sys.path.append(os.path.abspath('sphinxext'))
-# sys.path.insert(0, os.path.abspath('../../..'))
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
