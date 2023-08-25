@@ -17,14 +17,21 @@ class ViperBoxControl:
     SKIP_SIZE = 20
     FREQ = 20000
 
-    def __init__(self):
+    def __init__(
+        self,
+        recording_file_name: str or None = None,
+        recording_file_location: str or None = None,
+        metadata_stream: list or None = None,
+        probe: int or None = None,
+    ):
         """Initializes the ViperBoxControl object."""
+        # TODO: check which other parameters logically are part of self and init.
         self._recording = False
-        self._recording_file_name = None
-        self._recording_file_location = None
-        self._metadata_stream = None
+        self._recording_file_name = recording_file_name
+        self._recording_file_location = recording_file_location
+        self._metadata_stream = metadata_stream
         self._handle = None
-        self._probe = 0
+        self._probe = probe
 
     @property
     def _recording_path(self):
@@ -122,22 +129,22 @@ class ViperBoxControl:
         serverAddressPort = ("127.0.0.1", 9001)
         UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
 
-        read_handle = NVP.streamOpenFile("exp1.bin", self._probe)
+        read_handle = NVP.streamOpenFile(self._recording_path, self._probe)
 
         # reads one packet to get session id of last fifo,
         # then skip all packets with that session id.
         idpacket = NVP.streamReadData(read_handle, 1)  # 1 packet
         id = idpacket[0].sessionID
-        if id != 3:
-            # print("id: ", id)
+        # TODO: Maybe these packets shouldn't be skipped but just the session number
+        # should be part of the data so that the researchers can delete it themselves.
+        if id != 0:
             subid = id
             while id == subid:
                 packets = NVP.streamReadData(read_handle, self.SKIP_SIZE)
                 subid = packets[0].sessionID
-                # print("subid: ", subid)
         else:
             logging.error("Error: restart recording")
-            # NVP.streamClose(read_handle)
+            NVP.streamClose(read_handle)
 
         while True:
             t1 = self._currentTime()
@@ -161,7 +168,9 @@ class ViperBoxControl:
 
         NVP.streamClose(read_handle)
 
-    def control_rec_start(self, sleep_time: int = 2, store_NWB: bool = True):
+    def control_rec_start(
+        self, sleep_time: int = 2, store_NWB: bool = True, infinite_rec: bool = False
+    ):
         """
         Start the recording.
 
@@ -182,9 +191,10 @@ class ViperBoxControl:
         self._recording = True
         logging.info(f"Started recording: {self._recording_file_name}")
         threading.Thread(target=self.send_data_to_socket).start()
-        time.sleep(sleep_time)
-        print("slept enough")
-        self.control_rec_stop()
+        if not infinite_rec:
+            time.sleep(sleep_time)
+            print("slept enough")
+            self.control_rec_stop()
 
     def control_rec_stop(self):
         """Stop the ongoing recording."""
@@ -221,16 +231,17 @@ class ViperBoxControl:
         return f"Status: {status}, Recording Name: {self._recording_file_name}"
 
 
-# Example usage:
-controller = ViperBoxControl()
-controller.control_rec_setup(
-    file_name="exp1.bin",
-    file_location="./",
-    probe=0,
-    reference_electrode=2,
-    emulated=True,
-)
-controller.control_rec_start()
-print(controller)
-controller.control_rec_stop()
-print(controller)
+if __name__ == "__main__":
+    # Example usage:
+    controller = ViperBoxControl()
+    controller.control_rec_setup(
+        file_name="exp1.bin",
+        file_location="./",
+        probe=0,
+        reference_electrode=2,
+        emulated=True,
+    )
+    controller.control_rec_start()
+    print(controller)
+    controller.control_rec_stop()
+    print(controller)
