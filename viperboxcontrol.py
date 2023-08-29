@@ -109,6 +109,7 @@ class ViperBoxControl:
         #         NVP.selectElectrode(self._handle, probe, channel, electrode)
 
         # NVP.setReference(self._handle, probe, 0, reference_electrode)
+        # NVP.
         # NVP.writeChannelConfiguration(self._handle, probe)
 
         return True
@@ -122,7 +123,8 @@ class ViperBoxControl:
         pass
 
     def send_data_to_socket(self):
-        """Send data packets to a socket."""
+        """Send data packets to a UDP socket, such that Open Ephys and other systems
+        can receive the raw data."""
 
         bufferInterval = self.BUFFER_SIZE / self.FREQ
 
@@ -174,7 +176,10 @@ class ViperBoxControl:
         """
         Start the recording.
 
-        :param sleep_time: (Optional) Time in seconds to sleep during recording.
+        :param infinite_rec: (Optional) Flag to determine if the recoding will continue
+        indefinitely or until control_rec_stop is called.
+        :param sleep_time: (Optional) Time in seconds that a recording will take if
+        there is a defined end time.
         :param store_NWB: (Optional) Flag to determine if data should stored as NWB.
         """
 
@@ -229,6 +234,13 @@ class ViperBoxControl:
 
         status = "Recording" if self._recording else "Not Recording"
         return f"Status: {status}, Recording Name: {self._recording_file_name}"
+
+    # def control_send_parameters(
+    #         pulse_parameters: dataclass = None,
+    #         train_parameters: dataclass = None,
+    #         stimulating_electrodes: List[int] = [None],
+    #         probe: int = None,
+    # ):
 
 
 if __name__ == "__main__":
