@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Any, List
 
 # TODO:
-# - run verify_values whenver any setting is changed (lazy) OR only run
+# - run verify_values whenever any setting is changed (lazy) OR only run
 #   relevant checks if specific values are changed
 # - adapt and include discharge times if necessary, if so, add logic
 #   to make interpulse_interval the same as the sum of both discharge times
@@ -12,12 +12,12 @@ from typing import Any, List
 class PulseShapeParameters:
     biphasic: bool = True
     pulse_duration: int = field(init=False)
-    # pulse_delay: int = field(init=False)
+    pulse_delay: int = field(init=False)
     first_pulse_phase_width: int = 170
     pulse_interphase_interval: int = 60
     second_pulse_phase_width: int = 170
-    # discharge_time: int = field(init=False)
-    # discharge_time_extra: int = field(init=False)
+    discharge_time: int = field(init=False)
+    discharge_time_extra: int = field(init=False)
     interpulse_interval: int = 200  # = discharge time
     pulse_amplitude_anode: int = 1
     pulse_amplitude_cathode: int = 1
@@ -31,9 +31,9 @@ class PulseShapeParameters:
             + self.second_pulse_phase_width
             + self.interpulse_interval
         )
-        # self.pulse_delay = 500
-        # self.discharge_time = self.interpulse_interval
-        # self.discharge_time_extra = 0
+        self.pulse_delay = 0
+        self.discharge_time = self.interpulse_interval
+        self.discharge_time_extra = 0
         if self.pulse_amplitude_equal:
             self.pulse_amplitude_cathode = self.pulse_amplitude_anode
             self.biphasic = True
@@ -49,6 +49,7 @@ class PulseShapeParameters:
 
     def verify_values(self):
         # Verify the values against min, max, and step size
+        self.verify_step_min_max("pulse_delay", self.pulse_delay, 0, 100, 25500)
         self.verify_step_min_max("pulse_duration", self.pulse_duration, 100, 100, 25500)
         self.verify_step_min_max(
             "first_pulse_phase_width", self.first_pulse_phase_width, 10, 10, 2550
@@ -122,7 +123,7 @@ class PulseTrainParameters:
 @dataclass
 class ViperBoxConfiguration:
     probe: int
-    handle: int = None
+    # handle: int = None
 
     def __post_init__(self):
         if not 0 <= self.probe <= 3:
@@ -158,6 +159,24 @@ class ConfigurationParameters:
             if not 1 <= elec <= 128:
                 raise ValueError("Electrodes should have values between 1 and 128.")
 
+    def SUConfig_pars(handle, probe, stimunit=0, polarity=0):
+        return (
+            handle,
+            probe,
+            stimunit,
+            polarity,
+            PulseTrainParameters.number_of_pulses,
+            PulseShapeParameters.pulse_amplitude_anode,
+            PulseShapeParameters.pulse_amplitude_cathode,
+            PulseShapeParameters.pulse_duration,
+            PulseShapeParameters.pulse_delay,
+            PulseShapeParameters.first_pulse_phase_width,
+            PulseShapeParameters.pulse_interphase_interval,
+            PulseShapeParameters.second_pulse_phase_width,
+            PulseShapeParameters.discharge_time,
+            PulseShapeParameters.discharge_time_extra,
+        )
+
 
 if __name__ == "__main__":
     # Example usage:
@@ -166,4 +185,4 @@ if __name__ == "__main__":
     electrodes = [1, 2, 3]
     viperbox = ViperBoxConfiguration(0)
     config = ConfigurationParameters(pulse_shape, pulse_train, electrodes, viperbox)
-    print(config)
+    print(config.pulse_shape_parameters)

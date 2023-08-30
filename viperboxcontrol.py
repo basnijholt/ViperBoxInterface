@@ -4,6 +4,7 @@ import time
 import numpy as np
 import socket
 import logging
+from parameters import ConfigurationParameters
 
 logging.basicConfig(level=logging.INFO)
 
@@ -50,7 +51,7 @@ class ViperBoxControl:
         file_name: str,
         file_location: str,
         probe: int,
-        reference_electrode: int,
+        reference_electrode: int or None = None,
         electrode_mapping: bytes or None = None,
         metadata_stream: list or None = None,
         emulated: bool = False,
@@ -61,7 +62,7 @@ class ViperBoxControl:
         :param file_name: Name of the recording file.
         :param file_location: Directory location to save the recording file.
         :param probe: Probe number.
-        :param reference_electrode: Reference electrode number.
+        :param reference_electrode: (Optional) Reference electrode number.
         :param electrode_mapping: (Optional) Electrode mapping as bytes.
         :param metadata_stream: (Optional) Metadata stream.
         :param emulated: (Optional) Flag to set the device up in emulation mode.
@@ -104,13 +105,12 @@ class ViperBoxControl:
         NVP.arm(self._handle)
 
         # Uncommented and included the setup as needed:
-        # if electrode_mapping:
-        #     for channel, electrode in enumerate(electrode_mapping):
-        #         NVP.selectElectrode(self._handle, probe, channel, electrode)
+        if electrode_mapping:
+            for channel, electrode in enumerate(electrode_mapping):
+                NVP.selectElectrode(self._handle, probe, channel, electrode)
 
         # NVP.setReference(self._handle, probe, 0, reference_electrode)
-        # NVP.
-        # NVP.writeChannelConfiguration(self._handle, probe)
+        NVP.writeChannelConfiguration(self._handle, probe)
 
         return True
 
@@ -171,14 +171,17 @@ class ViperBoxControl:
         NVP.streamClose(read_handle)
 
     def control_rec_start(
-        self, sleep_time: int = 2, store_NWB: bool = True, infinite_rec: bool = False
+        self,
+        recording_time: int = 1,
+        store_NWB: bool = True,
+        infinite_rec: bool = False,
     ):
         """
         Start the recording.
 
         :param infinite_rec: (Optional) Flag to determine if the recoding will continue
         indefinitely or until control_rec_stop is called.
-        :param sleep_time: (Optional) Time in seconds that a recording will take if
+        :param recording_time: (Optional) Time in seconds that a recording will take if
         there is a defined end time.
         :param store_NWB: (Optional) Flag to determine if data should stored as NWB.
         """
@@ -197,7 +200,7 @@ class ViperBoxControl:
         logging.info(f"Started recording: {self._recording_file_name}")
         threading.Thread(target=self.send_data_to_socket).start()
         if not infinite_rec:
-            time.sleep(sleep_time)
+            time.sleep(recording_time)
             print("slept enough")
             self.control_rec_stop()
 
@@ -235,12 +238,21 @@ class ViperBoxControl:
         status = "Recording" if self._recording else "Not Recording"
         return f"Status: {status}, Recording Name: {self._recording_file_name}"
 
-    # def control_send_parameters(
-    #         pulse_parameters: dataclass = None,
-    #         train_parameters: dataclass = None,
-    #         stimulating_electrodes: List[int] = [None],
-    #         probe: int = None,
-    # ):
+    def control_send_parameters(
+        self,
+        stimuint=0,
+        polarity=0,
+        config_params: ConfigurationParameters = None,
+    ):
+        # Configure SU 0
+        NVP.writeSUConfiguration(
+            ConfigurationParameters.SUConfig_pars(
+                self._handle, self._probe, stimuint, polarity
+            )
+        )
+        # enable all OSes and connects them to SU 0
+        NVP.setOSimage(self._handle, self._probe, bytes(128 * [8]))
+        NVP.writeOSConfiguration(self._handle, self._probe, False)
 
 
 if __name__ == "__main__":
