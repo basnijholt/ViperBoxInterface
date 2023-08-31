@@ -1,3 +1,5 @@
+from typing import List, Optional, Type, Any, bytes, Tuple
+
 import NeuraviperPy as NVP
 import threading
 import time
@@ -28,31 +30,31 @@ class ViperBoxControl:
         recording_file_name: str,
         recording_file_location: str,
         probe: int,
-        metadata_stream: list or None = None,
-    ):
+        metadata_stream: Optional[List[Any]] = None,
+    ) -> None:
         """Initializes the ViperBoxControl object."""
         # TODO: check which other parameters logically are part of self and init.
         self._recording = False
         self._recording_file_name = recording_file_name
         self._recording_file_location = recording_file_location
-        self._metadata_stream = metadata_stream
+        self._metadata_stream: Optional[List[Any]] = metadata_stream
         self._probe = probe
         try:
-            self._handle = NVP.createHandle(0)
+            self._handle: Type[Any] = NVP.createHandle(0)
             NVP.openBS(self._handle)
         except Exception as e:
             logging.error(f"Error while setting up handle: {e}")
-            return False
+            return None
 
     @property
-    def _recording_path(self):
+    def _recording_path(self) -> Optional[str]:
         """Return the combined path of the recording file location and name."""
         if self._recording_file_name and self._recording_file_location:
             return self._recording_file_location + self._recording_file_name
         return None
 
     @staticmethod
-    def _currentTime():
+    def _currentTime() -> float:
         """Return the current time in seconds since the epoch."""
         return time.time_ns() / (10**9)
 
@@ -61,9 +63,9 @@ class ViperBoxControl:
         file_name: str,
         file_location: str,
         probe: int,
-        reference_electrode: int or None = None,
-        electrode_mapping: bytes or None = None,
-        metadata_stream: list or None = None,
+        reference_electrode: Optional[int] = None,
+        electrode_mapping: Optional[bytes] = None,
+        metadata_stream: Optional[List[Any]] = None,
         emulated: bool = False,
     ) -> bool:
         """
@@ -107,17 +109,17 @@ class ViperBoxControl:
 
         NVP.arm(self._handle)
 
-        # # Uncommented and included the setup as needed:
-        # if electrode_mapping:
-        #     for channel, electrode in enumerate(electrode_mapping):
-        #         NVP.selectElectrode(self._handle, probe, channel, electrode)
+        # Uncommented and included the setup as needed:
+        if electrode_mapping:
+            for channel, electrode in enumerate(electrode_mapping):
+                NVP.selectElectrode(self._handle, probe, channel, electrode)
 
-        #     # NVP.setReference(self._handle, probe, 0, reference_electrode)
-        #     NVP.writeChannelConfiguration(self._handle, probe)
+            # NVP.setReference(self._handle, probe, 0, reference_electrode)
+            NVP.writeChannelConfiguration(self._handle, probe)
 
         return True
 
-    def combine(self, metadata_stream):
+    def combine(self, metadata_stream: List[Any]) -> None:
         """
         Placeholder method for processing metadata stream.
 
@@ -125,14 +127,16 @@ class ViperBoxControl:
         """
         pass
 
-    def send_data_to_socket(self):
+    def send_data_to_socket(self) -> None:
         """Send data packets to a UDP socket, such that Open Ephys and other systems
         can receive the raw data."""
 
-        bufferInterval = self.BUFFER_SIZE / self.FREQ
+        bufferInterval: float = self.BUFFER_SIZE / self.FREQ
 
-        serverAddressPort = ("127.0.0.1", 9001)
-        UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        serverAddressPort: Tuple[str, int] = ("127.0.0.1", 9001)
+        UDPClientSocket: socket.socket = socket.socket(
+            family=socket.AF_INET, type=socket.SOCK_DGRAM
+        )
 
         self._read_handle = NVP.streamOpenFile(self._recording_path, self._probe)
 
@@ -175,10 +179,9 @@ class ViperBoxControl:
 
     def control_rec_start(
         self,
-        recording_time: int or None = 1,
+        recording_time: Optional[int] = 1,
         store_NWB: bool = True,
-        # infinite_rec: bool = False,
-    ):
+    ) -> None:
         """
         Start the recording.
 
@@ -193,7 +196,7 @@ class ViperBoxControl:
             logging.info(
                 f"Already recording under the name: {self._recording_file_name}"
             )
-            return
+            return None
 
         if store_NWB:
             threading.Thread(target=self.combine, args=(self._metadata_stream,)).start()
@@ -206,7 +209,7 @@ class ViperBoxControl:
             time.sleep(recording_time)
             self.control_rec_stop()
 
-    def control_rec_stop(self):
+    def control_rec_stop(self) -> None:
         """Stop the ongoing recording."""
 
         if not self._recording:
@@ -242,10 +245,10 @@ class ViperBoxControl:
 
     def control_send_parameters(
         self,
-        stimunit=0,
-        polarity=0,
+        stimunit: int = 0,
+        polarity: int = 0,
         config_params: ConfigurationParameters = None,
-    ):
+    ) -> None:
         # Configure SU 0
         NVP.writeSUConfiguration(
             config_params.get_SUConfig_pars(
@@ -256,7 +259,7 @@ class ViperBoxControl:
         NVP.setOSimage(self._handle, self._probe, bytes(128 * [8]))
         NVP.writeOSConfiguration(self._handle, self._probe, False)
 
-    def stimulation_trigger(self, start_recording=True):
+    def stimulation_trigger(self, start_recording: bool = True) -> None:
         if self._recording is False and start_recording is True:
             self.control_rec_start(recording_time=None)
         NVP.SUtrig1(self._handle, self._probe, bytes([8]))

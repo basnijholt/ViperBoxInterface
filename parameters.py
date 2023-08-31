@@ -29,7 +29,7 @@ class PulseShapeParameters:
     pulse_amplitude_cathode: int = 1
     pulse_amplitude_equal: bool = False
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.correct_values()
         self.verify_values()
 
@@ -37,7 +37,7 @@ class PulseShapeParameters:
         super().__setattr__(__name, __value)
         self.verify_values()
 
-    def correct_values(self):
+    def correct_values(self) -> None:
         self.discharge_time = self.interpulse_interval
         self.discharge_time_extra = 0
         if self.pulse_amplitude_equal:
@@ -46,7 +46,7 @@ class PulseShapeParameters:
         if self.biphasic is False:
             self.pulse_amplitude_cathode = 0
 
-    def verify_values(self):
+    def verify_values(self) -> None:
         # Verify the values against step size, min and max
         verify_step_min_max(
             "first_pulse_phase_width", self.first_pulse_phase_width, 10, 10, 2550
@@ -105,10 +105,10 @@ class PulseTrainParameters:
     train_interval: int = 1000
     onset_jitter: int = 1000
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.verify_values()
 
-    def verify_values(self):
+    def verify_values(self) -> None:
         verify_step_min_max("number_of_pulses", self.number_of_pulses, 1, 1, 255)
         verify_step_min_max("number_of_trains", self.number_of_trains, 1, 1, 20)
         verify_step_min_max("train_interval", self.train_interval, 1000, 1000, 3000000)
@@ -125,7 +125,7 @@ class PulseTrainParameters:
 class ViperBoxConfiguration:
     probe: int
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not 0 <= self.probe <= 3:
             raise ValueError("Probe value should be between 0 and 3.")
 
@@ -133,7 +133,7 @@ class ViperBoxConfiguration:
         super().__setattr__(__name, __value)
         self.verify_values()
 
-    def verify_values(self):
+    def verify_values(self) -> None:
         if not 0 <= self.probe <= 3:
             raise ValueError("Probe value should be between 0 and 3.")
 
@@ -145,10 +145,10 @@ class ConfigurationParameters:
     list_of_stimulation_electrodes: List[int]
     viperbox_configuration: ViperBoxConfiguration
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.verify_electrodes()
 
-    def verify_electrodes(self):
+    def verify_electrodes(self) -> None:
         electrodes_set = set(self.list_of_stimulation_electrodes)
         if len(electrodes_set) != len(self.list_of_stimulation_electrodes):
             # log "You've supplied duplicate electrodes."
@@ -159,7 +159,7 @@ class ConfigurationParameters:
             if not 1 <= elec <= 128:
                 raise ValueError("Electrodes should have values between 1 and 128.")
 
-    def get_SUConfig_pars(self, handle=0, probe=0, stimunit=0, polarity=0):
+    def get_SUConfig_pars(self, handle=0, probe=0, stimunit=0, polarity=0) -> List[Any]:
         all_parameters = {
             **asdict(self.pulse_shape_parameters),
             **asdict(self.pulse_train_parameters),
