@@ -4,7 +4,12 @@ import time
 import numpy as np
 import socket
 import logging
-from parameters import ConfigurationParameters
+from parameters import (
+    ConfigurationParameters,
+    PulseShapeParameters,
+    ViperBoxConfiguration,
+    PulseTrainParameters,
+)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -240,14 +245,14 @@ class ViperBoxControl:
 
     def control_send_parameters(
         self,
-        stimuint=0,
+        stimunit=0,
         polarity=0,
         config_params: ConfigurationParameters = None,
     ):
         # Configure SU 0
         NVP.writeSUConfiguration(
-            ConfigurationParameters.SUConfig_pars(
-                self._handle, self._probe, stimuint, polarity
+            ConfigurationParameters.get_SUConfig_pars(
+                self._handle, self._probe, stimunit, polarity
             )
         )
         # enable all OSes and connects them to SU 0
@@ -258,14 +263,23 @@ class ViperBoxControl:
 if __name__ == "__main__":
     # Example usage:
     controller = ViperBoxControl()
-    controller.control_rec_setup(
-        file_name="exp1.bin",
-        file_location="./",
-        probe=0,
-        reference_electrode=2,
-        emulated=True,
-    )
-    controller.control_rec_start()
-    print(controller)
-    controller.control_rec_stop()
-    print(controller)
+    pulse_shape = PulseShapeParameters()
+    pulse_train = PulseTrainParameters()
+    electrodes = [1, 2, 3]
+    viperbox = ViperBoxConfiguration(0)
+    config = ConfigurationParameters(pulse_shape, pulse_train, electrodes, viperbox)
+
+    print(config.get_SUConfig_pars())
+
+    # controller.control_send_parameters()
+    # controller.control_rec_setup(
+    #     file_name="exp1.bin",
+    #     file_location="./",
+    #     probe=0,
+    #     reference_electrode=2,
+    #     emulated=True,
+    # )
+    # controller.control_rec_start()
+    # print(controller)
+    # controller.control_rec_stop()
+    # print(controller)
