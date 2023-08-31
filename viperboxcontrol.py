@@ -25,10 +25,10 @@ class ViperBoxControl:
 
     def __init__(
         self,
-        recording_file_name: str or None = None,
-        recording_file_location: str or None = None,
+        recording_file_name: str,
+        recording_file_location: str,
+        probe: int,
         metadata_stream: list or None = None,
-        probe: int or None = None,
     ):
         """Initializes the ViperBoxControl object."""
         # TODO: check which other parameters logically are part of self and init.
@@ -36,8 +36,13 @@ class ViperBoxControl:
         self._recording_file_name = recording_file_name
         self._recording_file_location = recording_file_location
         self._metadata_stream = metadata_stream
-        self._handle = None
         self._probe = probe
+        try:
+            self._handle = NVP.createHandle(0)
+            NVP.openBS(self._handle)
+        except Exception as e:
+            logging.error(f"Error while setting up handle: {e}")
+            return False
 
     @property
     def _recording_path(self):
@@ -86,13 +91,6 @@ class ViperBoxControl:
 
         self._metadata_stream = metadata_stream
 
-        try:
-            self._handle = NVP.createHandle(0)
-            NVP.openBS(self._handle)
-        except Exception as e:
-            logging.error(f"Error while setting up handle: {e}")
-            return False
-
         if emulated:
             NVP.setDeviceEmulatorMode(self._handle, NVP.DeviceEmulatorMode.LINEAR)
             NVP.setDeviceEmulatorType(
@@ -109,13 +107,13 @@ class ViperBoxControl:
 
         NVP.arm(self._handle)
 
-        # Uncommented and included the setup as needed:
-        if electrode_mapping:
-            for channel, electrode in enumerate(electrode_mapping):
-                NVP.selectElectrode(self._handle, probe, channel, electrode)
+        # # Uncommented and included the setup as needed:
+        # if electrode_mapping:
+        #     for channel, electrode in enumerate(electrode_mapping):
+        #         NVP.selectElectrode(self._handle, probe, channel, electrode)
 
-        # NVP.setReference(self._handle, probe, 0, reference_electrode)
-        NVP.writeChannelConfiguration(self._handle, probe)
+        #     # NVP.setReference(self._handle, probe, 0, reference_electrode)
+        #     NVP.writeChannelConfiguration(self._handle, probe)
 
         return True
 
@@ -136,27 +134,27 @@ class ViperBoxControl:
         serverAddressPort = ("127.0.0.1", 9001)
         UDPClientSocket = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
 
-        read_handle = NVP.streamOpenFile(self._recording_path, self._probe)
+        self._read_handle = NVP.streamOpenFile(self._recording_path, self._probe)
 
         # reads one packet to get session id of last fifo,
         # then skip all packets with that session id.
-        idpacket = NVP.streamReadData(read_handle, 1)  # 1 packet
+        idpacket = NVP.streamReadData(self._read_handle, 1)  # 1 packet
         id = idpacket[0].sessionID
         # TODO: Maybe these packets shouldn't be skipped but just the session number
         # should be part of the data so that the researchers can delete it themselves.
         if id != 0:
             subid = id
             while id == subid:
-                packets = NVP.streamReadData(read_handle, self.SKIP_SIZE)
+                packets = NVP.streamReadData(self._read_handle, self.SKIP_SIZE)
                 subid = packets[0].sessionID
         else:
             logging.error("Error: restart recording")
-            NVP.streamClose(read_handle)
+            NVP.streamClose(self._read_handle)
 
         while True:
             t1 = self._currentTime()
 
-            packets = NVP.streamReadData(read_handle, self.BUFFER_SIZE)
+            packets = NVP.streamReadData(self._read_handle, self.BUFFER_SIZE)
             count = len(packets)
 
             if count < self.BUFFER_SIZE:
@@ -173,13 +171,13 @@ class ViperBoxControl:
             while (t2 - t1) < bufferInterval:
                 t2 = self._currentTime()
 
-        NVP.streamClose(read_handle)
+        NVP.streamClose(self._read_handle)
 
     def control_rec_start(
         self,
-        recording_time: int = 1,
+        recording_time: int or None = 1,
         store_NWB: bool = True,
-        infinite_rec: bool = False,
+        # infinite_rec: bool = False,
     ):
         """
         Start the recording.
@@ -204,9 +202,8 @@ class ViperBoxControl:
         self._recording = True
         logging.info(f"Started recording: {self._recording_file_name}")
         threading.Thread(target=self.send_data_to_socket).start()
-        if not infinite_rec:
+        if recording_time:
             time.sleep(recording_time)
-            print("slept enough")
             self.control_rec_stop()
 
     def control_rec_stop(self):
@@ -258,6 +255,11 @@ class ViperBoxControl:
         # enable all OSes and connects them to SU 0
         NVP.setOSimage(self._handle, self._probe, bytes(128 * [8]))
         NVP.writeOSConfiguration(self._handle, self._probe, False)
+
+    def stimulation_trigger(self, start_recording=True):
+        if self._recording is False and start_recording is True:
+            self.control_rec_start(recording_time=None)
+        NVP.SUtrig1(self._handle, self._probe, bytes([8]))
 
 
 if __name__ == "__main__":
