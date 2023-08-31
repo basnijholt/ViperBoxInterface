@@ -1,16 +1,15 @@
-from typing import List, Optional, Type, Any, bytes, Tuple
+from typing import List, Optional, Type, Any, Tuple
+from time import strftime
 
 import NeuraviperPy as NVP
 import threading
 import time
 import numpy as np
+import os
 import socket
 import logging
 from parameters import (
     ConfigurationParameters,
-    PulseShapeParameters,
-    ViperBoxConfiguration,
-    PulseTrainParameters,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -28,14 +27,16 @@ class ViperBoxControl:
     def __init__(
         self,
         recording_file_name: str,
-        recording_file_location: str,
         probe: int,
+        recording_file_location: str = os.getcwd(),
         metadata_stream: Optional[List[Any]] = None,
     ) -> None:
         """Initializes the ViperBoxControl object."""
         # TODO: check which other parameters logically are part of self and init.
         self._recording = False
-        self._recording_file_name = recording_file_name
+        self._recording_file_name = (
+            recording_file_name + strftime("_%Y-%m-%d_%H-%M-%S") + ".bin"
+        )
         self._recording_file_location = recording_file_location
         self._metadata_stream: Optional[List[Any]] = metadata_stream
         self._probe = probe
@@ -267,14 +268,14 @@ class ViperBoxControl:
 
 if __name__ == "__main__":
     # Example usage:
-    controller = ViperBoxControl()
-    pulse_shape = PulseShapeParameters()
-    pulse_train = PulseTrainParameters()
-    electrodes = [1, 2, 3]
-    viperbox = ViperBoxConfiguration(0)
-    config = ConfigurationParameters(pulse_shape, pulse_train, electrodes, viperbox)
+    controller = ViperBoxControl("test", 0)
+    # pulse_shape = PulseShapeParameters()
+    # pulse_train = PulseTrainParameters()
+    # electrodes = [1, 2, 3]
+    # viperbox = ViperBoxConfiguration(0)
+    # config = ConfigurationParameters(pulse_shape, pulse_train, electrodes, viperbox)
 
-    print(config.get_SUConfig_pars())
+    # print(config.get_SUConfig_pars())
 
     # controller.control_send_parameters()
     # controller.control_rec_setup(
