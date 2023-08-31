@@ -251,7 +251,7 @@ class ViperBoxControl:
     ):
         # Configure SU 0
         NVP.writeSUConfiguration(
-            ConfigurationParameters.get_SUConfig_pars(
+            config_params.get_SUConfig_pars(
                 self._handle, self._probe, stimunit, polarity
             )
         )
