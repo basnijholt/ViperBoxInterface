@@ -141,20 +141,28 @@ class ViperBoxControl:
 
         self._read_handle = NVP.streamOpenFile(self._recording_path, self._probe)
 
-        # reads one packet to get session id of last fifo,
-        # then skip all packets with that session id.
-        idpacket = NVP.streamReadData(self._read_handle, 1)  # 1 packet
-        id = idpacket[0].sessionID
-        # TODO: Maybe these packets shouldn't be skipped but just the session number
-        # should be part of the data so that the researchers can delete it themselves.
-        if id != 0:
-            subid = id
-            while id == subid:
-                packets = NVP.streamReadData(self._read_handle, self.SKIP_SIZE)
-                subid = packets[0].sessionID
-        else:
-            logging.error("Error: restart recording")
-            NVP.streamClose(self._read_handle)
+        status = NVP.readDiagStats(self._handle)
+        skip_packages = status.session_mismatch
+        dump_count = 0
+        while dump_count < skip_packages:
+            _ = NVP.streamReadData(self._read_handle, self.SKIP_SIZE)
+            dump_count += self.SKIP_SIZE
+
+        # # reads one packet to get session id of last fifo,
+        # # then skip all packets with that session id.
+        # idpacket = NVP.streamReadData(self._read_handle, 1)  # 1 packet
+        # id = idpacket[0].sessionID
+        # # TODO: Maybe these packets shouldn't be skipped but just the session number
+        # # should be part of the data so that the researchers can delete it themselves.
+
+        # if id != 0:
+        #     subid = id
+        #     while id == subid:
+        #         packets = NVP.streamReadData(self._read_handle, self.SKIP_SIZE)
+        #         subid = packets[0].sessionID
+        # else:
+        #     logging.error("Error: restart recording")
+        #     NVP.streamClose(self._read_handle)
 
         while True:
             t1 = self._currentTime()

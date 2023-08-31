@@ -5,4 +5,5 @@ Welcome to ViperBox Interface's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   modules
+   viperboxcontrol
+   parameters
