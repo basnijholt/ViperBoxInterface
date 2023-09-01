@@ -4,9 +4,14 @@ close_box.py
 NeuraviperPy.py
 FTD3XX.dll
 NeuraviperAPI_1_0_x64.dll
+
 .pytest_cache
 .ruff_cache
 mypy.ini
+
 docs/build
 docs/source/_static
 docs/source/_templates
+
+testarea.ipynb
+.ipynb_checkpoints/

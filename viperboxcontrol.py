@@ -1,5 +1,4 @@
 from typing import List, Optional, Type, Any, Tuple
-from time import strftime
 
 import NeuraviperPy as NVP
 import threading
@@ -35,7 +34,7 @@ class ViperBoxControl:
         # TODO: check which other parameters logically are part of self and init.
         self._recording = False
         self._recording_file_name = (
-            recording_file_name + strftime("_%Y-%m-%d_%H-%M-%S") + ".bin"
+            recording_file_name + time.strftime("_%Y-%m-%d_%H-%M-%S") + ".bin"
         )
         self._recording_file_location = recording_file_location
         self._metadata_stream: Optional[List[Any]] = metadata_stream
@@ -44,6 +43,7 @@ class ViperBoxControl:
             self._handle: Type[Any] = NVP.createHandle(0)
             NVP.openBS(self._handle)
         except Exception as e:
+            print(f"Error while setting up handle: {e}")
             logging.error(f"Error while setting up handle: {e}")
             return None
 
@@ -61,9 +61,6 @@ class ViperBoxControl:
 
     def control_rec_setup(
         self,
-        file_name: str,
-        file_location: str,
-        probe: int,
         reference_electrode: Optional[int] = None,
         electrode_mapping: Optional[bytes] = None,
         metadata_stream: Optional[List[Any]] = None,
@@ -72,9 +69,6 @@ class ViperBoxControl:
         """
         Set up the recording controller.
 
-        :param file_name: Name of the recording file.
-        :param file_location: Directory location to save the recording file.
-        :param probe: Probe number.
         :param reference_electrode: (Optional) Reference electrode number.
         :param electrode_mapping: (Optional) Electrode mapping as bytes.
         :param metadata_stream: (Optional) Metadata stream.
@@ -83,14 +77,12 @@ class ViperBoxControl:
         :return: True if setup was successful, False otherwise.
         """
 
-        if not (0 <= probe <= 3):
-            raise ValueError(
-                "Error: Invalid probe value. Expected a value between 0 and 3."
-            )
-        if not (0 <= reference_electrode <= 8):
-            raise ValueError(
-                "Error: Invalid reference electrode. Expected a value between 0 and 8."
-            )
+        if not reference_electrode:
+            if not (0 <= reference_electrode <= 8):
+                raise ValueError(
+                    "Error: Invalid reference electrode. "
+                    + "Expected a value between 0 and 8."
+                )
 
         self._metadata_stream = metadata_stream
 
@@ -101,10 +93,8 @@ class ViperBoxControl:
             )
 
         NVP.openProbes(self._handle)
-        NVP.init(self._handle, probe)
+        NVP.init(self._handle, self._probe)
 
-        self._recording_file_name = file_name
-        self._recording_file_location = file_location
         NVP.setFileStream(self._handle, self._recording_path)
         NVP.enableFileStream(self._handle, True)
 
@@ -113,10 +103,10 @@ class ViperBoxControl:
         # Uncommented and included the setup as needed:
         if electrode_mapping:
             for channel, electrode in enumerate(electrode_mapping):
-                NVP.selectElectrode(self._handle, probe, channel, electrode)
+                NVP.selectElectrode(self._handle, self._probe, channel, electrode)
 
-            # NVP.setReference(self._handle, probe, 0, reference_electrode)
-            NVP.writeChannelConfiguration(self._handle, probe)
+            # NVP.setReference(self._handle, self._probe, 0, reference_electrode)
+            NVP.writeChannelConfiguration(self._handle, self._probe)
 
         return True
 
@@ -189,7 +179,7 @@ class ViperBoxControl:
     def control_rec_start(
         self,
         recording_time: Optional[int] = 1,
-        store_NWB: bool = True,
+        store_NWB: bool = False,
     ) -> None:
         """
         Start the recording.
@@ -259,6 +249,7 @@ class ViperBoxControl:
         config_params: ConfigurationParameters = None,
     ) -> None:
         # Configure SU 0
+        # NVP.transferSPI(self._handle, self._probe, 0x00)
         NVP.writeSUConfiguration(
             config_params.get_SUConfig_pars(
                 self._handle, self._probe, stimunit, polarity
@@ -268,9 +259,10 @@ class ViperBoxControl:
         NVP.setOSimage(self._handle, self._probe, bytes(128 * [8]))
         NVP.writeOSConfiguration(self._handle, self._probe, False)
 
-    def stimulation_trigger(self, start_recording: bool = True) -> None:
-        if self._recording is False and start_recording is True:
-            self.control_rec_start(recording_time=None)
+    def stimulation_trigger(self, recording_time=None) -> None:
+        if self._recording is False:
+            self.control_rec_start(recording_time=recording_time)
+            time.sleep(0.5)
         NVP.SUtrig1(self._handle, self._probe, bytes([8]))
 
 
@@ -286,14 +278,10 @@ if __name__ == "__main__":
     # print(config.get_SUConfig_pars())
 
     # controller.control_send_parameters()
-    # controller.control_rec_setup(
-    #     file_name="exp1.bin",
-    #     file_location="./",
-    #     probe=0,
-    #     reference_electrode=2,
-    #     emulated=True,
-    # )
-    # controller.control_rec_start()
-    # print(controller)
-    # controller.control_rec_stop()
-    # print(controller)
+    controller.control_rec_setup(
+        emulated=True,
+    )
+    controller.control_rec_start()
+    print(controller)
+    controller.control_rec_stop()
+    print(controller)
