@@ -53,6 +53,7 @@ class PulseShapeParameters:
     :param int pulse_amplitude_cathode: Amplitude of the cathode pulse (default: 1)
     :param bool pulse_amplitude_equal: Whether the amplitude of anode and cathode pulses
     should be equal (default: False)
+    :param int pulse_duration: Duration of entire pulse
     """
 
     biphasic: bool = True
@@ -65,6 +66,8 @@ class PulseShapeParameters:
     pulse_amplitude_anode: int = 1
     pulse_amplitude_cathode: int = 1
     pulse_amplitude_equal: bool = False
+
+    pulse_duration: int = 600
 
     def __post_init__(self) -> None:
         """Initialize values and verify them."""
@@ -138,6 +141,24 @@ class PulseShapeParameters:
                     + "(i.e. monophasic)"
                 )
 
+        sum_pulses = (
+            self.first_pulse_phase_width
+            + self.pulse_interphase_interval
+            + self.second_pulse_phase_width
+            + self.discharge_time
+        )
+        if self.pulse_duration != sum_pulses:
+            print(
+                self.first_pulse_phase_width,
+                self.pulse_interphase_interval,
+                self.second_pulse_phase_width,
+                self.discharge_time,
+            )
+            raise ValueError(
+                f"Expected pulse_duration ({self.pulse_duration} us) is not equal to "
+                + f"the sum of independent pulse parts ({sum_pulses} us)."
+            )
+
 
 @dataclass
 class PulseTrainParameters:
@@ -151,7 +172,7 @@ class PulseTrainParameters:
     :param onset_jitter: Jitter in onset timing.
     """
 
-    number_of_pulses: int = 50
+    number_of_pulses: int = 20
     frequency_of_pulses: int = 2500
     number_of_trains: int = 1
     train_interval: int = 1000
@@ -167,6 +188,8 @@ class PulseTrainParameters:
         verify_step_min_max("number_of_trains", self.number_of_trains, 1, 1, 20)
         verify_step_min_max("train_interval", self.train_interval, 1000, 1000, 3000000)
         verify_step_min_max("onset_jitter", self.onset_jitter, 1000, 0, 2000000)
+        # verify_step_min_max("interpulse_interval", self.discharge_time_extra, 100,
+        # 100, 51000),
         # TODO: check if 1/frequency_of_pulses is the same as pulse_duration, this
         #       should probably be done on the level of ConfigurationParameters
 
@@ -295,7 +318,7 @@ class ConfigurationParameters:
                 raise ValueError("Electrodes should have values between 1 and 128.")
 
     def get_SUConfig_pars(
-        self, handle=None, probe=0, stimunit=0, polarity=0
+        self, handle=None, probe=0, stim_unit=0, polarity=0
     ) -> List[Any]:
         """
         Generate and return stimulation unit parameters from all the configured
@@ -303,7 +326,7 @@ class ConfigurationParameters:
 
         :param handle: Hardware handle (default is None).
         :param probe: Probe index (default is 0).
-        :param stimunit: Stimulation unit index (default is 0).
+        :param stim_unit: Stimulation unit index (default is 0).
         :param polarity: Polarity of the pulse (default is 0).
         :return: A list containing the SUConfig parameters that can be fed directly into
         NVP.writeSUConfiguration.
@@ -318,7 +341,7 @@ class ConfigurationParameters:
         return (
             handle,
             probe,
-            stimunit,
+            stim_unit,
             polarity,
             all_parameters.get("number_of_pulses", None),
             all_parameters.get("pulse_amplitude_anode", None),
@@ -332,6 +355,18 @@ class ConfigurationParameters:
             all_parameters.get("discharge_time", None),
             all_parameters.get("discharge_time_extra", None),
         )
+
+    @property
+    def stim_time(self):
+        """Returns total stimulation time of one train."""
+        total_stim_time = (
+            self.pulse_shape_parameters.pulse_duration
+            * self.pulse_train_parameters.number_of_pulses
+        ) + self.pulse_shape_parameters.discharge_time_extra
+        if self.pulse_train_parameters.number_of_trains > 0:
+            return total_stim_time * self.pulse_train_parameters.number_of_trains
+        else:
+            return total_stim_time
 
 
 if __name__ == "__main__":
@@ -357,3 +392,4 @@ if __name__ == "__main__":
         config.stim_configuration.amplitude_list,
     )
     print("StimulationConfiguration.stim_list: ", config.stim_configuration.stim_list)
+    print("total train time: ", config.stim_time)
