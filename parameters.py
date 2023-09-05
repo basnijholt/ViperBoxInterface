@@ -1,5 +1,6 @@
-from dataclasses import dataclass, asdict
-from typing import Any, List
+from dataclasses import dataclass, asdict, field
+from typing import Any, List, Tuple
+import random
 
 """
 This module contains classes and functions for defining and verifying parameters
@@ -198,6 +199,65 @@ class ViperBoxConfiguration:
 
 
 @dataclass
+class StimulationConfiguration:
+    """
+    Data class for creating a stimulation list. If repetions is larger than one and
+    randomize is True, then a randomized list is concatenated repetition times.
+
+    :param stim_electrode_list: List of stimulation electrodes.
+    :param rec_electrodes_list: List of recording electrodes.
+    :param pulse_amplitudes: Tuple of three ints for setting amplitude min, max and step
+    :param randomize: Boolean flag to indicate if stim_list need to be randomized.
+    :param repetitions: The number of times stim_list should be repeated and shuffled.
+    """
+
+    stim_electrode_list: List[int]
+    rec_electrodes_list: List[int]
+    pulse_amplitudes: Tuple[int, int, int]
+    randomize: bool = False
+    repetitions: int = 1
+
+    amplitude_list: List[int] = field(init=False)
+    stim_list: List[Tuple[int, int]] = field(init=False)
+
+    def __post_init__(self):
+        # Check if pulse_amplitudes is a tuple of three ints
+        if len(self.pulse_amplitudes) != 3:
+            raise ValueError("pulse_amplitudes must be a tuple of three ints.")
+
+        # Check if repetitions is 1 or more
+        if self.repetitions < 1:
+            raise ValueError("repetitions must be 1 or more.")
+
+        # Create amplitude_list
+        self.amplitude_list = list(
+            range(
+                self.pulse_amplitudes[0],
+                self.pulse_amplitudes[1] + 1,
+                self.pulse_amplitudes[2],
+            )
+        )
+
+        # Create stim_list
+        self.stim_list = [
+            (x, y) for x in self.stim_electrode_list for y in self.amplitude_list
+        ]
+
+        # If randomize is True, shuffle stim_list
+        if self.randomize:
+            random.shuffle(self.stim_list)
+
+        # If repetitions is larger than one, repeat and shuffle stim_list
+        if self.repetitions > 1:
+            combined_list = self.stim_list.copy()
+            for _ in range(self.repetitions - 1):
+                temp_list = self.stim_list.copy()
+                random.shuffle(temp_list)
+                combined_list.extend(temp_list)
+            self.stim_list = combined_list
+
+
+@dataclass
 class ConfigurationParameters:
     """
     Data class to store all the configuration parameters:
@@ -208,14 +268,15 @@ class ConfigurationParameters:
 
     :param pulse_shape_parameters: Object of PulseShapeParameters class.
     :param pulse_train_parameters: Object of PulseTrainParameters class.
-    :param list_of_stimulation_electrodes: List of electrodes to be stimulated.
+    :param stim_electrode_list: List of electrodes to be stimulated.
     :param viperbox_configuration: Object of ViperBoxConfiguration class.
     """
 
     pulse_shape_parameters: PulseShapeParameters
     pulse_train_parameters: PulseTrainParameters
-    list_of_stimulation_electrodes: List[int]
+    stim_electrode_list: List[int]
     viperbox_configuration: ViperBoxConfiguration
+    stim_configuration: StimulationConfiguration
 
     def __post_init__(self) -> None:
         """Verifies the electrodes after initialization."""
@@ -223,8 +284,8 @@ class ConfigurationParameters:
 
     def verify_electrodes(self) -> None:
         """Verifies the constraints for the list of electrodes."""
-        electrodes_set = set(self.list_of_stimulation_electrodes)
-        if len(electrodes_set) != len(self.list_of_stimulation_electrodes):
+        electrodes_set = set(self.stim_electrode_list)
+        if len(electrodes_set) != len(self.stim_electrode_list):
             # log "You've supplied duplicate electrodes."
             # raise ValueError("Duplicate electrodes are not allowed.")
             pass
@@ -279,6 +340,20 @@ if __name__ == "__main__":
     pulse_train = PulseTrainParameters()
     electrodes = [1, 2, 3]
     viperbox = ViperBoxConfiguration(0)
-    config = ConfigurationParameters(pulse_shape, pulse_train, electrodes, viperbox)
-    test = config.get_SUConfig_pars()
+    stim_configuration = StimulationConfiguration(
+        stim_electrode_list=[1, 2],
+        rec_electrodes_list=[3, 4],
+        pulse_amplitudes=(1, 10, 2),
+        randomize=True,
+        repetitions=2,
+    )
+    config = ConfigurationParameters(
+        pulse_shape, pulse_train, electrodes, viperbox, stim_configuration
+    )
+    test = config.get_SUConfig_pars(handle="fakehandle")
     print("SUConfig pars: ", test)
+    print(
+        "StimulationConfiguration.amplitude_list: ",
+        config.stim_configuration.amplitude_list,
+    )
+    print("StimulationConfiguration.stim_list: ", config.stim_configuration.stim_list)
