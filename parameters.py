@@ -38,6 +38,7 @@ class PulseShapeParameters:
     Class for holding pulse shape parameters.
 
     :param bool biphasic: Whether the pulse is biphasic or monophasic (default: True)
+    :param int pulse_delay: Delay before first pulse starts (default: 0 us)
     :param int first_pulse_phase_width: Width of the first phase of the pulse (default:
     170 us)
     :param int pulse_interphase_interval: Interval between the two phases of the pulse
@@ -53,6 +54,7 @@ class PulseShapeParameters:
     """
 
     biphasic: bool = True
+    pulse_delay: int = 0
     first_pulse_phase_width: int = 170
     pulse_interphase_interval: int = 60
     second_pulse_phase_width: int = 170
@@ -88,6 +90,7 @@ class PulseShapeParameters:
         """Verify the values against minimum, maximum and step size."""
         # List of parameters to verify
         verify_params = [
+            ("pulse_delay", self.pulse_delay, 10, 10, 2550),
             ("first_pulse_phase_width", self.first_pulse_phase_width, 10, 10, 2550),
             ("pulse_interphase_interval", self.pulse_interphase_interval, 10, 10, 2550),
             ("second_pulse_phase_width", self.second_pulse_phase_width, 10, 10, 2550),
@@ -129,13 +132,15 @@ class PulseShapeParameters:
                 )
 
         sum_pulses = (
-            self.first_pulse_phase_width
+            self.pulse_delay
+            + self.first_pulse_phase_width
             + self.pulse_interphase_interval
             + self.second_pulse_phase_width
             + self.discharge_time
         )
         if self.pulse_duration != sum_pulses:
             print(
+                self.pulse_delay,
                 self.first_pulse_phase_width,
                 self.pulse_interphase_interval,
                 self.second_pulse_phase_width,
@@ -348,8 +353,7 @@ class ConfigurationParameters:
             all_parameters.get("pulse_amplitude_anode", None),
             all_parameters.get("pulse_amplitude_cathode", None),
             all_parameters.get("pulse_duration", None),
-            0,  # pulse_delay
-            # all_parameters.get("pulse_delay", None),
+            all_parameters.get("pulse_delay", None),
             all_parameters.get("first_pulse_phase_width", None),
             all_parameters.get("pulse_interphase_interval", None),
             all_parameters.get("second_pulse_phase_width", None),
