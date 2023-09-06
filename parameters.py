@@ -206,7 +206,7 @@ class ViperBoxConfiguration:
     :param probe: Probe index to be used (should be between 0 and 3).
     """
 
-    probe: int
+    probe: int = field(default=0)
 
     def __post_init__(self) -> None:
         """Verifies the probe number is within bounds."""
@@ -234,9 +234,9 @@ class StimulationConfiguration:
     :param repetitions: The number of times stim_list should be repeated and shuffled.
     """
 
-    stim_electrode_list: List[int]
-    rec_electrodes_list: List[int]
-    pulse_amplitudes: Tuple[int, int, int]
+    stim_electrode_list: List[int] = field(default_factory=list)
+    rec_electrodes_list: List[int] = field(default_factory=list)
+    pulse_amplitudes: Tuple[int, int, int] = (0, 1, 1)
     randomize: bool = False
     repetitions: int = 1
 
@@ -295,11 +295,15 @@ class ConfigurationParameters:
     :param viperbox_configuration: Object of ViperBoxConfiguration class.
     """
 
-    pulse_shape_parameters: PulseShapeParameters
-    pulse_train_parameters: PulseTrainParameters
-    stim_electrode_list: List[int]
-    viperbox_configuration: ViperBoxConfiguration
-    stim_configuration: StimulationConfiguration
+    pulse_shape_parameters: PulseShapeParameters = field(default=PulseShapeParameters())
+    pulse_train_parameters: PulseTrainParameters = field(default=PulseTrainParameters())
+    viperbox_configuration: ViperBoxConfiguration = field(
+        default=ViperBoxConfiguration()
+    )
+    stim_configuration: StimulationConfiguration = field(
+        default=StimulationConfiguration()
+    )
+    stim_electrode_list: List[int] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """Verifies the electrodes after initialization."""
@@ -310,8 +314,11 @@ class ConfigurationParameters:
         electrodes_set = set(self.stim_electrode_list)
         if len(electrodes_set) != len(self.stim_electrode_list):
             # log "You've supplied duplicate electrodes."
-            # raise ValueError("Duplicate electrodes are not allowed.")
-            pass
+            raise ValueError("Duplicate electrodes are not allowed.")
+            # pass
+        if len(electrodes_set) == 0:
+            return None
+            # raise ValueError("Electrode list can't be empty")
 
         for elec in electrodes_set:
             if not 1 <= elec <= 128:
@@ -376,20 +383,25 @@ if __name__ == "__main__":
     electrodes = [1, 2, 3]
     viperbox = ViperBoxConfiguration(0)
     stim_configuration = StimulationConfiguration(
-        stim_electrode_list=[1, 2],
-        rec_electrodes_list=[3, 4],
-        pulse_amplitudes=(1, 10, 2),
-        randomize=True,
-        repetitions=2,
+        # stim_electrode_list=[1, 2],
+        # rec_electrodes_list=[3, 4],
+        # pulse_amplitudes=(1, 10, 2),
+        # randomize=True,
+        # repetitions=2,
     )
-    config = ConfigurationParameters(
-        pulse_shape, pulse_train, electrodes, viperbox, stim_configuration
-    )
-    test = config.get_SUConfig_pars(handle="fakehandle")
-    print("SUConfig pars: ", test)
-    print(
-        "StimulationConfiguration.amplitude_list: ",
-        config.stim_configuration.amplitude_list,
-    )
-    print("StimulationConfiguration.stim_list: ", config.stim_configuration.stim_list)
-    print("total train time: ", config.stim_time)
+    # config = ConfigurationParameters(
+    #     pulse_shape, pulse_train, viperbox, stim_configuration, electrodes
+    # )
+
+    config = ConfigurationParameters()
+
+    print("config: ", config)
+
+    # test = config.get_SUConfig_pars(handle="fakehandle")
+    # print("SUConfig pars: ", test)
+    # print(
+    #     "StimulationConfiguration.amplitude_list: ",
+    #     config.stim_configuration.amplitude_list,
+    # )
+    # print("StimulationConfiguration.stim_list: ", config.stim_configuration.stim_list)
+    # print("total train time: ", config.stim_time)
