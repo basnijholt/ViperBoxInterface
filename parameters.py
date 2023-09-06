@@ -8,8 +8,6 @@ for stimulation and recording.
 """
 
 # TODO:
-# - run verify_values whenever any setting is changed (lazy) OR only run
-#   relevant checks if specific values are changed
 # - implement onset_jitter in trigger probably
 
 
@@ -59,12 +57,22 @@ class PulseShapeParameters:
     pulse_interphase_interval: int = 60
     second_pulse_phase_width: int = 170
     discharge_time: int = 200
-    discharge_time_extra: int = 0
+    # discharge_time_extra: int = 0
     pulse_amplitude_anode: int = 1
     pulse_amplitude_cathode: int = 1
     pulse_amplitude_equal: bool = False
 
     pulse_duration: int = 600
+
+    shape_step_size_dict = {
+        pulse_delay: 100,
+        first_pulse_phase_width: 10,
+        pulse_interphase_interval: 10,
+        second_pulse_phase_width: 10,
+        discharge_time: 100,
+        pulse_amplitude_anode: 1,
+        pulse_amplitude_cathode: 1,
+    }
 
     def __post_init__(self) -> None:
         """Initialize values and verify them."""
@@ -90,11 +98,11 @@ class PulseShapeParameters:
         """Verify the values against minimum, maximum and step size."""
         # List of parameters to verify
         verify_params = [
-            ("pulse_delay", self.pulse_delay, 10, 10, 2550),
+            ("pulse_delay", self.pulse_delay, 100, 0, 25500),
             ("first_pulse_phase_width", self.first_pulse_phase_width, 10, 10, 2550),
-            ("pulse_interphase_interval", self.pulse_interphase_interval, 10, 10, 2550),
-            ("second_pulse_phase_width", self.second_pulse_phase_width, 10, 10, 2550),
-            ("discharge_time", self.discharge_time, 100, 100, 25500),
+            ("pulse_interphase_interval", self.pulse_interphase_interval, 10, 0, 2550),
+            ("second_pulse_phase_width", self.second_pulse_phase_width, 10, 0, 2550),
+            ("discharge_time", self.discharge_time, 100, 0, 25500),
             ("pulse_amplitude_anode", self.pulse_amplitude_anode, 1, 0, 255),
             ("pulse_amplitude_cathode", self.pulse_amplitude_cathode, 1, 0, 255),
         ]
@@ -109,8 +117,8 @@ class PulseShapeParameters:
     def _additional_checks(self) -> None:
         """Run additional checks to verify the values."""
 
-        if self.discharge_time_extra != 0:
-            raise ValueError("Expected discharge_time_extra to be 0")
+        # if self.discharge_time_extra != 0:
+        #     raise ValueError("Expected discharge_time_extra to be 0")
 
         if self.pulse_amplitude_equal:
             if self.pulse_amplitude_cathode != self.pulse_amplitude_anode:
@@ -172,18 +180,20 @@ class PulseTrainParameters:
     onset_jitter: int = 1000
     discharge_time_extra: int = 100
 
+    train_step_size_dict = {number_of_pulses: 1, discharge_time_extra: 100}
+
     def __post_init__(self) -> None:
         """Verifies the values after initialization."""
         self.verify_values()
 
     def verify_values(self) -> None:
         """Verifies the constraints for all parameters."""
-        verify_step_min_max("number_of_pulses", self.number_of_pulses, 1, 1, 255)
+        verify_step_min_max("number_of_pulses", self.number_of_pulses, 1, 0, 255)
         verify_step_min_max("number_of_trains", self.number_of_trains, 1, 1, 20)
         verify_step_min_max("train_interval", self.train_interval, 1000, 1000, 3000000)
         verify_step_min_max("onset_jitter", self.onset_jitter, 1000, 0, 2000000)
         verify_step_min_max(
-            "discharge_time_extra", self.discharge_time_extra, 100, 100, 25500
+            "discharge_time_extra", self.discharge_time_extra, 100, 0, 25500
         ),
         # TODO: check if 1/frequency_of_pulses is the same as pulse_duration, this
         #       should probably be done on the level of ConfigurationParameters
@@ -349,29 +359,39 @@ class ConfigurationParameters:
             probe,
             stim_unit,
             polarity,
-            all_parameters.get("number_of_pulses", None),
-            all_parameters.get("pulse_amplitude_anode", None),
-            all_parameters.get("pulse_amplitude_cathode", None),
-            all_parameters.get("pulse_duration", None),
-            all_parameters.get("pulse_delay", None),
-            all_parameters.get("first_pulse_phase_width", None),
-            all_parameters.get("pulse_interphase_interval", None),
-            all_parameters.get("second_pulse_phase_width", None),
-            all_parameters.get("discharge_time", None),
-            all_parameters.get("discharge_time_extra", None),
+            all_parameters.get("number_of_pulses", None)
+            // self.pulse_train_parameters.number_of_pulses,
+            all_parameters.get("pulse_amplitude_anode", None)
+            // self.pulse_shape_parameters.pulse_amplitude_anode,
+            all_parameters.get("pulse_amplitude_cathode", None)
+            // self.pulse_shape_parameters.pulse_amplitude_cathode,
+            all_parameters.get("pulse_duration", None)
+            // self.pulse_shape_parameters.pulse_duration,
+            all_parameters.get("pulse_delay", None)
+            // self.pulse_shape_parameters.pulse_delay,
+            all_parameters.get("first_pulse_phase_width", None)
+            // self.pulse_shape_parameters.first_pulse_phase_width,
+            all_parameters.get("pulse_interphase_interval", None)
+            // self.pulse_shape_parameters.pulse_interphase_interval,
+            all_parameters.get("second_pulse_phase_width", None)
+            // self.pulse_shape_parameters.second_pulse_phase_width,
+            all_parameters.get("discharge_time", None)
+            // self.pulse_shape_parameters.discharge_time,
+            all_parameters.get("discharge_time_extra", None)
+            // self.pulse_train_parameters.discharge_time_extra,
         )
 
     @property
     def stim_time(self):
-        """Returns total stimulation time of one train."""
+        """Returns total stimulation time of one train in seconds."""
         total_stim_time = (
             self.pulse_shape_parameters.pulse_duration
             * self.pulse_train_parameters.number_of_pulses
         ) + self.pulse_shape_parameters.discharge_time_extra
         if self.pulse_train_parameters.number_of_trains > 0:
-            return total_stim_time * self.pulse_train_parameters.number_of_trains
+            return total_stim_time * self.pulse_train_parameters.number_of_trains / 1e6
         else:
-            return total_stim_time
+            return total_stim_time / 1e6
 
 
 if __name__ == "__main__":

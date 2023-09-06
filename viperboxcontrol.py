@@ -125,6 +125,7 @@ class ViperBoxControl:
                 NVP.selectElectrode(self._handle, self._probe, channel, electrode)
 
             # NVP.setReference(self._handle, self._probe, 0, reference_electrode)
+            # (which reference electrodes?)
             NVP.writeChannelConfiguration(self._handle, self._probe)
 
         return True
