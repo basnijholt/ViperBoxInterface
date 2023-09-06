@@ -10,8 +10,6 @@ for stimulation and recording.
 # TODO:
 # - run verify_values whenever any setting is changed (lazy) OR only run
 #   relevant checks if specific values are changed
-# - adapt and include discharge times if necessary, if so, add logic
-#   to make interpulse_interval the same as the sum of both discharge times
 # - implement onset_jitter in trigger probably
 
 
@@ -46,9 +44,7 @@ class PulseShapeParameters:
     (default: 60 us)
     :param int second_pulse_phase_width: Width of the second phase of the pulse
     (default: 170 us)
-    :param int discharge_time: Time for discharge (default: 200 us)
-    :param int discharge_time_extra: Additional time for discharge (default: 0 us)
-    :param int interpulse_interval: Interval between pulses (default: 200 us)
+    :param int discharge_time: Discharge interval between pulses (default: 200 us)
     :param int pulse_amplitude_anode: Amplitude of the anode pulse (default: 1)
     :param int pulse_amplitude_cathode: Amplitude of the cathode pulse (default: 1)
     :param bool pulse_amplitude_equal: Whether the amplitude of anode and cathode pulses
@@ -62,7 +58,6 @@ class PulseShapeParameters:
     second_pulse_phase_width: int = 170
     discharge_time: int = 200
     discharge_time_extra: int = 0
-    interpulse_interval: int = 200  # = discharge time
     pulse_amplitude_anode: int = 1
     pulse_amplitude_cathode: int = 1
     pulse_amplitude_equal: bool = False
@@ -82,7 +77,6 @@ class PulseShapeParameters:
 
     def correct_values(self) -> None:
         """Set and correct values based on other attributes."""
-        self.discharge_time = self.interpulse_interval
         self.discharge_time_extra = 0
         if self.pulse_amplitude_equal:
             self.pulse_amplitude_cathode = self.pulse_amplitude_anode
@@ -97,7 +91,7 @@ class PulseShapeParameters:
             ("first_pulse_phase_width", self.first_pulse_phase_width, 10, 10, 2550),
             ("pulse_interphase_interval", self.pulse_interphase_interval, 10, 10, 2550),
             ("second_pulse_phase_width", self.second_pulse_phase_width, 10, 10, 2550),
-            ("interpulse_interval", self.interpulse_interval, 100, 100, 51000),
+            ("discharge_time", self.discharge_time, 100, 100, 25500),
             ("pulse_amplitude_anode", self.pulse_amplitude_anode, 1, 0, 255),
             ("pulse_amplitude_cathode", self.pulse_amplitude_cathode, 1, 0, 255),
         ]
@@ -111,13 +105,6 @@ class PulseShapeParameters:
 
     def _additional_checks(self) -> None:
         """Run additional checks to verify the values."""
-        # some checks to see wheter values weren't changed manually
-        expected_discharge_time = self.interpulse_interval
-        if self.discharge_time != expected_discharge_time:
-            raise ValueError(
-                f"Expected discharge_time to be {expected_discharge_time}, but got "
-                + f"{self.discharge_time}"
-            )
 
         if self.discharge_time_extra != 0:
             raise ValueError("Expected discharge_time_extra to be 0")
@@ -170,6 +157,7 @@ class PulseTrainParameters:
     :param number_of_trains: Number of pulse trains.
     :param train_interval: Interval between trains.
     :param onset_jitter: Jitter in onset timing.
+    :param discharge_time_extra: Interpulse discharge interval.
     """
 
     number_of_pulses: int = 20
@@ -177,6 +165,7 @@ class PulseTrainParameters:
     number_of_trains: int = 1
     train_interval: int = 1000
     onset_jitter: int = 1000
+    discharge_time_extra: int = 100
 
     def __post_init__(self) -> None:
         """Verifies the values after initialization."""
@@ -188,8 +177,9 @@ class PulseTrainParameters:
         verify_step_min_max("number_of_trains", self.number_of_trains, 1, 1, 20)
         verify_step_min_max("train_interval", self.train_interval, 1000, 1000, 3000000)
         verify_step_min_max("onset_jitter", self.onset_jitter, 1000, 0, 2000000)
-        # verify_step_min_max("interpulse_interval", self.discharge_time_extra, 100,
-        # 100, 51000),
+        verify_step_min_max(
+            "discharge_time_extra", self.discharge_time_extra, 100, 100, 25500
+        ),
         # TODO: check if 1/frequency_of_pulses is the same as pulse_duration, this
         #       should probably be done on the level of ConfigurationParameters
 
@@ -224,7 +214,7 @@ class ViperBoxConfiguration:
 @dataclass
 class StimulationSweepParameters:
     """
-    Data class for creating a stimulation list. If repetions is larger than one and
+    Data class for creating a stimulation list. If repetitions is larger than one and
     randomize is True, then a randomized list is concatenated repetition times.
 
     :param stim_sweep_electrode_list: List of stimulation electrodes.
