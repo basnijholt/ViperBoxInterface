@@ -222,19 +222,19 @@ class ViperBoxConfiguration:
 
 
 @dataclass
-class StimulationConfiguration:
+class StimulationSweepParameters:
     """
     Data class for creating a stimulation list. If repetions is larger than one and
     randomize is True, then a randomized list is concatenated repetition times.
 
-    :param stim_electrode_list: List of stimulation electrodes.
+    :param stim_sweep_electrode_list: List of stimulation electrodes.
     :param rec_electrodes_list: List of recording electrodes.
     :param pulse_amplitudes: Tuple of three ints for setting amplitude min, max and step
     :param randomize: Boolean flag to indicate if stim_list need to be randomized.
     :param repetitions: The number of times stim_list should be repeated and shuffled.
     """
 
-    stim_electrode_list: List[int] = field(default_factory=list)
+    stim_sweep_electrode_list: List[int] = field(default_factory=list)
     rec_electrodes_list: List[int] = field(default_factory=list)
     pulse_amplitudes: Tuple[int, int, int] = (0, 1, 1)
     randomize: bool = False
@@ -263,7 +263,7 @@ class StimulationConfiguration:
 
         # Create stim_list
         self.stim_list = [
-            (x, y) for x in self.stim_electrode_list for y in self.amplitude_list
+            (x, y) for x in self.stim_sweep_electrode_list for y in self.amplitude_list
         ]
 
         # If randomize is True, shuffle stim_list
@@ -304,8 +304,8 @@ class ConfigurationParameters:
     viperbox_configuration: ViperBoxConfiguration = field(
         default_factory=ViperBoxConfiguration
     )
-    stim_configuration: StimulationConfiguration = field(
-        default_factory=StimulationConfiguration
+    stim_configuration: StimulationSweepParameters = field(
+        default_factory=StimulationSweepParameters
     )
     stim_electrode_list: List[int] = field(default_factory=list)
 
@@ -386,8 +386,8 @@ if __name__ == "__main__":
     pulse_train = PulseTrainParameters()
     electrodes = [1, 2, 3]
     viperbox = ViperBoxConfiguration(0)
-    stim_configuration = StimulationConfiguration(
-        # stim_electrode_list=[1, 2],
+    stim_configuration = StimulationSweepParameters(
+        # stim_sweep_electrode_list=[1, 2],
         # rec_electrodes_list=[3, 4],
         # pulse_amplitudes=(1, 10, 2),
         # randomize=True,
@@ -404,8 +404,9 @@ if __name__ == "__main__":
     # test = config.get_SUConfig_pars(handle="fakehandle")
     # print("SUConfig pars: ", test)
     # print(
-    #     "StimulationConfiguration.amplitude_list: ",
+    #     "StimulationSweepParameters.amplitude_list: ",
     #     config.stim_configuration.amplitude_list,
     # )
-    # print("StimulationConfiguration.stim_list: ", config.stim_configuration.stim_list)
+    # print("StimulationSweepParameters.stim_list: ",
+    #       config.stim_configuration.stim_list)
     # print("total train time: ", config.stim_time)
