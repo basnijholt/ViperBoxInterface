@@ -7,8 +7,13 @@ import numpy as np
 import os
 import socket
 import logging
+import ctypes
 from parameters import (
     ConfigurationParameters,
+    PulseShapeParameters,
+    PulseTrainParameters,
+    ViperBoxConfiguration,
+    StimulationSweepParameters,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -22,13 +27,17 @@ class ViperBoxControl:
     BUFFER_SIZE = 500
     SKIP_SIZE = 20
     FREQ = 20000
+    OS_WRITE_TIME = 1
 
     def __init__(
         self,
         recording_file_name: str,
         probe: int,
+        config_params: Optional[ConfigurationParameters] = None,
+        stim_unit: int = 0,
         recording_file_location: str = os.getcwd(),
         metadata_stream: Optional[List[Any]] = None,
+        no_box: bool = False,
     ) -> None:
         """Initializes the ViperBoxControl object."""
         # TODO: check which other parameters logically are part of self and init.
@@ -39,13 +48,23 @@ class ViperBoxControl:
         self._recording_file_location = recording_file_location
         self._metadata_stream: Optional[List[Any]] = metadata_stream
         self._probe = probe
-        try:
-            self._handle: Type[Any] = NVP.createHandle(0)
-            NVP.openBS(self._handle)
-        except Exception as e:
-            print(f"Error while setting up handle: {e}")
-            logging.error(f"Error while setting up handle: {e}")
-            return None
+        self._stim_unit = stim_unit
+        self.config_params = config_params
+
+        if no_box:
+            self._handle = "no_box"
+        else:
+            try:
+                self._handle: Type[Any] = NVP.createHandle(0)
+                NVP.openBS(self._handle)
+            except Exception as e:
+                print(f"Error while setting up handle: {e}")
+                logging.error(f"Error while setting up handle: {e}")
+                return None
+
+    def update_config(self, config_params: ConfigurationParameters) -> None:
+        self.config_params = config_params
+        return None
 
     @property
     def _recording_path(self) -> Optional[str]:
@@ -67,7 +86,7 @@ class ViperBoxControl:
         emulated: bool = False,
     ) -> bool:
         """
-        Set up the recording controller.
+        Handles setting recording parameters.
 
         :param reference_electrode: (Optional) Reference electrode number.
         :param electrode_mapping: (Optional) Electrode mapping as bytes.
@@ -182,7 +201,7 @@ class ViperBoxControl:
         store_NWB: bool = False,
     ) -> None:
         """
-        Start the recording.
+        Handles starting of recording state.
 
         :param infinite_rec: (Optional) Flag to determine if the recoding will continue
         indefinitely or until control_rec_stop is called.
@@ -209,7 +228,7 @@ class ViperBoxControl:
             self.control_rec_stop()
 
     def control_rec_stop(self) -> None:
-        """Stop the ongoing recording."""
+        """Handles stopping of recording state."""
 
         if not self._recording:
             logging.info("No recording in progress.")
@@ -244,44 +263,108 @@ class ViperBoxControl:
 
     def control_send_parameters(
         self,
-        stimunit: int = 0,
         polarity: int = 0,
-        config_params: ConfigurationParameters = None,
+        # config_params: ConfigurationParameters = None,
     ) -> None:
-        # Configure SU 0
-        # NVP.transferSPI(self._handle, self._probe, 0x00)
-        NVP.writeSUConfiguration(
-            config_params.get_SUConfig_pars(
-                self._handle, self._probe, stimunit, polarity
-            )
-        )
+        """Handles setup of stimulation. Sends parameters to the ASIC."""
+        # self.config_params = config_params
+
+        self.write_SU()
+
         # enable all OSes and connects them to SU 0
+        # TODO: this is not correct, this should be only on the selected electrodes
         NVP.setOSimage(self._handle, self._probe, bytes(128 * [8]))
         NVP.writeOSConfiguration(self._handle, self._probe, False)
 
     def stimulation_trigger(self, recording_time=None) -> None:
+        """Handles start of stimulation."""
         if self._recording is False:
             self.control_rec_start(recording_time=recording_time)
             time.sleep(0.5)
         NVP.SUtrig1(self._handle, self._probe, bytes([8]))
 
+    def stim_sweep(
+        self,
+        polarity: int = 0,
+        # config_params: ConfigurationParameters = None,
+    ) -> None:
+        # self.config_params = config_params
+
+        self.config_params.pulse_shape_parameters.pulse_amplitude_equal = True
+
+        # prep and SU config
+        self.write_SU()
+        # prep and write OS config
+        NVP.setOSimage(self._handle, self._probe, (ctypes.c_byte * 128)())
+        NVP.writeOSConfiguration(self._handle, self._probe, False)
+
+        if self._recording is False:
+            self.control_rec_start(recording_time=None)
+            time.sleep(0.5)
+
+        last_stim = (None, None)
+        for stimpair in self.config_params.stim_configuration.stim_list:
+            if last_stim[0] is not None:
+                NVP.setOSEnable(self._handle, self._probe, last_stim[0], False)
+            NVP.setOSEnable(self._handle, self._probe, stimpair[0], True)
+            # TODO: potentially check if the values are written
+            NVP.writeOSConfiguration(self._handle, self._probe, False)
+            self.config_params.pulse_shape_parameters.pulse_amplitude_anode = stimpair[
+                1
+            ]
+            self.write_SU()
+            # wait until everything is written to ASIC
+            time.sleep(self.OS_WRITE_TIME)
+            NVP.SUtrig1(self._handle, self._probe, bytes([8]))
+            # wait until stimulation is done plus 1 second
+            time.sleep(self.config_params.stim_time + 1)
+            last_stim = stimpair
+        # wait 10 seconds after end of stimulation
+        time.sleep(10)
+        self.control_rec_stop()
+
+    def write_SU(
+        self,
+        # config_params: ConfigurationParameters,
+        polarity: int = 0,
+    ) -> bool:
+        # Configure SU 0 and check if SU config was updated.
+        # NVP.transferSPI(self._handle, self._probe, 0x00)
+
+        # self.config_params = config_params
+        NVP.writeSUConfiguration(
+            *self.config_params.get_SUConfig_pars(
+                self._handle, self._probe, self._stim_unit, polarity
+            )
+        )
+
 
 if __name__ == "__main__":
     # Example usage:
-    controller = ViperBoxControl("test", 0)
-    # pulse_shape = PulseShapeParameters()
-    # pulse_train = PulseTrainParameters()
-    # electrodes = [1, 2, 3]
-    # viperbox = ViperBoxConfiguration(0)
-    # config = ConfigurationParameters(pulse_shape, pulse_train, electrodes, viperbox)
+    pulse_shape = PulseShapeParameters()
+    pulse_train = PulseTrainParameters()
+    electrodes = [1, 2, 3]
+    viperbox = ViperBoxConfiguration(0)
+    stim_configuration = StimulationSweepParameters(
+        # stim_electrode_list=[1, 2],
+        # rec_electrodes_list=[3, 4],
+        # pulse_amplitudes=(1, 10, 2),
+        # randomize=True,
+        # repetitions=2,
+    )
+    config = ConfigurationParameters(
+        pulse_shape, pulse_train, viperbox, stim_configuration, electrodes
+    )
 
+    controller = ViperBoxControl("test", 0, config, no_box=True)
     # print(config.get_SUConfig_pars())
 
     # controller.control_send_parameters()
-    controller.control_rec_setup(
-        emulated=True,
-    )
-    controller.control_rec_start()
-    print(controller)
-    controller.control_rec_stop()
-    print(controller)
+    # controller.control_rec_setup(
+    #     emulated=True,
+    # )
+    # controller.control_rec_start()
+    # print(controller)
+    # controller.control_rec_stop()
+    # print(controller)
+    # controller.stim_sweep()
