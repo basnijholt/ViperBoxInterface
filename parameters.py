@@ -206,7 +206,7 @@ class ViperBoxConfiguration:
     :param probe: Probe index to be used (should be between 0 and 3).
     """
 
-    probe: int = field(default=0)
+    probe: int = 0
 
     def __post_init__(self) -> None:
         """Verifies the probe number is within bounds."""
@@ -295,13 +295,17 @@ class ConfigurationParameters:
     :param viperbox_configuration: Object of ViperBoxConfiguration class.
     """
 
-    pulse_shape_parameters: PulseShapeParameters = field(default=PulseShapeParameters())
-    pulse_train_parameters: PulseTrainParameters = field(default=PulseTrainParameters())
+    pulse_shape_parameters: PulseShapeParameters = field(
+        default_factory=PulseShapeParameters
+    )
+    pulse_train_parameters: PulseTrainParameters = field(
+        default_factory=PulseTrainParameters
+    )
     viperbox_configuration: ViperBoxConfiguration = field(
-        default=ViperBoxConfiguration()
+        default_factory=ViperBoxConfiguration
     )
     stim_configuration: StimulationConfiguration = field(
-        default=StimulationConfiguration()
+        default_factory=StimulationConfiguration
     )
     stim_electrode_list: List[int] = field(default_factory=list)
 
