@@ -15,3 +15,7 @@ docs/source/_templates
 
 testarea.ipynb
 .ipynb_checkpoints/
+
+multiwin.json
+multiwin.py
+testgui.py
