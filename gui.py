@@ -158,7 +158,7 @@ pulse_train_frame = sg.Frame("Pulse train parameters",[
         # [sg.Text("Discharge time extra"), sg.Input(200, size=(inp_w, inp_h), key="Discharge time extra"), sg.T('uSec', size=(unit_h, unit_w))],
         [sg.Text("Frequency of pulses"), sg.Input(200, size=(inp_w, inp_h), key="Frequency of pulses"), sg.T('Hz', size=(unit_h, unit_w))],
         [sg.Text("Number of trains"), sg.Input(5, size=(inp_w, inp_h), key="Number of trains"), sg.T(' ', size=(unit_h, unit_w))],
-        [sg.Text("Train interval"), sg.Input(2, size=(inp_w, inp_h), key="Train interval"), sg.T('Sec', size=(unit_h, unit_w))],
+        [sg.Text("Train interval (discharge)"), sg.Input(2, size=(inp_w, inp_h), key="Train interval"), sg.T('Sec', size=(unit_h, unit_w))],
         [sg.Text("On-set jitter"), sg.Input(0, size=(inp_w, inp_h), key="On-set jitter"), sg.T('Sec', size=(unit_h, unit_w))],
         ], 
         element_justification='r',
