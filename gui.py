@@ -1,15 +1,16 @@
 import PySimpleGUI as sg
 
-from matplotlib.ticker import NullFormatter  # useful for `logit` scale
+# from matplotlib.ticker import NullFormatter  # useful for `logit` scale
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-# import PySimpleGUI as sg
 import matplotlib
 matplotlib.use('TkAgg')
 
 sg.theme("SystemDefaultForReal")
 
+toggle_btn_off = b'iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAABmJLR0QA/wD/AP+gvaeTAAAED0lEQVRYCe1WTWwbRRR+M/vnv9hO7BjHpElMKSlpqBp6gRNHxAFVcKM3qgohQSqoqhQ45YAILUUVDRxAor2VAweohMSBG5ciodJUSVqa/iikaePEP4nj2Ovdnd1l3qqJksZGXscVPaylt7Oe/d6bb9/svO8BeD8vA14GvAx4GXiiM0DqsXv3xBcJU5IO+RXpLQvs5yzTijBmhurh3cyLorBGBVokQG9qVe0HgwiXLowdy9aKsY3g8PA5xYiQEUrsk93JTtjd1x3siIZBkSWQudUK4nZO1w3QuOWXV+HuP/fL85klAJuMCUX7zPj4MW1zvC0Ej4yMp/w++K2rM9b70sHBYCjo34x9bPelsgp/XJksZ7KFuwZjr3732YcL64ttEDw6cq5bVuCvgy/sje7rT0sI8PtkSHSEIRIKgCQKOAUGM6G4VoGlwiqoVd2Za9Vl8u87bGJqpqBqZOj86eEHGNch+M7otwHJNq4NDexJD+59RiCEQG8qzslFgN8ibpvZNsBifgXmFvJg459tiOYmOElzYvr2bbmkD509e1ylGEZk1Y+Ssfan18n1p7vgqVh9cuiDxJPxKPT3dfGXcN4Tp3dsg/27hUQs0qMGpRMYjLz38dcxS7Dm3nztlUAb38p0d4JnLozPGrbFfBFm79c8hA3H2AxcXSvDz7/+XtZE1kMN23hjV7LTRnKBh9/cZnAj94mOCOD32gi2EUw4FIRUMm6LGhyiik86nO5NBdGRpxYH14bbjYfJteN/OKR7UiFZVg5T27QHYu0RBxoONV9W8KQ7QVp0iXdE8fANUGZa0QAvfhhXlkQcmjJZbt631oIBnwKmacYoEJvwiuFgWncWnXAtuVBBEAoVVXWCaQZzxmYuut68b631KmoVBEHMUUrJjQLXRAQVSxUcmrKVHfjWWjC3XOT1FW5QrWpc5IJdQhDKVzOigEqS5dKHMVplnNOqrmsXqUSkn+YzWaHE9RW1FeXL7SKZXBFUrXW6jIV6YTEvMAUu0W/G3kcxPXP5ylQZs4fa6marcWvvZfJu36kuHjlc/nMSuXz+/ejxgqPFpuQ/xVude9eu39Jxu27OLvBGoMjrUN04zrNMbgVmOBZ96iPdPZmYntH5Ls76KuxL9NyoLA/brav7n382emDfHqeooXyhQmARVhSnAwNNMx5bu3V1+habun5nWdXhwJZ2C5mirTesyUR738sv7g88UQ0rEkTDlp+1wwe8Pf0klegUenYlgyg7bby75jUTITs2rhCAXXQ2vwxz84vlB0tZ0wL4NEcLX/04OrrltG1s8aOrHhk51SaK0us+n/K2xexBxljcsm1n6x/Fuv1PCWGiKOaoQCY1Vb9gWPov50+fdEqd21ge3suAlwEvA14G/ucM/AuppqNllLGPKwAAAABJRU5ErkJggg=='
+toggle_btn_on = b'iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAABmJLR0QA/wD/AP+gvaeTAAAD+UlEQVRYCe1XzW8bVRCffbvrtbP+2NhOD7GzLm1VoZaPhvwDnKBUKlVyqAQ3/gAkDlWgPeVQEUCtEOIP4AaHSI0CqBWCQyXOdQuRaEFOk3g3IMWO46+tvZ+PeZs6apq4ipON1MNafrvreTPzfvub92bGAOEnZCBkIGQgZOClZoDrh25y5pdjruleEiX+A+rCaQo05bpuvJ/+IHJCSJtwpAHA/e269g8W5RbuzF6o7OVjF8D3Pr4tSSkyjcqfptPDMDKSleW4DKIggIAD5Yf+Oo4DNg6jbUBlvWLUNutAwZu1GnDjzrcXzGcX2AHw/emFUV6Sfk0pqcKpEydkKSo9q3tkz91uF5aWlo1Gs/mYc+i7tz4//19vsW2AU9O381TiioVCQcnlRsWeQhD3bJyH1/MiFLICyBHiuzQsD1arDvypW7DR9nzZmq47q2W95prm+I9fXfqXCX2AF2d+GhI98Y8xVX0lnxvl2UQQg0csb78ag3NjEeD8lXZ7pRTgftmCu4864OGzrq+5ZU0rCa3m+NzXlzvoAoB3+M+SyWQuaHBTEzKMq/3BMbgM+FuFCDBd9kK5XI5PJBKqLSev+POTV29lKB8rT0yMD0WjUSYLZLxzNgZvIHODOHuATP72Vwc6nQ4Uiw8MUeBU4nHS5HA6TYMEl02wPRcZBJuv+ya+UCZOIBaLwfCwQi1Mc4QXhA+PjWRkXyOgC1uIhW5Qd8yG2TK7kSweLcRGKKVnMNExWWBDTQsH9qVmtmzjiThQDs4Qz/OUSGTwcLwIQTLW58i+yOjpXDLqn1tgmDzXzRCk9eDenjo9yhvBmlizrB3V5dDrNTuY0A7opdndStqmaQLPC1WCGfShYRgHdLe32UrV3ntiH9LliuNrsToNlD4kruN8v75eafnSgC6Luo2+B3fGKskilj5muV6pNhk2Qqg5v7lZ51nBZhNBjGrbxfI1+La5t2JCzfD8RF1HTBGJXyDzs1MblONulEqPDVYXgwDIfNx91IUVbAbY837GMur+/k/XZ75UWmJ77ou5mfM1/0x7vP1ls9XQdF2z9uNsPzosXPNFA5m0/EX72TBSiqsWzN8z/GZB08pWq9VeEZ+0bjKb7RTD2i1P4u6r+bwypo5tZUumEcDAmuC3W8ezIqSGfE6g/sTd1W5p5bKjaWubrmWd29Fu9TD0GlYlmTx+8tTJoZeqYe2BZC1/JEU+wQR5TVEUPptJy3Fs+Vkzgf8lemqHumP1AnYoMZSwsVEz6o26i/G9Lgitb+ZmLu/YZtshfn5FZDPBCcJFQRQ+8ih9DctOFvdLIKHH6uUQnq9yhFu0bec7znZ+xpAGmuqef5/wd8hAyEDIQMjAETHwP7nQl2WnYk4yAAAAAElFTkSuQmCC'
 
 def LEDIndicator(key=None, radius=30):
     return sg.Graph(
@@ -39,9 +40,7 @@ current[(time > .1) & (time <= duration)] = -amplitude
 current[(time > duration + inter_phase_interval) & (time <= 2*duration + inter_phase_interval-0.1)] = amplitude
 current[(time>2*duration + inter_phase_interval-0.1)&(time<2*duration + inter_phase_interval)] = 0
 
-fig = matplotlib.figure.Figure(figsize=(4, 4), dpi=100)
-# t = np.arange(0, 3, .01)
-# fig.add_subplot(111).plot(t, 2 * np.sin(2 * np.pi * t))
+fig = matplotlib.figure.Figure(figsize=(4, 3), dpi=100)
 fig.add_subplot(111).plot(time, current)
 
 def draw_figure(canvas, figure):
@@ -50,26 +49,49 @@ def draw_figure(canvas, figure):
     figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
     return figure_canvas_agg
 
-control_frame = sg.Frame(
+viperbox_control_frame = sg.Frame(
     "Viperbox control",
     [
         [
-            sg.Text("Recording path:"),
+            sg.Text("Hardware connection"), 
+            sg.Button('Connect'), 
+            LEDIndicator("connect")],
+        # [sg.HorizontalSeparator('light gray')],
+        [sg.Text('Single stim'),
+               sg.Button(image_data=toggle_btn_off, key='-TOGGLE-GRAPHIC-', button_color=(sg.theme_background_color(), sg.theme_background_color()), border_width=0, metadata=False),
+               sg.Text('Stim sweep')
+        ],
+        [
+            # sg.Button("Rec", size=(10, 1)), 
+            sg.T('Rec'),
+            LEDIndicator("rec"),
             sg.Input(
                 sg.user_settings_get_entry("-filename-", ""), size=(20, 10), key="-IN-"
             ),
             sg.FileSaveAs(),
         ],
-        [sg.Text("Recording:")],
-        [sg.Button("Rec", size=(10, 1)), LEDIndicator("rec")],
-        [sg.Text("Stimulation:")],
+        # [sg.HorizontalSeparator('light gray')],
+        # [sg.Text("Stimulation:")],
         [
             sg.Button("Start", size=(10, 1)),
             sg.Button("Stop", size=(10, 1)),
-            sg.Button("Single train", size=(10, 1)),
+            sg.Checkbox("Record without stimulation")
         ],
     ],
-    size=(400, 180),
+    # size=(400, 170),
+    expand_x=True,
+)
+
+MAX_ROWS = 15
+MAX_COL = 4
+board = [[f'{i+j*MAX_COL}' for j in range(MAX_COL)] for i in range(MAX_ROWS)]
+
+electrode_matrix =  [[sg.Button(f'{i*MAX_ROWS+j+1}', size=(2, 1), key=(i,j), pad=(10,1)) for i in range(MAX_COL)] for j in range(MAX_ROWS)]
+electrode_matrix = electrode_matrix[::-1]
+electrode_frame = sg.Frame('Stimulation electrode selection', electrode_matrix, expand_y=True)
+
+plot_frame = sg.Frame('Pulse preview',
+    [[sg.Canvas(key='-CANVAS-')]],
     expand_x=True,
 )
 
@@ -78,65 +100,92 @@ log_frame = sg.Frame(
     [
         [
             sg.Multiline(
-                size=(55, 150),
                 key="-LOG-",
                 expand_y=True,
+                expand_x=True,
             )
         ],
     ],
-    size=(400, 200),
+    size=(400, 280),
     # expand_y=True,
+    expand_x=True,
 )
-
-plot_frame = sg.Frame('Pulse preview',
-                      [[sg.Canvas(key='-CANVAS-')]])
 
 unit_h, unit_w = (4,1)
 inp_w, inp_h = (10,1)
 
-stim_par_frame = sg.Frame(
-    "Stimulation parameters",
-    [
+stimulation_settings = sg.Frame('Pre-load settings',
         [
-stimulation_settings = sg.Frame('Settings',
-        [[sg.Button("Load settings"), sg.Button("Save settings"),
-        sg.Button("Electrode selection")]],),],
-        [sg.Frame("Pulse shape parameters",[
-        [sg.Text("Biphasic/Monophasic"),sg.Drop(size=(inp_w-2, inp_h), values=("Biphasic", "Monophasic"),    auto_size_text=True,    default_value="Biphasic",), sg.T(' ', size=(unit_h, unit_w))],
-        [sg.Text("Pulse duration", justification='l'), sg.Input(size=(inp_w, inp_h), key="Pulse duration"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("Pulse delay"), sg.Input(size=(inp_w, inp_h), key="Pulse delay"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("1st pulse phase width"),sg.Input(size=(inp_w, inp_h), key="1st pulse phase width"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("Pulse interphase interval"),sg.Input(size=(inp_w, inp_h), key="Pulse interphase interval"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("2nd pulse phase width"),sg.Input(size=(inp_w, inp_h), key="2nd pulse phase width"), sg.T('uSec', size=(unit_h, unit_w))],
-        # [sg.Text("Discharge time"), sg.Input(size=(inp_w, inp_h), key="Discharge time"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("Interpulse interval (discharge)"), sg.Input(size=(inp_w, inp_h), key="interpulse interval"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("Pulse amplitude anode"), sg.Input(size=(inp_w, inp_h), key="Pulse amplitude anode"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("Pulse amplitude cathode"),sg.Input(size=(inp_w, inp_h), key="Pulse amplitude cathode"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.T('Pulse amplitude equal'), sg.Checkbox(" ")],
-        ], element_justification='r')],
-        [sg.Frame("Pulse train parameters",[
-        [sg.Text("Number of pulses"), sg.Input(size=(inp_w, inp_h), key="Number of pulses"), sg.T(' ', size=(unit_h, unit_w))],
-        [sg.Text("Discharge time extra"), sg.Input(size=(inp_w, inp_h), key="Discharge time extra"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("Frequency of pulses"), sg.Input(size=(inp_w, inp_h), key="Frequency of pulses"), sg.T('Hz', size=(unit_h, unit_w))],
-        [sg.Text("Number of trains"), sg.Input(size=(inp_w, inp_h), key="Number of trains"), sg.T(' ', size=(unit_h, unit_w))],
-        [sg.Text("Train interval"), sg.Input(size=(inp_w, inp_h), key="Train interval"), sg.T('Sec', size=(unit_h, unit_w))],
-        [sg.Text("On-set jitter"), sg.Input(size=(inp_w, inp_h), key="On-set jitter"), sg.T('Sec', size=(unit_h, unit_w))],
-        ], element_justification='r')],
-        [sg.Frame("Parameter sweep", [
-        [sg.Text("Pulse amplitude min"), sg.Input(size=(inp_w, inp_h), key="Pulse amplitude min"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("Pulse amplitude max"), sg.Input(size=(inp_w, inp_h), key="Pulse amplitude max"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("Pulse amplitude step"), sg.Input(size=(inp_w, inp_h), key="Pulse amplitude step"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("Repetitions"), sg.Input(size=(inp_w, inp_h), key="Repetitions"), sg.T(' ', size=(unit_h, unit_w))],
-        [sg.Checkbox("Randomize")],
-        ], element_justification='r')],
-    ],
-    element_justification="l",
+            [sg.Button("Load", size=(10,1)), ],
+            [sg.Button('Delete', size=(10,1)),],
+            [sg.Button("Save", size=(10,1)),],
+            [sg.Input('', size=(15,1))],
+
+[
+            sg.Listbox(
+                size=(10, 6),
+                key="-SETTINGS-",
+                values=['Corin_default', 'Cristina_default', 'mouse_jumpy'],
+                expand_y=True,
+                expand_x=True,
+            )
+        ]
+    ], 
+    expand_x=True,
+    size=(185,60),
+    expand_y=True,
+    vertical_alignment='t',
 )
 
-col1 = sg.Column([[control_frame], [plot_frame], [log_frame]], vertical_alignment="t")
-col2 = sg.Column([[stim_par_frame]])
+pulse_shape_frame = sg.Frame("Pulse shape parameters",[
+        [sg.Text("Biphasic/Monophasic"),sg.Drop(size=(inp_w-2, inp_h), values=("Biphasic", "Monophasic"),    auto_size_text=True,    default_value="Biphasic",), sg.T(' ', size=(unit_h, unit_w))],
+        [sg.Text("Pulse duration", justification='l'), sg.Input(600, size=(inp_w, inp_h), key="Pulse duration"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("Pulse delay"), sg.Input(0, size=(inp_w, inp_h), key="Pulse delay"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("1st pulse phase width"),sg.Input(170, size=(inp_w, inp_h), key="1st pulse phase width"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("Pulse interphase interval"),sg.Input(60, size=(inp_w, inp_h), key="Pulse interphase interval"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("2nd pulse phase width"),sg.Input(170, size=(inp_w, inp_h), key="2nd pulse phase width"), sg.T('uSec', size=(unit_h, unit_w))],
+        # [sg.Text("Discharge time"), sg.Input(, size=(inp_w, inp_h), key="Discharge time"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("Interpulse interval (discharge)"), sg.Input(200, size=(inp_w, inp_h), key="interpulse interval"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("Pulse amplitude anode"), sg.Input(5, size=(inp_w, inp_h), key="Pulse amplitude anode"), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.Text("Pulse amplitude cathode"),sg.Input(5, size=(inp_w, inp_h), key="Pulse amplitude cathode"), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.T('Pulse amplitude equal'), sg.Checkbox("")],
+        ], 
+        element_justification='r',
+        expand_x=True)#],
+        # [
+pulse_train_frame = sg.Frame("Pulse train parameters",[
+        [sg.Text("Number of pulses"), sg.Input(20, size=(inp_w, inp_h), key="Number of pulses"), sg.T(' ', size=(unit_h, unit_w))],
+        # [sg.Text("Discharge time extra"), sg.Input(200, size=(inp_w, inp_h), key="Discharge time extra"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("Frequency of pulses"), sg.Input(200, size=(inp_w, inp_h), key="Frequency of pulses"), sg.T('Hz', size=(unit_h, unit_w))],
+        [sg.Text("Number of trains"), sg.Input(5, size=(inp_w, inp_h), key="Number of trains"), sg.T(' ', size=(unit_h, unit_w))],
+        [sg.Text("Train interval"), sg.Input(2, size=(inp_w, inp_h), key="Train interval"), sg.T('Sec', size=(unit_h, unit_w))],
+        [sg.Text("On-set jitter"), sg.Input(0, size=(inp_w, inp_h), key="On-set jitter"), sg.T('Sec', size=(unit_h, unit_w))],
+        ], 
+        element_justification='r',
+        expand_x=True)
+# ],
+        # [
+ps_dis=False
+parameter_sweep = sg.Frame("Stimulation sweep parameters", [
+        [sg.Text("Pulse amplitude min"), sg.Input(1, size=(inp_w, inp_h), key="Pulse amplitude min", disabled=ps_dis), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.Text("Pulse amplitude max"), sg.Input(20, size=(inp_w, inp_h), key="Pulse amplitude max", disabled=ps_dis), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.Text("Pulse amplitude step"), sg.Input(1, size=(inp_w, inp_h), key="Pulse amplitude step", disabled=ps_dis), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.Text("Repetitions"), sg.Input(size=(3, inp_w, inp_h), key="Repetitions", disabled=ps_dis), sg.T(' ', size=(unit_h, unit_w))],
+        [sg.Checkbox("Randomize")],
+        ], element_justification='r',
+        expand_x=True,
+        )
+# ],
+#     ],
+#     element_justification="l",
+# )
+sub_col1 = sg.Column([[stimulation_settings, electrode_frame]], vertical_alignment='t')
+col1 = sg.Column([[viperbox_control_frame], [sub_col1]], vertical_alignment="t")
+col2 = sg.Column([[pulse_shape_frame],[pulse_train_frame],[parameter_sweep]], vertical_alignment='t')
+# col2 = sg.Column([[pulse_shape_frame],[pulse_train_frame]], vertical_alignment='t')
+col3 = sg.Column([[plot_frame],[log_frame]], vertical_alignment='t')
 
-layout = [[col1, col2]]
+layout = [[col1, col2, col3]],
 
 window = sg.Window(
     "ViperBox Control",
@@ -145,13 +194,23 @@ window = sg.Window(
     finalize=True
 )
 
+
 fig_canvas_agg = draw_figure(window['-CANVAS-'].TKCanvas, fig)
+_, _ = window.read(timeout=0)
+SetLED(window, "rec", "gray")
+SetLED(window, "connect", "gray")
+
+# import os
+# os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
 
 while True:
     event, values = window.read()
-    SetLED(window, "rec", "gray")
     print(event, values)
     if event == sg.WIN_CLOSED:
         break
+    elif event == '-TOGGLE-GRAPHIC-':  # if the graphical button that changes images
+        window['-TOGGLE-GRAPHIC-'].metadata = not window['-TOGGLE-GRAPHIC-'].metadata
+        window['-TOGGLE-GRAPHIC-'].update(image_data=toggle_btn_on if window['-TOGGLE-GRAPHIC-'].metadata else toggle_btn_off)
+
 
 window.close()
