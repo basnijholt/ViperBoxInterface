@@ -100,30 +100,25 @@ viperbox_control_frame = sg.Frame(
 
 MAX_ROWS = 15
 MAX_COL = 4
-board = [[f'{i+j*MAX_COL}' for j in range(MAX_COL)] for i in range(MAX_ROWS)]
 
-electrode_matrix =  [[sg.Button(f'{i*MAX_ROWS+j+1}', size=(2, 1), key=(f'button_{i*MAX_ROWS+j+1}'), pad=(10,1)) for i in range(MAX_COL)] for j in range(MAX_ROWS)]
+reference_matrix = [['off' for i in range(MAX_COL)] for j in range(MAX_ROWS)]
+electrode_matrix = [[sg.Button(f'{i*MAX_ROWS+j+1}', size=(2, 1), 
+                                key=(f'el_button_{i*MAX_ROWS+j+1}'), 
+                                pad=(10,1), button_color='light gray') for i in range(MAX_COL)] for j in range(MAX_ROWS)]
 electrode_matrix = electrode_matrix[::-1]
-print(electrode_matrix)
 electrode_frame = sg.Frame('Stimulation electrode selection', electrode_matrix, expand_y=True)
 
-# def toggle_value(i,j, matrix):
-#     if matrix[i][j] == f'{i*MAX_ROWS+j+1}':
-#         matrix[i][j] = f'{i*MAX_ROWS+j+1}'
-#         return f'{i*MAX_ROWS+j+1}'
-#     elif matrix[i][j] == f'{i*MAX_ROWS+j+1}':
-#         matrix[i][j] = f'{i*MAX_ROWS+j+1}'
-#         return f'{i*MAX_ROWS+j+1}'
-#     else:
-#         matrix[i][j] = f'{i*MAX_ROWS+j+1}'
-#         return f'{i*MAX_ROWS+j+1}'
-
-def toggle_color(i,j, matrix):
-    # print(matrix)
-    if matrix[i][j] == f'{i*MAX_ROWS+j+1}':
-        return sg.theme_background_color()
-    elif matrix[i][j] == f'{i*MAX_ROWS+j+1}':
-        return 'green'
+def toggle_color(event, reference_matrix):
+    electrode = int(event[10:])
+    row = (electrode - 1) % MAX_ROWS
+    col = (electrode - 1) // MAX_ROWS
+        
+    if reference_matrix[row][col] == 'off':
+        reference_matrix[row][col] = 'on'
+        return 'red'
+    else:
+        reference_matrix[row][col] = 'off'
+        return 'light gray'
 
 # ------------------------------------------------------------------
 # CF: LOG FRAME
@@ -260,14 +255,16 @@ if __name__ == "__main__":
     # os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
 
     while True:
-        event, values = window.read()
-        if event == sg.WIN_CLOSED:
-            break
-        if event == 'button_toggle_stim':  # if the graphical button that changes images
-            window['button_toggle_stim'].metadata = not window['button_toggle_stim'].metadata
-            window['button_toggle_stim'].update(image_data=toggle_btn_on if window['button_toggle_stim'].metadata else toggle_btn_off)
-        print(event)
-        window[event].update(toggle_color(event[0], event[1], board), button_color=toggle_color(event[0], event[1], board))
-
+        try:
+            event, values = window.read()
+        #     print(event, values)
+            if event == sg.WIN_CLOSED or event == 'Exit':
+                break
+            print(event[10:])
+            if event[:3] == 'el_':
+                window[event].update(button_color=toggle_color(event, reference_matrix))
+        except Exception as e:
+            print(e)
+            window.close()
 
 window.close()
