@@ -27,6 +27,9 @@ def SetLED(window, key, color):
     graph.erase()
     graph.draw_circle((0, 0), 12, fill_color=color, line_color=color)
 
+# ------------------------------------------------------------------
+# CF STIMULATION PULSE FRAME
+
 # Parameters for the biphasic pulse
 amplitude = -1  # Amplitude of the first (cathodic) phase, in microAmps
 duration = 0.2  # Duration of each phase, in milliseconds
@@ -49,58 +52,88 @@ def draw_figure(canvas, figure):
     figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
     return figure_canvas_agg
 
-viperbox_control_frame = sg.Frame(
-    "Viperbox control",
-    [
-        [
-            sg.Text("Hardware connection"), 
-            sg.Button('Connect'), 
-            LEDIndicator("connect")],
-        # [sg.HorizontalSeparator('light gray')],
-        [sg.Text('Single stim'),
-               sg.Button(image_data=toggle_btn_off, key='-TOGGLE-GRAPHIC-', button_color=(sg.theme_background_color(), sg.theme_background_color()), border_width=0, metadata=False),
-               sg.Text('Stim sweep')
-        ],
-        [
-            # sg.Button("Rec", size=(10, 1)), 
-            sg.T('Rec'),
-            LEDIndicator("rec"),
-            sg.Input(
-                sg.user_settings_get_entry("-filename-", ""), size=(20, 10), key="-IN-"
-            ),
-            sg.FileSaveAs(),
-        ],
-        # [sg.HorizontalSeparator('light gray')],
-        # [sg.Text("Stimulation:")],
-        [
-            sg.Button("Start", size=(10, 1)),
-            sg.Button("Stop", size=(10, 1)),
-            sg.Checkbox("Record without stimulation")
-        ],
-    ],
-    # size=(400, 170),
-    expand_x=True,
-)
-
-MAX_ROWS = 15
-MAX_COL = 4
-board = [[f'{i+j*MAX_COL}' for j in range(MAX_COL)] for i in range(MAX_ROWS)]
-
-electrode_matrix =  [[sg.Button(f'{i*MAX_ROWS+j+1}', size=(2, 1), key=(i,j), pad=(10,1)) for i in range(MAX_COL)] for j in range(MAX_ROWS)]
-electrode_matrix = electrode_matrix[::-1]
-electrode_frame = sg.Frame('Stimulation electrode selection', electrode_matrix, expand_y=True)
 
 plot_frame = sg.Frame('Pulse preview',
     [[sg.Canvas(key='-CANVAS-')]],
     expand_x=True,
 )
 
+# ------------------------------------------------------------------
+# CF: VIPERBOX CONTROL FRAME
+
+viperbox_control_frame = sg.Frame(
+    "Viperbox control",
+    [
+        [
+            sg.Text("Hardware connection"), 
+            sg.Button('Connect', key='button_connect'), 
+            LEDIndicator("led_connect")],
+        [sg.HorizontalSeparator('light gray')],
+        [sg.Text('Manual stimulation'),
+            sg.Button(image_data=toggle_btn_off, key='button_toggle_stim', button_color=(sg.theme_background_color(), sg.theme_background_color()), border_width=0, metadata=False),
+            sg.Text('Current amplitude sweep')
+        ],
+        [
+            # sg.Button("Rec", size=(10, 1)), 
+            sg.Text('Rec'),
+            LEDIndicator("led_rec"),
+            sg.Input(
+                sg.user_settings_get_entry("-filename-", ""), size=(20, 10), key="input_data_path"
+            ),
+            sg.FileSaveAs(),
+        ],
+        # [sg.HorizontalSeparator('light gray')],
+        # [sg.Text("Stimulation:")],
+        [
+            sg.Button("Start", size=(10, 1), key='button_start'),
+            sg.Button("Stop", size=(10, 1), key='button_stop'),
+            sg.Checkbox("Record without stimulation", key='checkbox_rec_wo_stim')
+        ],
+    ],
+    # size=(400, 170),
+    expand_x=True,
+)
+
+
+# ------------------------------------------------------------------
+# CF: ELECTRODE SELECTION FRAME
+
+MAX_ROWS = 15
+MAX_COL = 4
+board = [[f'{i+j*MAX_COL}' for j in range(MAX_COL)] for i in range(MAX_ROWS)]
+
+electrode_matrix =  [[sg.Button(f'{i*MAX_ROWS+j+1}', size=(2, 1), key=(f'button_{i*MAX_ROWS+j+1}'), pad=(10,1)) for i in range(MAX_COL)] for j in range(MAX_ROWS)]
+electrode_matrix = electrode_matrix[::-1]
+print(electrode_matrix)
+electrode_frame = sg.Frame('Stimulation electrode selection', electrode_matrix, expand_y=True)
+
+# def toggle_value(i,j, matrix):
+#     if matrix[i][j] == f'{i*MAX_ROWS+j+1}':
+#         matrix[i][j] = f'{i*MAX_ROWS+j+1}'
+#         return f'{i*MAX_ROWS+j+1}'
+#     elif matrix[i][j] == f'{i*MAX_ROWS+j+1}':
+#         matrix[i][j] = f'{i*MAX_ROWS+j+1}'
+#         return f'{i*MAX_ROWS+j+1}'
+#     else:
+#         matrix[i][j] = f'{i*MAX_ROWS+j+1}'
+#         return f'{i*MAX_ROWS+j+1}'
+
+def toggle_color(i,j, matrix):
+    # print(matrix)
+    if matrix[i][j] == f'{i*MAX_ROWS+j+1}':
+        return sg.theme_background_color()
+    elif matrix[i][j] == f'{i*MAX_ROWS+j+1}':
+        return 'green'
+
+# ------------------------------------------------------------------
+# CF: LOG FRAME
+
 log_frame = sg.Frame(
     "Log",
     [
         [
             sg.Multiline(
-                key="-LOG-",
+                key="mul_log",
                 expand_y=True,
                 expand_x=True,
             )
@@ -111,20 +144,24 @@ log_frame = sg.Frame(
     expand_x=True,
 )
 
+# ------------------------------------------------------------------
+# CF: STIMULATION SETTINGS FRAME
+
+
 unit_h, unit_w = (4,1)
-inp_w, inp_h = (10,1)
+inpsize_w, inpsize_h = (10,1)
 
 stimulation_settings = sg.Frame('Pre-load settings',
         [
-            [sg.Button("Load", size=(10,1)), ],
-            [sg.Button('Delete', size=(10,1)),],
-            [sg.Button("Save", size=(10,1)),],
-            [sg.Input('', size=(15,1))],
+            [sg.Button("Load", size=(10,1), key='button_load_set')],
+            [sg.Button('Delete', size=(10,1), key='button_del_set'),],
+            [sg.Button("Save", size=(10,1), key='button_save_set'),],
+            [sg.Input('', size=(15,1), key='input_set_name')],
 
 [
             sg.Listbox(
                 size=(10, 6),
-                key="-SETTINGS-",
+                key="listbox_settings",
                 values=['Corin_default', 'Cristina_default', 'mouse_jumpy'],
                 expand_y=True,
                 expand_x=True,
@@ -137,48 +174,61 @@ stimulation_settings = sg.Frame('Pre-load settings',
     vertical_alignment='t',
 )
 
+# ------------------------------------------------------------------
+# CF: PULSE SHAPE FRAME
+
+
 pulse_shape_frame = sg.Frame("Pulse shape parameters",[
-        [sg.Text("Biphasic/Monophasic"),sg.Drop(size=(inp_w-2, inp_h), values=("Biphasic", "Monophasic"),    auto_size_text=True,    default_value="Biphasic",), sg.T(' ', size=(unit_h, unit_w))],
-        [sg.Text("Pulse duration", justification='l'), sg.Input(600, size=(inp_w, inp_h), key="Pulse duration"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("Pulse delay"), sg.Input(0, size=(inp_w, inp_h), key="Pulse delay"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("1st pulse phase width"),sg.Input(170, size=(inp_w, inp_h), key="1st pulse phase width"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("Pulse interphase interval"),sg.Input(60, size=(inp_w, inp_h), key="Pulse interphase interval"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("2nd pulse phase width"),sg.Input(170, size=(inp_w, inp_h), key="2nd pulse phase width"), sg.T('uSec', size=(unit_h, unit_w))],
-        # [sg.Text("Discharge time"), sg.Input(, size=(inp_w, inp_h), key="Discharge time"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("Interpulse interval (discharge)"), sg.Input(200, size=(inp_w, inp_h), key="interpulse interval"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("Pulse amplitude anode"), sg.Input(5, size=(inp_w, inp_h), key="Pulse amplitude anode"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("Pulse amplitude cathode"),sg.Input(5, size=(inp_w, inp_h), key="Pulse amplitude cathode"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.T('Pulse amplitude equal'), sg.Checkbox("")],
+        [sg.Text("Biphasic/Monophasic"),sg.Drop(key='drop_biphasic',  size=(inpsize_w-2, inpsize_h), values=("Biphasic", "Monophasic"), auto_size_text=True, default_value="Biphasic",), sg.T(' ', size=(unit_h, unit_w))],
+        [sg.Text("Pulse duration", justification='l'), sg.Input(600, size=(inpsize_w, inpsize_h), key="input_pulse_duration"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("Pulse delay"), sg.Input(0, size=(inpsize_w, inpsize_h), key="input_pulse_delay"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("1st pulse phase width"),sg.Input(170, size=(inpsize_w, inpsize_h), key="input_first_pulse_phase_width"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("Pulse interphase interval"),sg.Input(60, size=(inpsize_w, inpsize_h), key="input_pulse_interphase_interval"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("2nd pulse phase width"),sg.Input(170, size=(inpsize_w, inpsize_h), key="input_second_pulse_phase_width"), sg.T('uSec', size=(unit_h, unit_w))],
+        # [sg.Text("Discharge time"), sg.Input(, size=(inpsize_w, inpsize_h), key="Discharge time"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("Interpulse interval (discharge)"), sg.Input(200, size=(inpsize_w, inpsize_h), key="input_discharge_time"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("Pulse amplitude anode"), sg.Input(5, size=(inpsize_w, inpsize_h), key="input_pulse_amplitude_anode"), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.Text("Pulse amplitude cathode"),sg.Input(5, size=(inpsize_w, inpsize_h), key="input_pulse_amplitude_cathode"), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.T('Pulse amplitude equal'), sg.Checkbox("", key='checkbox_pulse_amplitude_equal')],
         ], 
         element_justification='r',
         expand_x=True)#],
         # [
+
+            
+# ------------------------------------------------------------------
+# CF: PULSE TRAIN FRAME
+
+
 pulse_train_frame = sg.Frame("Pulse train parameters",[
-        [sg.Text("Number of pulses"), sg.Input(20, size=(inp_w, inp_h), key="Number of pulses"), sg.T(' ', size=(unit_h, unit_w))],
-        # [sg.Text("Discharge time extra"), sg.Input(200, size=(inp_w, inp_h), key="Discharge time extra"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("Frequency of pulses"), sg.Input(200, size=(inp_w, inp_h), key="Frequency of pulses"), sg.T('Hz', size=(unit_h, unit_w))],
-        [sg.Text("Number of trains"), sg.Input(5, size=(inp_w, inp_h), key="Number of trains"), sg.T(' ', size=(unit_h, unit_w))],
-        [sg.Text("Train interval (discharge)"), sg.Input(2, size=(inp_w, inp_h), key="Train interval"), sg.T('Sec', size=(unit_h, unit_w))],
-        [sg.Text("On-set jitter"), sg.Input(0, size=(inp_w, inp_h), key="On-set jitter"), sg.T('Sec', size=(unit_h, unit_w))],
+        [sg.Text("Number of pulses"), sg.Input(20, size=(inpsize_w, inpsize_h), key="input_number_of_pulses"), sg.T(' ', size=(unit_h, unit_w))],
+        # [sg.Text("Discharge time extra"), sg.Input(200, size=(inpsize_w, inpsize_h), key="Discharge time extra"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("Frequency of pulses"), sg.Input(200, size=(inpsize_w, inpsize_h), key="input_frequency_of_pulses"), sg.T('Hz', size=(unit_h, unit_w))],
+        [sg.Text("Number of trains"), sg.Input(5, size=(inpsize_w, inpsize_h), key="input_number_of_trains"), sg.T(' ', size=(unit_h, unit_w))],
+        [sg.Text("Train interval (discharge)"), sg.Input(2, size=(inpsize_w, inpsize_h), key="input_discharge_time_extra"), sg.T('Sec', size=(unit_h, unit_w))],
+        [sg.Text("On-set jitter"), sg.Input(0, size=(inpsize_w, inpsize_h), key="input_jitter"), sg.T('Sec', size=(unit_h, unit_w))],
         ], 
         element_justification='r',
         expand_x=True)
-# ],
-        # [
+
+# ------------------------------------------------------------------
+# CF: PARAMETER SWEEP FRAME
+
+
 ps_dis=False
 parameter_sweep = sg.Frame("Stimulation sweep parameters", [
-        [sg.Text("Pulse amplitude min"), sg.Input(1, size=(inp_w, inp_h), key="Pulse amplitude min", disabled=ps_dis), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("Pulse amplitude max"), sg.Input(20, size=(inp_w, inp_h), key="Pulse amplitude max", disabled=ps_dis), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("Pulse amplitude step"), sg.Input(1, size=(inp_w, inp_h), key="Pulse amplitude step", disabled=ps_dis), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("Repetitions"), sg.Input(size=(3, inp_w, inp_h), key="Repetitions", disabled=ps_dis), sg.T(' ', size=(unit_h, unit_w))],
-        [sg.Checkbox("Randomize")],
+        [sg.Text("Pulse amplitude min"), sg.Input(1, size=(inpsize_w, inpsize_h), key="input_pulse_amplitude_min", disabled=ps_dis), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.Text("input_pulse_amplitude_max"), sg.Input(20, size=(inpsize_w, inpsize_h), key="input_pulse_amplitude_max", disabled=ps_dis), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.Text("Pulse amplitude step"), sg.Input(1, size=(inpsize_w, inpsize_h), key="input_pulse_amplitude_step", disabled=ps_dis), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.Text("Repetitions"), sg.Input(size=(3, inpsize_w, inpsize_h), key="input_repetitions", disabled=ps_dis), sg.T(' ', size=(unit_h, unit_w))],
+        [sg.Checkbox("Randomize", key='checkbox_randomize')],
         ], element_justification='r',
         expand_x=True,
         )
-# ],
-#     ],
-#     element_justification="l",
-# )
+
+# ------------------------------------------------------------------
+# INTEGRATION OF COMPONENTS
+
 sub_col1 = sg.Column([[stimulation_settings, electrode_frame]], vertical_alignment='t')
 col1 = sg.Column([[viperbox_control_frame], [sub_col1]], vertical_alignment="t")
 col2 = sg.Column([[pulse_shape_frame],[pulse_train_frame],[parameter_sweep]], vertical_alignment='t')
@@ -197,20 +247,27 @@ window = sg.Window(
 
 fig_canvas_agg = draw_figure(window['-CANVAS-'].TKCanvas, fig)
 _, _ = window.read(timeout=0)
-SetLED(window, "rec", "gray")
-SetLED(window, "connect", "gray")
+SetLED(window, "led_rec", "gray")
+SetLED(window, "led_connect", "gray")
 
-# import os
-# os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
 
-while True:
-    event, values = window.read()
-    print(event, values)
-    if event == sg.WIN_CLOSED:
-        break
-    elif event == '-TOGGLE-GRAPHIC-':  # if the graphical button that changes images
-        window['-TOGGLE-GRAPHIC-'].metadata = not window['-TOGGLE-GRAPHIC-'].metadata
-        window['-TOGGLE-GRAPHIC-'].update(image_data=toggle_btn_on if window['-TOGGLE-GRAPHIC-'].metadata else toggle_btn_off)
+# ------------------------------------------------------------------
+# CF: MAIN
+
+if __name__ == "__main__":
+
+    # import os
+    # os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
+
+    while True:
+        event, values = window.read()
+        if event == sg.WIN_CLOSED:
+            break
+        if event == 'button_toggle_stim':  # if the graphical button that changes images
+            window['button_toggle_stim'].metadata = not window['button_toggle_stim'].metadata
+            window['button_toggle_stim'].update(image_data=toggle_btn_on if window['button_toggle_stim'].metadata else toggle_btn_off)
+        print(event)
+        window[event].update(toggle_color(event[0], event[1], board), button_color=toggle_color(event[0], event[1], board))
 
 
 window.close()
