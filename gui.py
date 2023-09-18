@@ -6,14 +6,14 @@ import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib
 matplotlib.use('TkAgg')
-from viperboxcontrol import ViperBoxConfiguration
+from viperboxcontrol import ViperBoxControl
 
 sg.theme("SystemDefaultForReal")
 
 toggle_btn_off = b'iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAABmJLR0QA/wD/AP+gvaeTAAAED0lEQVRYCe1WTWwbRRR+M/vnv9hO7BjHpElMKSlpqBp6gRNHxAFVcKM3qgohQSqoqhQ45YAILUUVDRxAor2VAweohMSBG5ciodJUSVqa/iikaePEP4nj2Ovdnd1l3qqJksZGXscVPaylt7Oe/d6bb9/svO8BeD8vA14GvAx4GXiiM0DqsXv3xBcJU5IO+RXpLQvs5yzTijBmhurh3cyLorBGBVokQG9qVe0HgwiXLowdy9aKsY3g8PA5xYiQEUrsk93JTtjd1x3siIZBkSWQudUK4nZO1w3QuOWXV+HuP/fL85klAJuMCUX7zPj4MW1zvC0Ej4yMp/w++K2rM9b70sHBYCjo34x9bPelsgp/XJksZ7KFuwZjr3732YcL64ttEDw6cq5bVuCvgy/sje7rT0sI8PtkSHSEIRIKgCQKOAUGM6G4VoGlwiqoVd2Za9Vl8u87bGJqpqBqZOj86eEHGNch+M7otwHJNq4NDexJD+59RiCEQG8qzslFgN8ibpvZNsBifgXmFvJg459tiOYmOElzYvr2bbmkD509e1ylGEZk1Y+Ssfan18n1p7vgqVh9cuiDxJPxKPT3dfGXcN4Tp3dsg/27hUQs0qMGpRMYjLz38dcxS7Dm3nztlUAb38p0d4JnLozPGrbFfBFm79c8hA3H2AxcXSvDz7/+XtZE1kMN23hjV7LTRnKBh9/cZnAj94mOCOD32gi2EUw4FIRUMm6LGhyiik86nO5NBdGRpxYH14bbjYfJteN/OKR7UiFZVg5T27QHYu0RBxoONV9W8KQ7QVp0iXdE8fANUGZa0QAvfhhXlkQcmjJZbt631oIBnwKmacYoEJvwiuFgWncWnXAtuVBBEAoVVXWCaQZzxmYuut68b631KmoVBEHMUUrJjQLXRAQVSxUcmrKVHfjWWjC3XOT1FW5QrWpc5IJdQhDKVzOigEqS5dKHMVplnNOqrmsXqUSkn+YzWaHE9RW1FeXL7SKZXBFUrXW6jIV6YTEvMAUu0W/G3kcxPXP5ylQZs4fa6marcWvvZfJu36kuHjlc/nMSuXz+/ejxgqPFpuQ/xVude9eu39Jxu27OLvBGoMjrUN04zrNMbgVmOBZ96iPdPZmYntH5Ls76KuxL9NyoLA/brav7n382emDfHqeooXyhQmARVhSnAwNNMx5bu3V1+habun5nWdXhwJZ2C5mirTesyUR738sv7g88UQ0rEkTDlp+1wwe8Pf0klegUenYlgyg7bby75jUTITs2rhCAXXQ2vwxz84vlB0tZ0wL4NEcLX/04OrrltG1s8aOrHhk51SaK0us+n/K2xexBxljcsm1n6x/Fuv1PCWGiKOaoQCY1Vb9gWPov50+fdEqd21ge3suAlwEvA14G/ucM/AuppqNllLGPKwAAAABJRU5ErkJggg=='
 toggle_btn_on = b'iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAABmJLR0QA/wD/AP+gvaeTAAAD+UlEQVRYCe1XzW8bVRCffbvrtbP+2NhOD7GzLm1VoZaPhvwDnKBUKlVyqAQ3/gAkDlWgPeVQEUCtEOIP4AaHSI0CqBWCQyXOdQuRaEFOk3g3IMWO46+tvZ+PeZs6apq4ipON1MNafrvreTPzfvub92bGAOEnZCBkIGQgZOClZoDrh25y5pdjruleEiX+A+rCaQo05bpuvJ/+IHJCSJtwpAHA/e269g8W5RbuzF6o7OVjF8D3Pr4tSSkyjcqfptPDMDKSleW4DKIggIAD5Yf+Oo4DNg6jbUBlvWLUNutAwZu1GnDjzrcXzGcX2AHw/emFUV6Sfk0pqcKpEydkKSo9q3tkz91uF5aWlo1Gs/mYc+i7tz4//19vsW2AU9O381TiioVCQcnlRsWeQhD3bJyH1/MiFLICyBHiuzQsD1arDvypW7DR9nzZmq47q2W95prm+I9fXfqXCX2AF2d+GhI98Y8xVX0lnxvl2UQQg0csb78ag3NjEeD8lXZ7pRTgftmCu4864OGzrq+5ZU0rCa3m+NzXlzvoAoB3+M+SyWQuaHBTEzKMq/3BMbgM+FuFCDBd9kK5XI5PJBKqLSev+POTV29lKB8rT0yMD0WjUSYLZLxzNgZvIHODOHuATP72Vwc6nQ4Uiw8MUeBU4nHS5HA6TYMEl02wPRcZBJuv+ya+UCZOIBaLwfCwQi1Mc4QXhA+PjWRkXyOgC1uIhW5Qd8yG2TK7kSweLcRGKKVnMNExWWBDTQsH9qVmtmzjiThQDs4Qz/OUSGTwcLwIQTLW58i+yOjpXDLqn1tgmDzXzRCk9eDenjo9yhvBmlizrB3V5dDrNTuY0A7opdndStqmaQLPC1WCGfShYRgHdLe32UrV3ntiH9LliuNrsToNlD4kruN8v75eafnSgC6Luo2+B3fGKskilj5muV6pNhk2Qqg5v7lZ51nBZhNBjGrbxfI1+La5t2JCzfD8RF1HTBGJXyDzs1MblONulEqPDVYXgwDIfNx91IUVbAbY837GMur+/k/XZ75UWmJ77ou5mfM1/0x7vP1ls9XQdF2z9uNsPzosXPNFA5m0/EX72TBSiqsWzN8z/GZB08pWq9VeEZ+0bjKb7RTD2i1P4u6r+bwypo5tZUumEcDAmuC3W8ezIqSGfE6g/sTd1W5p5bKjaWubrmWd29Fu9TD0GlYlmTx+8tTJoZeqYe2BZC1/JEU+wQR5TVEUPptJy3Fs+Vkzgf8lemqHumP1AnYoMZSwsVEz6o26i/G9Lgitb+ZmLu/YZtshfn5FZDPBCcJFQRQ+8ih9DctOFvdLIKHH6uUQnq9yhFu0bec7znZ+xpAGmuqef5/wd8hAyEDIQMjAETHwP7nQl2WnYk4yAAAAAElFTkSuQmCC'
 
-def LEDIndicator(key=None, radius=30):
+def LEDIndicator(key=None, radius=15):
     return sg.Graph(
         canvas_size=(radius, radius),
         graph_bottom_left=(-radius, -radius),
@@ -22,11 +22,21 @@ def LEDIndicator(key=None, radius=30):
         key=key,
     )
 
-
-def SetLED(window, key, color):
+def SetLED(window, key, status):
     graph = window[key]
     graph.erase()
-    graph.draw_circle((0, 0), 12, fill_color=color, line_color=color)
+    if status is True:
+        graph.draw_circle((0, 0), 12, fill_color='green', line_color='green')
+    elif status is None:
+        graph.draw_circle((0, 0), 12, fill_color='red', line_color='red')
+    elif status is False:
+        graph.draw_circle((0, 0), 12, fill_color='gray', line_color='gray')
+
+def collapse(layout, key):
+    return sg.pin(sg.Column(layout, key=key,
+    visible=stim_toggle,
+    element_justification='r',
+    expand_x=True,))
 
 # ------------------------------------------------------------------
 # CF STIMULATION PULSE FRAME
@@ -66,29 +76,31 @@ viperbox_control_frame = sg.Frame(
     "Viperbox control",
     [
         [
-            sg.Text("Hardware connection"), 
-            sg.Button('Connect', key='button_connect_hardware'), 
+            sg.Text("Hardware connection", size=(15,0)),
             LEDIndicator("led_connect_hardware")],
         [
-            sg.Text("Probe connection"), 
-            sg.Button('Connect', key='button_connect_probe'), 
+            sg.Text("BS connection", size=(15,0)), 
+            LEDIndicator("led_connect_BS")],
+        [
+            sg.Text("Probe connection", size=(15,0)), 
             LEDIndicator("led_connect_probe")],
+        [
+            sg.Button('(Re)connect', key='button_connect'), ],
         [sg.HorizontalSeparator('light gray')],
         [
-            # sg.Button("Rec", size=(10, 1)), 
-            sg.Text('Rec'),
+            sg.Text('Subject'),
+            sg.Input(sg.user_settings_get_entry("-filename-", "Recording"), size=(15,1)),
+            sg.Button('Select folder'),
+        ],
+        [
+            sg.Text('Recording status:'),
             LEDIndicator("led_rec"),
-            sg.Input(
-                sg.user_settings_get_entry("-filename-", ""), size=(20, 10), key="input_data_path"
-            ),
-            sg.FileSaveAs(),
         ],
         [sg.HorizontalSeparator('light gray')],
         [sg.Text('Manual stimulation'),
             sg.Button(image_data=toggle_btn_off, key='button_toggle_stim', button_color=(sg.theme_background_color(), sg.theme_background_color()), border_width=0, metadata=False),
             sg.Text('Current amplitude sweep')
         ],
-        # [sg.Text("Stimulation:")],
         [
             sg.Button("Start", size=(10, 1), key='button_start'),
             sg.Button("Stop", size=(10, 1), key='button_stop'),
@@ -98,7 +110,6 @@ viperbox_control_frame = sg.Frame(
     # size=(400, 170),
     expand_x=True,
 )
-
 
 # ------------------------------------------------------------------
 # CF: ELECTRODE SELECTION FRAME
@@ -147,7 +158,6 @@ log_frame = sg.Frame(
 # ------------------------------------------------------------------
 # CF: STIMULATION SETTINGS FRAME
 
-
 unit_h, unit_w = (4,1)
 inpsize_w, inpsize_h = (10,1)
 
@@ -177,8 +187,8 @@ stimulation_settings = sg.Frame('Pre-load settings',
 # ------------------------------------------------------------------
 # CF: PULSE SHAPE FRAME
 
-
-pulse_shape_frame = sg.Frame("Pulse shape parameters",[
+stim_toggle = True
+pulse_shape_col1 = sg.Column([
         [sg.Text("Biphasic/Monophasic"),sg.Drop(key='drop_biphasic',  size=(inpsize_w-2, inpsize_h), values=("Biphasic", "Monophasic"), auto_size_text=True, default_value="Biphasic",), sg.T(' ', size=(unit_h, unit_w))],
         [sg.Text("Pulse duration", justification='l'), sg.Input(600, size=(inpsize_w, inpsize_h), key="input_pulse_duration"), sg.T('uSec', size=(unit_h, unit_w))],
         [sg.Text("Pulse delay"), sg.Input(0, size=(inpsize_w, inpsize_h), key="input_pulse_delay"), sg.T('uSec', size=(unit_h, unit_w))],
@@ -187,18 +197,28 @@ pulse_shape_frame = sg.Frame("Pulse shape parameters",[
         [sg.Text("2nd pulse phase width"),sg.Input(170, size=(inpsize_w, inpsize_h), key="input_second_pulse_phase_width"), sg.T('uSec', size=(unit_h, unit_w))],
         # [sg.Text("Discharge time"), sg.Input(, size=(inpsize_w, inpsize_h), key="Discharge time"), sg.T('uSec', size=(unit_h, unit_w))],
         [sg.Text("Interpulse interval (discharge)"), sg.Input(200, size=(inpsize_w, inpsize_h), key="input_discharge_time"), sg.T('uSec', size=(unit_h, unit_w))],
+    ], 
+    element_justification='r',
+    expand_x=True,
+)
+pulse_shape_col2 = [
         [sg.Text("Pulse amplitude anode"), sg.Input(5, size=(inpsize_w, inpsize_h), key="input_pulse_amplitude_anode"), sg.T('uA', size=(unit_h, unit_w))],
         [sg.Text("Pulse amplitude cathode"),sg.Input(5, size=(inpsize_w, inpsize_h), key="input_pulse_amplitude_cathode"), sg.T('uA', size=(unit_h, unit_w))],
         [sg.T('Pulse amplitude equal'), sg.Checkbox("", key='checkbox_pulse_amplitude_equal')],
-        ], 
-        element_justification='r',
-        expand_x=True)#],
-        # [
+    ]
 
-            
+pulse_shape_frame = sg.Frame("Pulse shape parameters",
+    [
+            [pulse_shape_col1], 
+            [collapse(pulse_shape_col2,'pulse_shape_col2')]
+    ], 
+    element_justification='r',
+    expand_x=True,
+)
+
+
 # ------------------------------------------------------------------
 # CF: PULSE TRAIN FRAME
-
 
 pulse_train_frame = sg.Frame("Pulse train parameters",[
         [sg.Text("Number of pulses"), sg.Input(20, size=(inpsize_w, inpsize_h), key="input_number_of_pulses"), sg.T(' ', size=(unit_h, unit_w))],
@@ -211,19 +231,20 @@ pulse_train_frame = sg.Frame("Pulse train parameters",[
         element_justification='r',
         expand_x=True)
 
+
 # ------------------------------------------------------------------
 # CF: PARAMETER SWEEP FRAME
 
-
-ps_dis=False
 parameter_sweep = sg.Frame("Stimulation sweep parameters", [
-        [sg.Text("Pulse amplitude min"), sg.Input(1, size=(inpsize_w, inpsize_h), key="input_pulse_amplitude_min", disabled=ps_dis), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("input_pulse_amplitude_max"), sg.Input(20, size=(inpsize_w, inpsize_h), key="input_pulse_amplitude_max", disabled=ps_dis), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("Pulse amplitude step"), sg.Input(1, size=(inpsize_w, inpsize_h), key="input_pulse_amplitude_step", disabled=ps_dis), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("Repetitions"), sg.Input(size=(3, inpsize_w, inpsize_h), key="input_repetitions", disabled=ps_dis), sg.T(' ', size=(unit_h, unit_w))],
+        [sg.Text("Pulse amplitude min"), sg.Input(1, size=(inpsize_w, inpsize_h), key="input_pulse_amplitude_min"), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.Text("input_pulse_amplitude_max"), sg.Input(20, size=(inpsize_w, inpsize_h), key="input_pulse_amplitude_max"), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.Text("Pulse amplitude step"), sg.Input(1, size=(inpsize_w, inpsize_h), key="input_pulse_amplitude_step"), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.Text("Repetitions"), sg.Input(size=(3, inpsize_w, inpsize_h), key="input_repetitions"), sg.T(' ', size=(unit_h, unit_w))],
         [sg.Checkbox("Randomize", key='checkbox_randomize')],
         ], element_justification='r',
         expand_x=True,
+        visible=not stim_toggle,
+        key='key_parameter_sweep',
         )
 
 # ------------------------------------------------------------------
@@ -247,12 +268,12 @@ window = sg.Window(
 
 fig_canvas_agg = draw_figure(window['-CANVAS-'].TKCanvas, fig)
 _, _ = window.read(timeout=0)
-SetLED(window, "led_rec", "gray")
-SetLED(window, "led_connect_hardware", "gray")
-SetLED(window, "led_connect_probe", "gray")
+SetLED(window, "led_rec", None)
+SetLED(window, "led_connect_hardware", False)
+SetLED(window, "led_connect_BS", False)
+SetLED(window, "led_connect_probe", False)
 
-VPB = ViperBoxConfiguration()
-
+VC = ViperBoxControl(no_box=True)
 
 # ------------------------------------------------------------------
 # CF: MAIN
@@ -268,10 +289,26 @@ if __name__ == "__main__":
         #     print(event, values)
             if event == sg.WIN_CLOSED or event == 'Exit':
                 break
-            if event[:3] == 'el_':
+            elif event == 'button_connect':
+                VC.connect_viperbox()
+                SetLED(window, 'led_connect_hardware', VC._connected_probe)
+                SetLED(window, 'led_connect_BS', VC._connected_BS)
+                SetLED(window, 'led_connect_probe', VC._connected_handle)
+            elif event[:3] == 'el_':
                 window[event].update(button_color=toggle_color(event, reference_matrix))
+            elif event == 'button_toggle_stim':  # if the graphical button that changes images
+                window['button_toggle_stim'].metadata = not window['button_toggle_stim'].metadata
+                window['button_toggle_stim'].update(image_data=toggle_btn_on if window['button_toggle_stim'].metadata else toggle_btn_off)
+                stim_toggle = not stim_toggle
+                window['key_parameter_sweep'].update(visible=not stim_toggle)
+                window['pulse_shape_col2'].update(visible=stim_toggle)
+            # elif click start: create file name and change led to green
         except Exception as e:
             print(e)
             window.close()
 
 window.close()
+
+# TODO with viperbox connected:
+# - Test connect viperbox
+# - 

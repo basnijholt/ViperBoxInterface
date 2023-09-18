@@ -31,8 +31,8 @@ class ViperBoxControl:
 
     def __init__(
         self,
-        recording_file_name: str,
-        probe: int,
+        recording_file_name: str = "",
+        probe: int = 0,
         config_params: Optional[ConfigurationParameters] = None,
         stim_unit: int = 0,
         recording_file_location: str = os.getcwd(),
@@ -67,8 +67,8 @@ class ViperBoxControl:
                 NVP.init(self._handle, self._probe)
                 self._connected_probe = True
             except Exception as e:
-                print(f"Error while setting up handle: {e}")
-                logging.error(f"Error while setting up handle: {e}")
+                print(f"Error while setting up viperbox connection: {e}")
+                logging.error(f"Error while setting up viperbox connection: {e}")
                 return None
 
     def connect_viperbox(self):
@@ -409,6 +409,7 @@ if __name__ == "__main__":
     )
 
     controller = ViperBoxControl("test", 0, config, no_box=True)
+    controller.connect_viperbox()
     # print(config.get_SUConfig_pars())
 
     # controller.control_send_parameters()
