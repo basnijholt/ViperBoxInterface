@@ -6,6 +6,7 @@ import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib
 matplotlib.use('TkAgg')
+from viperboxcontrol import ViperBoxConfiguration
 
 sg.theme("SystemDefaultForReal")
 
@@ -66,8 +67,12 @@ viperbox_control_frame = sg.Frame(
     [
         [
             sg.Text("Hardware connection"), 
-            sg.Button('Connect', key='button_connect'), 
-            LEDIndicator("led_connect")],
+            sg.Button('Connect', key='button_connect_hardware'), 
+            LEDIndicator("led_connect_hardware")],
+        [
+            sg.Text("Probe connection"), 
+            sg.Button('Connect', key='button_connect_probe'), 
+            LEDIndicator("led_connect_probe")],
         [sg.HorizontalSeparator('light gray')],
         [
             # sg.Button("Rec", size=(10, 1)), 
@@ -243,7 +248,10 @@ window = sg.Window(
 fig_canvas_agg = draw_figure(window['-CANVAS-'].TKCanvas, fig)
 _, _ = window.read(timeout=0)
 SetLED(window, "led_rec", "gray")
-SetLED(window, "led_connect", "gray")
+SetLED(window, "led_connect_hardware", "gray")
+SetLED(window, "led_connect_probe", "gray")
+
+VPB = ViperBoxConfiguration()
 
 
 # ------------------------------------------------------------------

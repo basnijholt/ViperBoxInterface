@@ -42,24 +42,66 @@ class ViperBoxControl:
         """Initializes the ViperBoxControl object."""
         # TODO: check which other parameters logically are part of self and init.
         self._recording = False
-        self._recording_file_name = (
+        self._recording_file_name: str = (
             recording_file_name + time.strftime("_%Y-%m-%d_%H-%M-%S") + ".bin"
         )
-        self._recording_file_location = recording_file_location
+        self._recording_file_location: str = recording_file_location
         self._metadata_stream: Optional[List[Any]] = metadata_stream
         self._probe = probe
         self._stim_unit = stim_unit
         self.config_params = config_params
+        self._handle: Type[Any] = None
+        self._connected_handle: bool = False
+        self._connected_BS: bool = False
+        self._connected_probe: bool = False
 
         if no_box:
             self._handle = "no_box"
         else:
             try:
-                self._handle: Type[Any] = NVP.createHandle(0)
+                self._handle = NVP.createHandle(0)
+                self._connected_handle = True
                 NVP.openBS(self._handle)
+                self._connected_BS = True
+                NVP.openProbes(self._handle)
+                NVP.init(self._handle, self._probe)
+                self._connected_probe = True
             except Exception as e:
                 print(f"Error while setting up handle: {e}")
                 logging.error(f"Error while setting up handle: {e}")
+                return None
+
+    def connect_viperbox(self):
+        if self._connected_handle is True:
+            pass
+        else:
+            try:
+                self._handle = NVP.createHandle(0)
+                self._connected_handle = True
+            except Exception as e:
+                print(f"Error while setting up handle: {e}")
+                logging.error(f"Error while setting up handle: {e}")
+                return None
+        if self._connected_BS is True:
+            pass
+        elif self._connected_handle is True:
+            try:
+                NVP.openBS(self._handle)
+                self._connected_BS = True
+            except Exception as e:
+                print(f"Error while setting up BS: {e}")
+                logging.error(f"Error while setting up BS: {e}")
+                return None
+        if self._connected_probe is True:
+            pass
+        elif self._connected_BS is True and self._connected_handle is True:
+            try:
+                NVP.openProbes(self._handle)
+                NVP.init(self._handle, self._probe)
+                self._connected_probe = True
+            except Exception as e:
+                print(f"Error while setting up probe: {e}")
+                logging.error(f"Error while setting up probe: {e}")
                 return None
 
     def update_config(self, config_params: ConfigurationParameters) -> None:
@@ -110,9 +152,6 @@ class ViperBoxControl:
             NVP.setDeviceEmulatorType(
                 self._handle, NVP.DeviceEmulatorType.EMULATED_PROBE
             )
-
-        NVP.openProbes(self._handle)
-        NVP.init(self._handle, self._probe)
 
         NVP.setFileStream(self._handle, self._recording_path)
         NVP.enableFileStream(self._handle, True)
