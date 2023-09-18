@@ -69,10 +69,6 @@ viperbox_control_frame = sg.Frame(
             sg.Button('Connect', key='button_connect'), 
             LEDIndicator("led_connect")],
         [sg.HorizontalSeparator('light gray')],
-        [sg.Text('Manual stimulation'),
-            sg.Button(image_data=toggle_btn_off, key='button_toggle_stim', button_color=(sg.theme_background_color(), sg.theme_background_color()), border_width=0, metadata=False),
-            sg.Text('Current amplitude sweep')
-        ],
         [
             # sg.Button("Rec", size=(10, 1)), 
             sg.Text('Rec'),
@@ -82,7 +78,11 @@ viperbox_control_frame = sg.Frame(
             ),
             sg.FileSaveAs(),
         ],
-        # [sg.HorizontalSeparator('light gray')],
+        [sg.HorizontalSeparator('light gray')],
+        [sg.Text('Manual stimulation'),
+            sg.Button(image_data=toggle_btn_off, key='button_toggle_stim', button_color=(sg.theme_background_color(), sg.theme_background_color()), border_width=0, metadata=False),
+            sg.Text('Current amplitude sweep')
+        ],
         # [sg.Text("Stimulation:")],
         [
             sg.Button("Start", size=(10, 1), key='button_start'),
@@ -260,7 +260,6 @@ if __name__ == "__main__":
         #     print(event, values)
             if event == sg.WIN_CLOSED or event == 'Exit':
                 break
-            print(event[10:])
             if event[:3] == 'el_':
                 window[event].update(button_color=toggle_color(event, reference_matrix))
         except Exception as e:

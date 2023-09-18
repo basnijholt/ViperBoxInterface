@@ -5,6 +5,10 @@ import random
 """
 This module contains classes and functions for defining and verifying parameters
 for stimulation and recording.
+
+Known limitation of implementation
+- all intervals between stimulation pulses are discharge moments so no recording from 
+    those electrodes is possible during that time
 """
 
 # TODO:
@@ -48,7 +52,7 @@ class PulseShapeParameters:
     :param int pulse_amplitude_cathode: Amplitude of the cathode pulse (default: 1)
     :param bool pulse_amplitude_equal: Whether the amplitude of anode and cathode pulses
     should be equal (default: False)
-    :param int pulse_duration: Duration of entire pulse
+    :param int pulse_duration: Duration of entire pulse (default: 600)
     """
 
     biphasic: bool = True
@@ -57,7 +61,6 @@ class PulseShapeParameters:
     pulse_interphase_interval: int = 60
     second_pulse_phase_width: int = 170
     discharge_time: int = 200
-    # discharge_time_extra: int = 0
     pulse_amplitude_anode: int = 1
     pulse_amplitude_cathode: int = 1
     pulse_amplitude_equal: bool = False
@@ -72,6 +75,7 @@ class PulseShapeParameters:
         discharge_time: 100,
         pulse_amplitude_anode: 1,
         pulse_amplitude_cathode: 1,
+        pulse_duration: 100,
     }
 
     def __post_init__(self) -> None:
@@ -105,6 +109,7 @@ class PulseShapeParameters:
             ("discharge_time", self.discharge_time, 100, 0, 25500),
             ("pulse_amplitude_anode", self.pulse_amplitude_anode, 1, 0, 255),
             ("pulse_amplitude_cathode", self.pulse_amplitude_cathode, 1, 0, 255),
+            ("pulse_duration", self.pulse_duration, 100, 100, 25500),
         ]
 
         # Loop through parameters to verify and call verify_step_min_max
@@ -116,9 +121,6 @@ class PulseShapeParameters:
 
     def _additional_checks(self) -> None:
         """Run additional checks to verify the values."""
-
-        # if self.discharge_time_extra != 0:
-        #     raise ValueError("Expected discharge_time_extra to be 0")
 
         if self.pulse_amplitude_equal:
             if self.pulse_amplitude_cathode != self.pulse_amplitude_anode:

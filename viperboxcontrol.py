@@ -198,17 +198,16 @@ class ViperBoxControl:
 
     def control_rec_start(
         self,
-        recording_time: Optional[int] = 1,
+        recording_time: int = 0,
         store_NWB: bool = False,
     ) -> None:
         """
         Handles starting of recording state.
 
-        :param infinite_rec: (Optional) Flag to determine if the recoding will continue
-        indefinitely or until control_rec_stop is called.
-        :param recording_time: (Optional) Time in seconds that a recording will take if
-        there is a defined end time.
-        :param store_NWB: (Optional) Flag to determine if data should stored as NWB.
+        :param int recording_time: (Optional) Time in seconds that a recording will
+        take, will continue indefinitely when set to 0 (default: 0)
+        :param bool store_NWB: (Optional) Flag to determine if data should be stored
+        as NWB.
         """
 
         if self._recording:
@@ -277,16 +276,19 @@ class ViperBoxControl:
         NVP.setOSimage(self._handle, self._probe, bytes(128 * [8]))
         NVP.writeOSConfiguration(self._handle, self._probe, False)
 
-    def stimulation_trigger(self, recording_time=None) -> None:
+    def stimulation_trigger(self, recording_time=0) -> None:
         """Handles start of stimulation."""
         if self._recording is False:
+            if recording_time:
+                recording_time += 0.5
             self.control_rec_start(recording_time=recording_time)
+            # sleep to be able to gather some data before stimulation is started.
             time.sleep(0.5)
         NVP.SUtrig1(self._handle, self._probe, bytes([8]))
 
     def stim_sweep(
         self,
-        polarity: int = 0,
+        # polarity: int = 0,
         # config_params: ConfigurationParameters = None,
     ) -> None:
         # self.config_params = config_params
@@ -300,7 +302,7 @@ class ViperBoxControl:
         NVP.writeOSConfiguration(self._handle, self._probe, False)
 
         if self._recording is False:
-            self.control_rec_start(recording_time=None)
+            self.control_rec_start(recording_time=0)
             time.sleep(0.5)
 
         last_stim = (None, None)
