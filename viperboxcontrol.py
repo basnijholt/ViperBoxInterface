@@ -72,37 +72,47 @@ class ViperBoxControl:
                 return None
 
     def connect_viperbox(self):
-        if self._connected_handle is True:
-            pass
-        else:
+        if not self._connect_handle():
+            return False
+        if not self._connect_BS():
+            return False
+        if not self._connect_probe():
+            return False
+        return True
+
+    def _connect_handle(self):
+        if not self._connected_handle:
             try:
                 self._handle = NVP.createHandle(0)
                 self._connected_handle = True
             except Exception as e:
-                print(f"Error while setting up handle: {e}")
                 logging.error(f"Error while setting up handle: {e}")
-                return None
-        if self._connected_BS is True:
-            pass
-        elif self._connected_handle is True:
+                print(f"Error while setting up handle: {e}")
+                return False
+        return True
+
+    def _connect_BS(self):
+        if not self._connected_BS and self._connected_handle:
             try:
                 NVP.openBS(self._handle)
                 self._connected_BS = True
             except Exception as e:
-                print(f"Error while setting up BS: {e}")
                 logging.error(f"Error while setting up BS: {e}")
-                return None
-        if self._connected_probe is True:
-            pass
-        elif self._connected_BS is True and self._connected_handle is True:
+                print(f"Error while setting up BS: {e}")
+                return False
+        return True
+
+    def _connect_probe(self):
+        if not self._connected_probe and self._connected_BS and self._connected_handle:
             try:
                 NVP.openProbes(self._handle)
                 NVP.init(self._handle, self._probe)
                 self._connected_probe = True
             except Exception as e:
-                print(f"Error while setting up probe: {e}")
                 logging.error(f"Error while setting up probe: {e}")
-                return None
+                print(f"Error while setting up probe: {e}")
+                return False
+        return True
 
     def update_config(self, config_params: ConfigurationParameters) -> None:
         self.config_params = config_params
