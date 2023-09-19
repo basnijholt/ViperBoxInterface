@@ -226,6 +226,7 @@ stimulation_settings = sg.Frame('Pre-load settings',
     vertical_alignment='t',
 )
 
+
 # ------------------------------------------------------------------
 # CF: PULSE SHAPE FRAME
 
