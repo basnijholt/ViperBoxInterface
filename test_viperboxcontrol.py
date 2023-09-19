@@ -7,6 +7,8 @@ from parameters import (
     ViperBoxConfiguration,
 )
 
+# write test to check if pulse_duration = sum of parts
+
 
 # Test workflow
 def test_pure_recording():

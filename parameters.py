@@ -1,10 +1,17 @@
 from dataclasses import dataclass, asdict, field
 from typing import Any, List, Tuple
 import random
+import logging
+
+logger = logging.getLogger(__name__)
 
 """
 This module contains classes and functions for defining and verifying parameters
 for stimulation and recording.
+
+Known limitation of implementation
+- all intervals between stimulation pulses are discharge moments so no recording from 
+    those electrodes is possible during that time
 """
 
 # TODO:
@@ -25,8 +32,10 @@ def verify_step_min_max(name: str, value: int, step: int, min_val: int, max_val:
     step
     """
     if not min_val <= value <= max_val:
+        logger.error(f"{name} must be between {min_val} and {max_val}.")
         raise ValueError(f"{name} must be between {min_val} and {max_val}.")
     if (value - min_val) % step != 0:
+        logger.error(f"{name} must be a multiple of {step}.")
         raise ValueError(f"{name} must be a multiple of {step}.")
 
 
@@ -48,7 +57,7 @@ class PulseShapeParameters:
     :param int pulse_amplitude_cathode: Amplitude of the cathode pulse (default: 1)
     :param bool pulse_amplitude_equal: Whether the amplitude of anode and cathode pulses
     should be equal (default: False)
-    :param int pulse_duration: Duration of entire pulse
+    :param int pulse_duration: Duration of entire pulse (default: 600)
     """
 
     biphasic: bool = True
@@ -57,22 +66,22 @@ class PulseShapeParameters:
     pulse_interphase_interval: int = 60
     second_pulse_phase_width: int = 170
     discharge_time: int = 200
-    # discharge_time_extra: int = 0
     pulse_amplitude_anode: int = 1
     pulse_amplitude_cathode: int = 1
     pulse_amplitude_equal: bool = False
 
     pulse_duration: int = 600
 
-    shape_step_size_dict = {
-        pulse_delay: 100,
-        first_pulse_phase_width: 10,
-        pulse_interphase_interval: 10,
-        second_pulse_phase_width: 10,
-        discharge_time: 100,
-        pulse_amplitude_anode: 1,
-        pulse_amplitude_cathode: 1,
-    }
+    # shape_step_size_dict = {
+    #     pulse_delay: 100,
+    #     first_pulse_phase_width: 10,
+    #     pulse_interphase_interval: 10,
+    #     second_pulse_phase_width: 10,
+    #     discharge_time: 100,
+    #     pulse_amplitude_anode: 1,
+    #     pulse_amplitude_cathode: 1,
+    #     pulse_duration: 100,
+    # }
 
     def __post_init__(self) -> None:
         """Initialize values and verify them."""
@@ -105,6 +114,7 @@ class PulseShapeParameters:
             ("discharge_time", self.discharge_time, 100, 0, 25500),
             ("pulse_amplitude_anode", self.pulse_amplitude_anode, 1, 0, 255),
             ("pulse_amplitude_cathode", self.pulse_amplitude_cathode, 1, 0, 255),
+            ("pulse_duration", self.pulse_duration, 100, 100, 25500),
         ]
 
         # Loop through parameters to verify and call verify_step_min_max
@@ -116,9 +126,6 @@ class PulseShapeParameters:
 
     def _additional_checks(self) -> None:
         """Run additional checks to verify the values."""
-
-        # if self.discharge_time_extra != 0:
-        #     raise ValueError("Expected discharge_time_extra to be 0")
 
         if self.pulse_amplitude_equal:
             if self.pulse_amplitude_cathode != self.pulse_amplitude_anode:
@@ -176,7 +183,7 @@ class PulseTrainParameters:
     number_of_pulses: int = 20
     frequency_of_pulses: int = 2500
     number_of_trains: int = 1
-    train_interval: int = 1000
+    # train_interval: int = 1000
     onset_jitter: int = 1000
     discharge_time_extra: int = 100
 
@@ -190,7 +197,8 @@ class PulseTrainParameters:
         """Verifies the constraints for all parameters."""
         verify_step_min_max("number_of_pulses", self.number_of_pulses, 1, 0, 255)
         verify_step_min_max("number_of_trains", self.number_of_trains, 1, 1, 20)
-        verify_step_min_max("train_interval", self.train_interval, 1000, 1000, 3000000)
+        # verify_step_min_max("train_interval", self.train_interval,
+        # 1000, 1000, 3000000)
         verify_step_min_max("onset_jitter", self.onset_jitter, 1000, 0, 2000000)
         verify_step_min_max(
             "discharge_time_extra", self.discharge_time_extra, 100, 0, 25500
@@ -240,18 +248,37 @@ class StimulationSweepParameters:
     """
 
     stim_sweep_electrode_list: List[int] = field(default_factory=list)
-    rec_electrodes_list: List[int] = field(default_factory=list)
-    pulse_amplitudes: Tuple[int, int, int] = (0, 1, 1)
+    # rec_electrodes_list: List[int] = field(default_factory=list)
+    pulse_amplitude_min: int = 0
+    pulse_amplitude_max: int = 1
+    pulse_amplitude_step: int = 1
     randomize: bool = False
     repetitions: int = 1
 
-    amplitude_list: List[int] = field(init=False)
-    stim_list: List[Tuple[int, int]] = field(init=False)
+    # amplitude_list: List[int] = field(init=False)
+    # stim_list: List[Tuple[int, int]] = field(init=False)
 
     def __post_init__(self):
         # Check if pulse_amplitudes is a tuple of three ints
-        if len(self.pulse_amplitudes) != 3:
-            raise ValueError("pulse_amplitudes must be a tuple of three ints.")
+        self.pulse_amplitude_min = int(self.pulse_amplitude_min)
+        self.pulse_amplitude_max = int(self.pulse_amplitude_max)
+        self.pulse_amplitude_step = int(self.pulse_amplitude_step)
+        self.repetitions = int(self.repetitions)
+        self.verify_values()
+
+        if self.pulse_amplitude_min >= self.pulse_amplitude_max:
+            logger.error(
+                "Pulse amplitude min should be smaller than Pulse amplitude max"
+            )
+
+        self.pulse_amplitudes: Tuple[int, int, int] = (
+            self.pulse_amplitude_min,
+            self.pulse_amplitude_max,
+            self.pulse_amplitude_step,
+        )
+
+        if self.pulse_amplitudes == []:
+            logger.error("Check your values for pulse amplitudes")
 
         # Check if repetitions is 1 or more
         if self.repetitions < 1:
@@ -261,7 +288,7 @@ class StimulationSweepParameters:
         self.amplitude_list = list(
             range(
                 self.pulse_amplitudes[0],
-                self.pulse_amplitudes[1] + 1,
+                self.pulse_amplitudes[1],
                 self.pulse_amplitudes[2],
             )
         )
@@ -283,6 +310,15 @@ class StimulationSweepParameters:
                 random.shuffle(temp_list)
                 combined_list.extend(temp_list)
             self.stim_list = combined_list
+
+    def verify_values(self) -> None:
+        """Verifies the constraints for all parameters."""
+        verify_step_min_max("pulse_amplitude_min", self.pulse_amplitude_min, 1, 0, 255)
+        verify_step_min_max("pulse_amplitude_max", self.pulse_amplitude_max, 1, 0, 255)
+        verify_step_min_max(
+            "pulse_amplitude_step", self.pulse_amplitude_step, 1, 0, 255
+        )
+        verify_step_min_max("repetitions", self.repetitions, 1, 0, 50)
 
 
 @dataclass

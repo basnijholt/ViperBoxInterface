@@ -20,3 +20,5 @@ multiwin.json
 multiwin.py
 testgui.py
 activity.log
+ViperBoxInterface.log
+settings_file.cfg
