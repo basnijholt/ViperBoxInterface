@@ -55,6 +55,7 @@ class ViperBoxControl:
         self._connected_handle: bool = False
         self._connected_BS: bool = False
         self._connected_probe: bool = False
+        self.no_box = no_box
 
         if no_box:
             self._handle = "no_box"

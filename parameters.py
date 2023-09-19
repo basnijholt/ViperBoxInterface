@@ -1,6 +1,9 @@
 from dataclasses import dataclass, asdict, field
 from typing import Any, List, Tuple
 import random
+import logging
+
+logger = logging.getLogger(__name__)
 
 """
 This module contains classes and functions for defining and verifying parameters
@@ -29,8 +32,10 @@ def verify_step_min_max(name: str, value: int, step: int, min_val: int, max_val:
     step
     """
     if not min_val <= value <= max_val:
+        logger.error(f"{name} must be between {min_val} and {max_val}.")
         raise ValueError(f"{name} must be between {min_val} and {max_val}.")
     if (value - min_val) % step != 0:
+        logger.error(f"{name} must be a multiple of {step}.")
         raise ValueError(f"{name} must be a multiple of {step}.")
 
 
@@ -243,18 +248,37 @@ class StimulationSweepParameters:
     """
 
     stim_sweep_electrode_list: List[int] = field(default_factory=list)
-    rec_electrodes_list: List[int] = field(default_factory=list)
-    pulse_amplitudes: Tuple[int, int, int] = (0, 1, 1)
+    # rec_electrodes_list: List[int] = field(default_factory=list)
+    pulse_amplitude_min: int = 0
+    pulse_amplitude_max: int = 1
+    pulse_amplitude_step: int = 1
     randomize: bool = False
     repetitions: int = 1
 
-    amplitude_list: List[int] = field(init=False)
-    stim_list: List[Tuple[int, int]] = field(init=False)
+    # amplitude_list: List[int] = field(init=False)
+    # stim_list: List[Tuple[int, int]] = field(init=False)
 
     def __post_init__(self):
         # Check if pulse_amplitudes is a tuple of three ints
-        if len(self.pulse_amplitudes) != 3:
-            raise ValueError("pulse_amplitudes must be a tuple of three ints.")
+        self.pulse_amplitude_min = int(self.pulse_amplitude_min)
+        self.pulse_amplitude_max = int(self.pulse_amplitude_max)
+        self.pulse_amplitude_step = int(self.pulse_amplitude_step)
+        self.repetitions = int(self.repetitions)
+        self.verify_values()
+
+        if self.pulse_amplitude_min >= self.pulse_amplitude_max:
+            logger.error(
+                "Pulse amplitude min should be smaller than Pulse amplitude max"
+            )
+
+        self.pulse_amplitudes: Tuple[int, int, int] = (
+            self.pulse_amplitude_min,
+            self.pulse_amplitude_max,
+            self.pulse_amplitude_step,
+        )
+
+        if self.pulse_amplitudes == []:
+            logger.error("Check your values for pulse amplitudes")
 
         # Check if repetitions is 1 or more
         if self.repetitions < 1:
@@ -264,7 +288,7 @@ class StimulationSweepParameters:
         self.amplitude_list = list(
             range(
                 self.pulse_amplitudes[0],
-                self.pulse_amplitudes[1] + 1,
+                self.pulse_amplitudes[1],
                 self.pulse_amplitudes[2],
             )
         )
@@ -286,6 +310,15 @@ class StimulationSweepParameters:
                 random.shuffle(temp_list)
                 combined_list.extend(temp_list)
             self.stim_list = combined_list
+
+    def verify_values(self) -> None:
+        """Verifies the constraints for all parameters."""
+        verify_step_min_max("pulse_amplitude_min", self.pulse_amplitude_min, 1, 0, 255)
+        verify_step_min_max("pulse_amplitude_max", self.pulse_amplitude_max, 1, 0, 255)
+        verify_step_min_max(
+            "pulse_amplitude_step", self.pulse_amplitude_step, 1, 0, 255
+        )
+        verify_step_min_max("repetitions", self.repetitions, 1, 0, 50)
 
 
 @dataclass

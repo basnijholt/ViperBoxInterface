@@ -18,7 +18,11 @@ from parameters import (
 import logging
 import logging.handlers
 import os
+from os.path import basename
 
+folder_path = os.getcwd()
+
+settings_list = ['Corin_default', 'Cristina_default', 'mouse_jumpy']
 
 LOG_FILENAME = 'ViperBoxInterface.log'
 open(LOG_FILENAME, 'w').close()
@@ -28,7 +32,7 @@ logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ER
 # Create a rotating file handler that logs debug and higher level messages
 file_handler = logging.handlers.RotatingFileHandler(LOG_FILENAME, maxBytes=1e6, backupCount=10)
 file_handler.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 file_handler.setFormatter(formatter)
 # Add the file handler to the logger
 logger.addHandler(file_handler)
@@ -115,8 +119,11 @@ viperbox_control_frame = sg.Frame(
         [sg.HorizontalSeparator('light gray')],
         [
             sg.Text('Subject'),
-            sg.Input("Recording", key="input_filename", size=(15,1)),
-            sg.Button('Select folder'),
+            sg.Input("Recording", key="input_filename", size=(15,1))
+        ],
+        [
+            sg.Text(f"Saving in {basename(folder_path)}", key='current_folder', size=(25,1)),
+            sg.Button('Select different folder'),
         ],
         [
             sg.Text('Recording status:'),
@@ -189,24 +196,32 @@ unit_h, unit_w = (4,1)
 inpsize_w, inpsize_h = (10,1)
 
 stimulation_settings = sg.Frame('Pre-load settings',
+    [
         [
-            [sg.Button("Load", size=(10,1), key='button_load_set')],
-            [sg.Button('Delete', size=(10,1), key='button_del_set'),],
-            [sg.Button("Save", size=(10,1), key='button_save_set'),],
-            [sg.Input('', size=(15,1), key='input_set_name')],
-
-[
-            sg.Listbox(
-                size=(10, 6),
-                key="listbox_settings",
-                values=['Corin_default', 'Cristina_default', 'mouse_jumpy'],
-                expand_y=True,
-                expand_x=True,
-            )
-        ]
+            sg.Button('Select settings folder', key='button_select_settings_folder', expand_x=True)
+        ],
+        [
+            sg.Text('Filter:'),
+            sg.Input('', size=(15,1), key='input_filter_name', expand_x=True),
+        ],
+        [sg.Listbox(
+            size=(10, 6),
+            key="listbox_settings",
+            expand_y=True,
+            expand_x=True,
+            values=settings_list,
+        ),],
+        [
+            sg.Button("Save settings", size=(10,1), key='button_save_set'),
+            sg.Input('sett_name', size=(15,1), key='input_set_name'),
+        ],
+        [
+            sg.Button("Load", size=(10,1), key='button_load_set'),
+            sg.Button('Delete', size=(10,1), key='button_del_set'),
+        ],
     ], 
     expand_x=True,
-    size=(185,60),
+    # size=(185,60),
     expand_y=True,
     vertical_alignment='t',
 )
@@ -266,7 +281,7 @@ parameter_sweep = sg.Frame("Stimulation sweep parameters", [
         [sg.Text("Pulse amplitude min"), sg.Input(1, size=(inpsize_w, inpsize_h), key="pulse_amplitude_min"), sg.T('uA', size=(unit_h, unit_w))],
         [sg.Text("pulse_amplitude_max"), sg.Input(20, size=(inpsize_w, inpsize_h), key="pulse_amplitude_max"), sg.T('uA', size=(unit_h, unit_w))],
         [sg.Text("Pulse amplitude step"), sg.Input(1, size=(inpsize_w, inpsize_h), key="pulse_amplitude_step"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("Repetitions"), sg.Input(size=(3, inpsize_w, inpsize_h), key="repetitions"), sg.T(' ', size=(unit_h, unit_w))],
+        [sg.Text("Repetitions"), sg.Input(1, size=(3, inpsize_w, inpsize_h), key="repetitions"), sg.T(' ', size=(unit_h, unit_w))],
         [sg.Checkbox("Randomize", key='randomize')],
         ], element_justification='r',
         expand_x=True,
@@ -277,12 +292,13 @@ parameter_sweep = sg.Frame("Stimulation sweep parameters", [
 # ------------------------------------------------------------------
 # INTEGRATION OF COMPONENTS
 
-sub_col1 = sg.Column([[stimulation_settings, electrode_frame]], vertical_alignment='t')
-col1 = sg.Column([[viperbox_control_frame], [sub_col1]], vertical_alignment="t")
-col2 = sg.Column([[pulse_shape_frame],[pulse_train_frame],[parameter_sweep]], vertical_alignment='t')
-col3 = sg.Column([[plot_frame],[log_frame]], vertical_alignment='t')
+# sub_col1 = sg.Column([[stimulation_settings, ]], vertical_alignment='t')
+col1 = sg.Column([[viperbox_control_frame], [stimulation_settings]], vertical_alignment="t")
+col2 = sg.Column([[electrode_frame]], vertical_alignment='t')
+col3 = sg.Column([[pulse_shape_frame],[pulse_train_frame],[parameter_sweep]], vertical_alignment='t')
+col4 = sg.Column([[plot_frame],[log_frame]], vertical_alignment='t')
 
-layout = [[col1, col2, col3]],
+layout = [[col1, col2, col3, col4]],
 
 window = sg.Window(
     "ViperBox Control",
@@ -351,21 +367,31 @@ SetLED(window, "led_connect_probe", False)
 
 window['mul_log'].update(read_log_file('ViperBoxInterface.log'))
 last_printed_timestamp = get_last_timestamp('ViperBoxInterface.log')
-folder_path = os.getcwd()
 
 VB = ViperBoxControl(no_box=True)
 
-# if values['biphasic'] == 'Biphasic':
-#     values['biphasic'] = True
-# else:
-#     values['biphasic'] = False
-# filtered_data = {k: int(values[k]) for k in PulseShapeParameters.__annotations__}
-# pulse_shape = PulseShapeParameters(**filtered_data)
-# filtered_data = {k: int(values[k]) for k in PulseTrainParameters.__annotations__}
-# pulse_shape = PulseTrainParameters(**filtered_data)
-# filtered_data = {k: int(values[k]) for k in StimulationSweepParameters.__annotations__}
-# pulse_shape = StimulationSweepParameters(**filtered_data)
+def get_electrodes(reference_matrix):
+    rows, cols = np.where(np.asarray(reference_matrix)=='on')
+    electrode_list = [i*MAX_ROWS+j+1 for i,j in zip(cols, rows)]
+    electrode_list.sort()
+    return electrode_list
 
+if values['biphasic'] == 'Biphasic':
+    values['biphasic'] = True
+else:
+    values['biphasic'] = False
+reference_matrix[0][0] = 'on'
+values['stim_sweep_electrode_list'] = get_electrodes(reference_matrix)
+reference_matrix[0][0] = 'off'
+filtered_data = {k: int(values[k]) for k in PulseShapeParameters.__annotations__}
+pulse_shape = PulseShapeParameters(**filtered_data)
+filtered_data = {k: int(values[k]) for k in PulseTrainParameters.__annotations__}
+pulse_shape = PulseTrainParameters(**filtered_data)
+filtered_data = {k: values[k] for k in StimulationSweepParameters.__annotations__}
+pulse_shape = StimulationSweepParameters(**filtered_data)
+
+settings_list = ['Corin_default', 'Cristina_default', 'mouse_jumpy']
+tmp_input_filter_name = ''
 # ------------------------------------------------------------------
 # CF: MAIN
 
@@ -376,19 +402,23 @@ if __name__ == "__main__":
 
     while True:
         try:
-            event, values = window.read()
+            event, values = window.read(timeout=100)
         #     print(event, values)
             if event == sg.WIN_CLOSED or event == 'Exit':
                 break
             elif event == 'button_connect':
-                VB.connect_viperbox()
-                SetLED(window, 'led_connect_hardware', VB._connected_probe)
-                SetLED(window, 'led_connect_BS', VB._connected_BS)
-                SetLED(window, 'led_connect_probe', VB._connected_handle)
+                if VB._handle == 'no_box':
+                    logger.info('VirtualBox initialized in testing mode')
+                else:
+                    VB.connect_viperbox()
+                    SetLED(window, 'led_connect_hardware', VB._connected_probe)
+                    SetLED(window, 'led_connect_BS', VB._connected_BS)
+                    SetLED(window, 'led_connect_probe', VB._connected_handle)
             elif event[:3] == 'el_':
                 window[event].update(button_color=toggle_color(event, reference_matrix))
-            elif event == 'Select folder':
-                folder_path = sg.popup_get_folder('Get folder')
+            elif event == 'Select different folder':
+                folder_path = sg.popup_get_folder('Select different folder')
+                window['current_folder'].update(f'Saving in {basename(folder_path)}')
                 # print(folder_path)
             elif event == 'button_toggle_stim':  # if the graphical button that changes images
                 window['button_toggle_stim'].metadata = not window['button_toggle_stim'].metadata
@@ -411,13 +441,32 @@ if __name__ == "__main__":
 
 
 
-            #     elif manual_stim:
-
-            #     pass
             elif event == 'button_stop':
                 SetLED(window, "led_rec", False)
                 VB.control_rec_stop()
-            # elif click start: create file name and change led to green
+            
+
+
+            
+            
+            # elif values['input_filter_name'] != tmp_input_filter_name:
+            #     if settings_list == []:
+            #         print('1')
+            #         pass
+
+
+
+
+
+            if values['input_filter_name'] != '':
+                search = values['input_filter_name']
+                new_values = [x for x in settings_list if search in x]
+                window['listbox_settings'].update(new_values)
+            else:
+                window['listbox_settings'].update(settings_list)
+            if event == 'listbox_settings' and len(values['listbox_settings']):
+                selected_setting = values['listbox_settings']
+
             last_log_timestamp = get_last_timestamp('ViperBoxInterface.log')
             if last_log_timestamp != last_printed_timestamp:
                 window['mul_log'].update(read_log_file('ViperBoxInterface.log'))
