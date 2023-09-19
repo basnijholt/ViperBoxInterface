@@ -67,16 +67,16 @@ class PulseShapeParameters:
 
     pulse_duration: int = 600
 
-    shape_step_size_dict = {
-        pulse_delay: 100,
-        first_pulse_phase_width: 10,
-        pulse_interphase_interval: 10,
-        second_pulse_phase_width: 10,
-        discharge_time: 100,
-        pulse_amplitude_anode: 1,
-        pulse_amplitude_cathode: 1,
-        pulse_duration: 100,
-    }
+    # shape_step_size_dict = {
+    #     pulse_delay: 100,
+    #     first_pulse_phase_width: 10,
+    #     pulse_interphase_interval: 10,
+    #     second_pulse_phase_width: 10,
+    #     discharge_time: 100,
+    #     pulse_amplitude_anode: 1,
+    #     pulse_amplitude_cathode: 1,
+    #     pulse_duration: 100,
+    # }
 
     def __post_init__(self) -> None:
         """Initialize values and verify them."""
@@ -178,7 +178,7 @@ class PulseTrainParameters:
     number_of_pulses: int = 20
     frequency_of_pulses: int = 2500
     number_of_trains: int = 1
-    train_interval: int = 1000
+    # train_interval: int = 1000
     onset_jitter: int = 1000
     discharge_time_extra: int = 100
 
@@ -192,7 +192,8 @@ class PulseTrainParameters:
         """Verifies the constraints for all parameters."""
         verify_step_min_max("number_of_pulses", self.number_of_pulses, 1, 0, 255)
         verify_step_min_max("number_of_trains", self.number_of_trains, 1, 1, 20)
-        verify_step_min_max("train_interval", self.train_interval, 1000, 1000, 3000000)
+        # verify_step_min_max("train_interval", self.train_interval,
+        # 1000, 1000, 3000000)
         verify_step_min_max("onset_jitter", self.onset_jitter, 1000, 0, 2000000)
         verify_step_min_max(
             "discharge_time_extra", self.discharge_time_extra, 100, 0, 25500

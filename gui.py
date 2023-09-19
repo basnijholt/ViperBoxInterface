@@ -6,6 +6,7 @@ import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib
 matplotlib.use('TkAgg')
+import datetime
 from viperboxcontrol import ViperBoxControl
 from parameters import (
     ConfigurationParameters,
@@ -16,8 +17,11 @@ from parameters import (
 )
 import logging
 import logging.handlers
+import os
+
 
 LOG_FILENAME = 'ViperBoxInterface.log'
+open(LOG_FILENAME, 'w').close()
 # Create a logger
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
@@ -29,7 +33,6 @@ file_handler.setFormatter(formatter)
 # Add the file handler to the logger
 logger.addHandler(file_handler)
 logging.getLogger('matplotlib.font_manager').setLevel(logging.CRITICAL)
-
 
 sg.theme("SystemDefaultForReal")
 
@@ -112,7 +115,7 @@ viperbox_control_frame = sg.Frame(
         [sg.HorizontalSeparator('light gray')],
         [
             sg.Text('Subject'),
-            sg.Input(sg.user_settings_get_entry("-filename-", "Recording"), size=(15,1)),
+            sg.Input("Recording", key="input_filename", size=(15,1)),
             sg.Button('Select folder'),
         ],
         [
@@ -170,6 +173,7 @@ log_frame = sg.Frame(
                 key="mul_log",
                 expand_y=True,
                 expand_x=True,
+                autoscroll=True,
             )
         ],
     ],
@@ -248,8 +252,8 @@ pulse_train_frame = sg.Frame("Pulse train parameters",[
         # [sg.Text("Discharge time extra"), sg.Input(200, size=(inpsize_w, inpsize_h), key="Discharge time extra"), sg.T('uSec', size=(unit_h, unit_w))],
         [sg.Text("Frequency of pulses"), sg.Input(200, size=(inpsize_w, inpsize_h), key="frequency_of_pulses"), sg.T('Hz', size=(unit_h, unit_w))],
         [sg.Text("Number of trains"), sg.Input(5, size=(inpsize_w, inpsize_h), key="number_of_trains"), sg.T(' ', size=(unit_h, unit_w))],
-        [sg.Text("Train interval (discharge)"), sg.Input(2, size=(inpsize_w, inpsize_h), key="discharge_time_extra"), sg.T('Sec', size=(unit_h, unit_w))],
-        [sg.Text("On-set jitter"), sg.Input(0, size=(inpsize_w, inpsize_h), key="jitter"), sg.T('Sec', size=(unit_h, unit_w))],
+        [sg.Text("Train interval (discharge)"), sg.Input(1000, size=(inpsize_w, inpsize_h), key="discharge_time_extra"), sg.T('Sec', size=(unit_h, unit_w))],
+        [sg.Text("On-set onset_jitter"), sg.Input(0, size=(inpsize_w, inpsize_h), key="onset_jitter"), sg.T('Sec', size=(unit_h, unit_w))],
         ], 
         element_justification='r',
         expand_x=True)
@@ -287,59 +291,80 @@ window = sg.Window(
     finalize=True
 )
 
-stim_parameter_dict = {
-    'manual':[
-        'biphasic',
-        'pulse_delay',
-        'first_pulse_phase_width',
-        'pulse_interphase_interval',
-        'second_pulse_phase_width',
-        'discharge_time',
-        'pulse_amplitude_anode',
-        'pulse_amplitude_cathode',
-        'pulse_amplitude_equal',
-        'pulse_duration',
-        'number_of_pulses',
-        'frequency_of_pulses',
-        'number_of_trains',
-        'discharge_time_extra',
-        'jitter',
-        ],
-    'sweep':[
-        'pulse_amplitude_min',
-        'pulse_amplitude_max',
-        'pulse_amplitude_step',
-        'repetitions',
-        'randomize',
-    ]
-}
+# stim_parameter_dict = {
+#     'manual':[
+#         'biphasic',
+#         'pulse_delay',
+#         'first_pulse_phase_width',
+#         'pulse_interphase_interval',
+#         'second_pulse_phase_width',
+#         'discharge_time',
+#         'pulse_amplitude_anode',
+#         'pulse_amplitude_cathode',
+#         'pulse_amplitude_equal',
+#         'pulse_duration',
+#         'number_of_pulses',
+#         'frequency_of_pulses',
+#         'number_of_trains',
+#         'discharge_time_extra',
+#         'onset_jitter',
+#         ],
+#     'sweep':[
+#         'pulse_amplitude_min',
+#         'pulse_amplitude_max',
+#         'pulse_amplitude_step',
+#         'repetitions',
+#         'randomize',
+#     ]
+# }
+
+
+
+
+
+
+
+
+def get_last_timestamp(log_file_path):
+    last_timestamp = ''
+    with open(log_file_path, 'rb') as f:
+        for line in f:
+            if line.decode()[:4] == str(datetime.datetime.now().year):
+                last_timestamp = line.decode()
+        if last_timestamp == '':
+            return ''
+        else:
+            last_timestamp = last_timestamp.split(' - ')[0]
+            return last_timestamp
+
+def read_log_file(log_file_path):
+    with open(log_file_path, 'r') as f:
+        return f.read()
 
 fig_canvas_agg = draw_figure(window['-CANVAS-'].TKCanvas, fig)
-_, _ = window.read(timeout=0)
+
+_, values = window.read(timeout=0)
 SetLED(window, "led_rec", False)
 SetLED(window, "led_connect_hardware", False)
 SetLED(window, "led_connect_BS", False)
 SetLED(window, "led_connect_probe", False)
 
-def get_last_line(log_file_path):
-    with open(log_file_path, 'rb') as f:
-        if f.read(1) == b"":  # Check if file is empty
-            return ""
-        f.seek(-2, 2)  # Jump to the second last byte.
-        while f.read(1) != b"\n":  # Until end-of-line byte is found...
-            if f.tell() == 1:  # We are at the start, so only one line in the file.
-                f.seek(0)
-                return f.readline().decode()
-            f.seek(-2, 1)  # Move one byte backward.
-        return f.readline().decode()
-
-def read_log_file(log_file_path):
-    with open(log_file_path, 'r') as f:
-        return f.read()
-    
-last_line = '-'
+window['mul_log'].update(read_log_file('ViperBoxInterface.log'))
+last_printed_timestamp = get_last_timestamp('ViperBoxInterface.log')
+folder_path = os.getcwd()
 
 VB = ViperBoxControl(no_box=True)
+
+# if values['biphasic'] == 'Biphasic':
+#     values['biphasic'] = True
+# else:
+#     values['biphasic'] = False
+# filtered_data = {k: int(values[k]) for k in PulseShapeParameters.__annotations__}
+# pulse_shape = PulseShapeParameters(**filtered_data)
+# filtered_data = {k: int(values[k]) for k in PulseTrainParameters.__annotations__}
+# pulse_shape = PulseTrainParameters(**filtered_data)
+# filtered_data = {k: int(values[k]) for k in StimulationSweepParameters.__annotations__}
+# pulse_shape = StimulationSweepParameters(**filtered_data)
 
 # ------------------------------------------------------------------
 # CF: MAIN
@@ -353,12 +378,8 @@ if __name__ == "__main__":
         try:
             event, values = window.read()
         #     print(event, values)
-            last_log_line = get_last_line('ViperBoxInterface.log')
             if event == sg.WIN_CLOSED or event == 'Exit':
                 break
-            elif last_log_line != last_line:
-                window['mul_log'].update(read_log_file('ViperBoxInterface.log'))
-                last_line = last_log_line
             elif event == 'button_connect':
                 VB.connect_viperbox()
                 SetLED(window, 'led_connect_hardware', VB._connected_probe)
@@ -368,34 +389,39 @@ if __name__ == "__main__":
                 window[event].update(button_color=toggle_color(event, reference_matrix))
             elif event == 'Select folder':
                 folder_path = sg.popup_get_folder('Get folder')
-                print(folder_path)
+                # print(folder_path)
             elif event == 'button_toggle_stim':  # if the graphical button that changes images
                 window['button_toggle_stim'].metadata = not window['button_toggle_stim'].metadata
                 window['button_toggle_stim'].update(image_data=toggle_btn_on if window['button_toggle_stim'].metadata else toggle_btn_off)
                 manual_stim = not manual_stim
                 window['key_parameter_sweep'].update(visible=not manual_stim)
                 window['pulse_shape_col2'].update(visible=manual_stim)
-            # elif event == 'button_start':
-            #     if values['checkbox_rec_wo_stim']:
-            #         if not VB.connect_viperbox():
+            elif event == 'button_start':
+                SetLED(window, "led_rec", None)
+                VB.set_file_path(folder_path, values['input_filename'])
+                VB.control_rec_setup()
+                if values['checkbox_rec_wo_stim']:
+                    VB.control_rec_start()
+                else:
+                    pass
+                if manual_stim:
+                    pass
 
-            #         VB.control_rec_setup()
-            #         VB.send_data_to_socket()
-            #         VB.control_rec_start()
 
 
 
 
-            #         if values['biphasic'] == 'Biphasic':
-            #             values['biphasic'] = True
-            #         else:
-            #             values['biphasic'] = False
-            #         filtered_data = {k: int(values[k]) for k in PulseShapeParameters.__annotations__}
-            #         pulse_shape = PulseShapeParameters(**filtered_data)
             #     elif manual_stim:
 
             #     pass
+            elif event == 'button_stop':
+                SetLED(window, "led_rec", False)
+                VB.control_rec_stop()
             # elif click start: create file name and change led to green
+            last_log_timestamp = get_last_timestamp('ViperBoxInterface.log')
+            if last_log_timestamp != last_printed_timestamp:
+                window['mul_log'].update(read_log_file('ViperBoxInterface.log'))
+                last_printed_timestamp = last_log_timestamp
         except Exception as e:
             print(e)
             window.close()

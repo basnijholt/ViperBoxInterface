@@ -16,7 +16,8 @@ from parameters import (
     StimulationSweepParameters,
 )
 
-logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class ViperBoxControl:
@@ -61,17 +62,25 @@ class ViperBoxControl:
             try:
                 self._handle = NVP.createHandle(0)
                 self._connected_handle = True
+                logger.info("Handle created")
                 NVP.openBS(self._handle)
                 self._connected_BS = True
+                logger.info("Connected to Base Station")
                 NVP.openProbes(self._handle)
                 NVP.init(self._handle, self._probe)
                 self._connected_probe = True
+                logger.info("Probes opened and initialized")
+                # logger.info('ViperBox and probes connected successfully.')
             except Exception as e:
                 print(f"Error while setting up viperbox connection: {e}")
-                logging.error(f"Error while setting up viperbox connection: {e}")
+                logger.error(
+                    "Error while setting up viperbox connection", exc_info=True
+                )
                 return None
 
     def connect_viperbox(self):
+        if self._handle == "no_box":
+            return True
         if not self._connect_handle():
             return False
         if not self._connect_BS():
@@ -80,13 +89,22 @@ class ViperBoxControl:
             return False
         return True
 
+    def check_connection(self):
+        if not self._connected_handle:
+            connected_handle = False
+        if not self._connected_BS:
+            connected_BS = False
+        if not self._connected_probe:
+            connected_probe = False
+        return connected_handle, connected_BS, connected_probe
+
     def _connect_handle(self):
         if not self._connected_handle:
             try:
                 self._handle = NVP.createHandle(0)
                 self._connected_handle = True
             except Exception as e:
-                logging.error(f"Error while setting up handle: {e}")
+                logger.error("Error while setting up handle.", exc_info=True)
                 print(f"Error while setting up handle: {e}")
                 return False
         return True
@@ -97,7 +115,7 @@ class ViperBoxControl:
                 NVP.openBS(self._handle)
                 self._connected_BS = True
             except Exception as e:
-                logging.error(f"Error while setting up BS: {e}")
+                logger.error(f"Error while setting up BS: {e}")
                 print(f"Error while setting up BS: {e}")
                 return False
         return True
@@ -109,14 +127,21 @@ class ViperBoxControl:
                 NVP.init(self._handle, self._probe)
                 self._connected_probe = True
             except Exception as e:
-                logging.error(f"Error while setting up probe: {e}")
+                logger.error(f"Error while setting up probe: {e}")
                 print(f"Error while setting up probe: {e}")
                 return False
         return True
 
-    def update_config(self, config_params: ConfigurationParameters) -> None:
+    def update_config(self, config_params: ConfigurationParameters) -> bool:
         self.config_params = config_params
-        return None
+        return True
+
+    def set_file_path(self, folder_path, file_name):
+        self._recording_file_location = folder_path
+        self._recording_file_name = (
+            file_name + time.strftime("_%Y-%m-%d_%H-%M-%S") + ".bin"
+        )
+        return True
 
     @property
     def _recording_path(self) -> Optional[str]:
@@ -132,7 +157,7 @@ class ViperBoxControl:
 
     def control_rec_setup(
         self,
-        reference_electrode: Optional[int] = None,
+        reference_electrode: Optional[int] = 0,
         electrode_mapping: Optional[bytes] = None,
         metadata_stream: Optional[List[Any]] = None,
         emulated: bool = False,
@@ -147,6 +172,17 @@ class ViperBoxControl:
 
         :return: True if setup was successful, False otherwise.
         """
+
+        if self._handle == "no_box":
+            return True
+
+        if self.check_connection() != (True, True, True):
+            try:
+                self.connect_viperbox()
+            except Exception as e:
+                print(e)
+            logger.error("To set up a recording, fix the connection with the ViperBox")
+            return False
 
         if not reference_electrode:
             if not (0 <= reference_electrode <= 8):
@@ -220,7 +256,7 @@ class ViperBoxControl:
         #         packets = NVP.streamReadData(self._read_handle, self.SKIP_SIZE)
         #         subid = packets[0].sessionID
         # else:
-        #     logging.error("Error: restart recording")
+        #     logger.error("Error: restart recording")
         #     NVP.streamClose(self._read_handle)
 
         while True:
@@ -230,7 +266,7 @@ class ViperBoxControl:
             count = len(packets)
 
             if count < self.BUFFER_SIZE:
-                logging.warning("Out of packets")
+                logger.warning("Out of packets")
                 break
 
             databuffer = np.asarray(
@@ -259,18 +295,21 @@ class ViperBoxControl:
         as NWB.
         """
 
+        if self._handle == "no_box":
+            return True
+
         if self._recording:
-            logging.info(
+            logger.info(
                 f"Already recording under the name: {self._recording_file_name}"
             )
-            return None
+            return True
 
         if store_NWB:
             threading.Thread(target=self.combine, args=(self._metadata_stream,)).start()
 
         NVP.setSWTrigger(self._handle)
         self._recording = True
-        logging.info(f"Started recording: {self._recording_file_name}")
+        logger.info(f"Started recording: {self._recording_file_name}")
         threading.Thread(target=self.send_data_to_socket).start()
         if recording_time:
             time.sleep(recording_time)
@@ -279,16 +318,19 @@ class ViperBoxControl:
     def control_rec_stop(self) -> None:
         """Handles stopping of recording state."""
 
+        if self._handle == "no_box":
+            return True
+
         if not self._recording:
-            logging.info("No recording in progress.")
-            return
+            logger.info("No recording in progress.")
+            return True
 
         NVP.arm(self._handle)
         NVP.setFileStream(self._handle, "")
         NVP.closeBS(self._handle)
         NVP.destroyHandle(self._handle)
         self._recording = False
-        logging.info(f"Stopped recording: {self._recording_file_name}")
+        logger.info(f"Stopped recording: {self._recording_file_name}")
         self._recording_file_name = None
 
     def control_rec_status(self) -> bool:
