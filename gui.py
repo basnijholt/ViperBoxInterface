@@ -7,6 +7,29 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib
 matplotlib.use('TkAgg')
 from viperboxcontrol import ViperBoxControl
+from parameters import (
+    ConfigurationParameters,
+    PulseShapeParameters,
+    PulseTrainParameters,
+    ViperBoxConfiguration,
+    StimulationSweepParameters,
+)
+import logging
+import logging.handlers
+
+LOG_FILENAME = 'ViperBoxInterface.log'
+# Create a logger
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+# Create a rotating file handler that logs debug and higher level messages
+file_handler = logging.handlers.RotatingFileHandler(LOG_FILENAME, maxBytes=1e6, backupCount=10)
+file_handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+# Add the file handler to the logger
+logger.addHandler(file_handler)
+logging.getLogger('matplotlib.font_manager').setLevel(logging.CRITICAL)
+
 
 sg.theme("SystemDefaultForReal")
 
@@ -34,7 +57,7 @@ def SetLED(window, key, status):
 
 def collapse(layout, key):
     return sg.pin(sg.Column(layout, key=key,
-    visible=stim_toggle,
+    visible=manual_stim,
     element_justification='r',
     expand_x=True,))
 
@@ -187,46 +210,46 @@ stimulation_settings = sg.Frame('Pre-load settings',
 # ------------------------------------------------------------------
 # CF: PULSE SHAPE FRAME
 
-stim_toggle = True
+manual_stim = True
 pulse_shape_col1 = sg.Column([
-        [sg.Text("Biphasic/Monophasic"),sg.Drop(key='drop_biphasic',  size=(inpsize_w-2, inpsize_h), values=("Biphasic", "Monophasic"), auto_size_text=True, default_value="Biphasic",), sg.T(' ', size=(unit_h, unit_w))],
-        [sg.Text("Pulse duration", justification='l'), sg.Input(600, size=(inpsize_w, inpsize_h), key="input_pulse_duration"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("Pulse delay"), sg.Input(0, size=(inpsize_w, inpsize_h), key="input_pulse_delay"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("1st pulse phase width"),sg.Input(170, size=(inpsize_w, inpsize_h), key="input_first_pulse_phase_width"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("Pulse interphase interval"),sg.Input(60, size=(inpsize_w, inpsize_h), key="input_pulse_interphase_interval"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("2nd pulse phase width"),sg.Input(170, size=(inpsize_w, inpsize_h), key="input_second_pulse_phase_width"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("Biphasic / Monophasic"),sg.Drop(key='biphasic',  size=(inpsize_w-2, inpsize_h), values=("Biphasic", "Monophasic"), auto_size_text=True, default_value="Biphasic",), sg.T(' ', size=(unit_h, unit_w))],
+        # [sg.Text("Biphasic? (Else Monophasic)"), sg.Checkbox("", key='biphasic', default=True, size=(inpsize_w, inpsize_h)), sg.T(' ', size=(unit_h, unit_w))],
+        [sg.Text("Pulse duration", justification='l'), sg.Input(600, size=(inpsize_w, inpsize_h), key="pulse_duration"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("Pulse delay"), sg.Input(0, size=(inpsize_w, inpsize_h), key="pulse_delay"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("1st pulse phase width"),sg.Input(170, size=(inpsize_w, inpsize_h), key="first_pulse_phase_width"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("Pulse interphase interval"),sg.Input(60, size=(inpsize_w, inpsize_h), key="pulse_interphase_interval"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("2nd pulse phase width"),sg.Input(170, size=(inpsize_w, inpsize_h), key="second_pulse_phase_width"), sg.T('uSec', size=(unit_h, unit_w))],
         # [sg.Text("Discharge time"), sg.Input(, size=(inpsize_w, inpsize_h), key="Discharge time"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("Interpulse interval (discharge)"), sg.Input(200, size=(inpsize_w, inpsize_h), key="input_discharge_time"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("Interpulse interval (discharge)"), sg.Input(200, size=(inpsize_w, inpsize_h), key="discharge_time"), sg.T('uSec', size=(unit_h, unit_w))],
     ], 
     element_justification='r',
     expand_x=True,
 )
 pulse_shape_col2 = [
-        [sg.Text("Pulse amplitude anode"), sg.Input(5, size=(inpsize_w, inpsize_h), key="input_pulse_amplitude_anode"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("Pulse amplitude cathode"),sg.Input(5, size=(inpsize_w, inpsize_h), key="input_pulse_amplitude_cathode"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.T('Pulse amplitude equal'), sg.Checkbox("", key='checkbox_pulse_amplitude_equal')],
+        [sg.Text("Pulse amplitude anode"), sg.Input(5, size=(inpsize_w, inpsize_h), key="pulse_amplitude_anode"), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.Text("Pulse amplitude cathode"),sg.Input(5, size=(inpsize_w, inpsize_h), key="pulse_amplitude_cathode"), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.T('Pulse amplitude equal'), sg.Checkbox("", key='pulse_amplitude_equal', size=(unit_h, unit_w)), sg.T(' ', size=(unit_h, unit_w))],
     ]
 
 pulse_shape_frame = sg.Frame("Pulse shape parameters",
     [
-            [pulse_shape_col1], 
+            [pulse_shape_col1],
             [collapse(pulse_shape_col2,'pulse_shape_col2')]
-    ], 
+    ],
     element_justification='r',
     expand_x=True,
 )
-
 
 # ------------------------------------------------------------------
 # CF: PULSE TRAIN FRAME
 
 pulse_train_frame = sg.Frame("Pulse train parameters",[
-        [sg.Text("Number of pulses"), sg.Input(20, size=(inpsize_w, inpsize_h), key="input_number_of_pulses"), sg.T(' ', size=(unit_h, unit_w))],
+        [sg.Text("Number of pulses"), sg.Input(20, size=(inpsize_w, inpsize_h), key="number_of_pulses"), sg.T(' ', size=(unit_h, unit_w))],
         # [sg.Text("Discharge time extra"), sg.Input(200, size=(inpsize_w, inpsize_h), key="Discharge time extra"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("Frequency of pulses"), sg.Input(200, size=(inpsize_w, inpsize_h), key="input_frequency_of_pulses"), sg.T('Hz', size=(unit_h, unit_w))],
-        [sg.Text("Number of trains"), sg.Input(5, size=(inpsize_w, inpsize_h), key="input_number_of_trains"), sg.T(' ', size=(unit_h, unit_w))],
-        [sg.Text("Train interval (discharge)"), sg.Input(2, size=(inpsize_w, inpsize_h), key="input_discharge_time_extra"), sg.T('Sec', size=(unit_h, unit_w))],
-        [sg.Text("On-set jitter"), sg.Input(0, size=(inpsize_w, inpsize_h), key="input_jitter"), sg.T('Sec', size=(unit_h, unit_w))],
+        [sg.Text("Frequency of pulses"), sg.Input(200, size=(inpsize_w, inpsize_h), key="frequency_of_pulses"), sg.T('Hz', size=(unit_h, unit_w))],
+        [sg.Text("Number of trains"), sg.Input(5, size=(inpsize_w, inpsize_h), key="number_of_trains"), sg.T(' ', size=(unit_h, unit_w))],
+        [sg.Text("Train interval (discharge)"), sg.Input(2, size=(inpsize_w, inpsize_h), key="discharge_time_extra"), sg.T('Sec', size=(unit_h, unit_w))],
+        [sg.Text("On-set jitter"), sg.Input(0, size=(inpsize_w, inpsize_h), key="jitter"), sg.T('Sec', size=(unit_h, unit_w))],
         ], 
         element_justification='r',
         expand_x=True)
@@ -236,14 +259,14 @@ pulse_train_frame = sg.Frame("Pulse train parameters",[
 # CF: PARAMETER SWEEP FRAME
 
 parameter_sweep = sg.Frame("Stimulation sweep parameters", [
-        [sg.Text("Pulse amplitude min"), sg.Input(1, size=(inpsize_w, inpsize_h), key="input_pulse_amplitude_min"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("input_pulse_amplitude_max"), sg.Input(20, size=(inpsize_w, inpsize_h), key="input_pulse_amplitude_max"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("Pulse amplitude step"), sg.Input(1, size=(inpsize_w, inpsize_h), key="input_pulse_amplitude_step"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("Repetitions"), sg.Input(size=(3, inpsize_w, inpsize_h), key="input_repetitions"), sg.T(' ', size=(unit_h, unit_w))],
-        [sg.Checkbox("Randomize", key='checkbox_randomize')],
+        [sg.Text("Pulse amplitude min"), sg.Input(1, size=(inpsize_w, inpsize_h), key="pulse_amplitude_min"), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.Text("pulse_amplitude_max"), sg.Input(20, size=(inpsize_w, inpsize_h), key="pulse_amplitude_max"), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.Text("Pulse amplitude step"), sg.Input(1, size=(inpsize_w, inpsize_h), key="pulse_amplitude_step"), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.Text("Repetitions"), sg.Input(size=(3, inpsize_w, inpsize_h), key="repetitions"), sg.T(' ', size=(unit_h, unit_w))],
+        [sg.Checkbox("Randomize", key='randomize')],
         ], element_justification='r',
         expand_x=True,
-        visible=not stim_toggle,
+        visible=not manual_stim,
         key='key_parameter_sweep',
         )
 
@@ -253,7 +276,6 @@ parameter_sweep = sg.Frame("Stimulation sweep parameters", [
 sub_col1 = sg.Column([[stimulation_settings, electrode_frame]], vertical_alignment='t')
 col1 = sg.Column([[viperbox_control_frame], [sub_col1]], vertical_alignment="t")
 col2 = sg.Column([[pulse_shape_frame],[pulse_train_frame],[parameter_sweep]], vertical_alignment='t')
-# col2 = sg.Column([[pulse_shape_frame],[pulse_train_frame]], vertical_alignment='t')
 col3 = sg.Column([[plot_frame],[log_frame]], vertical_alignment='t')
 
 layout = [[col1, col2, col3]],
@@ -265,15 +287,59 @@ window = sg.Window(
     finalize=True
 )
 
+stim_parameter_dict = {
+    'manual':[
+        'biphasic',
+        'pulse_delay',
+        'first_pulse_phase_width',
+        'pulse_interphase_interval',
+        'second_pulse_phase_width',
+        'discharge_time',
+        'pulse_amplitude_anode',
+        'pulse_amplitude_cathode',
+        'pulse_amplitude_equal',
+        'pulse_duration',
+        'number_of_pulses',
+        'frequency_of_pulses',
+        'number_of_trains',
+        'discharge_time_extra',
+        'jitter',
+        ],
+    'sweep':[
+        'pulse_amplitude_min',
+        'pulse_amplitude_max',
+        'pulse_amplitude_step',
+        'repetitions',
+        'randomize',
+    ]
+}
 
 fig_canvas_agg = draw_figure(window['-CANVAS-'].TKCanvas, fig)
 _, _ = window.read(timeout=0)
-SetLED(window, "led_rec", None)
+SetLED(window, "led_rec", False)
 SetLED(window, "led_connect_hardware", False)
 SetLED(window, "led_connect_BS", False)
 SetLED(window, "led_connect_probe", False)
 
-VC = ViperBoxControl(no_box=True)
+def get_last_line(log_file_path):
+    with open(log_file_path, 'rb') as f:
+        if f.read(1) == b"":  # Check if file is empty
+            return ""
+        f.seek(-2, 2)  # Jump to the second last byte.
+        while f.read(1) != b"\n":  # Until end-of-line byte is found...
+            if f.tell() == 1:  # We are at the start, so only one line in the file.
+                f.seek(0)
+                return f.readline().decode()
+            f.seek(-2, 1)  # Move one byte backward.
+        return f.readline().decode()
+
+def read_log_file(log_file_path):
+    with open(log_file_path, 'r') as f:
+        return f.read()
+    
+last_line = '-'
+
+VB = ViperBoxControl(no_box=True)
 
 # ------------------------------------------------------------------
 # CF: MAIN
@@ -287,21 +353,48 @@ if __name__ == "__main__":
         try:
             event, values = window.read()
         #     print(event, values)
+            last_log_line = get_last_line('ViperBoxInterface.log')
             if event == sg.WIN_CLOSED or event == 'Exit':
                 break
+            elif last_log_line != last_line:
+                window['mul_log'].update(read_log_file('ViperBoxInterface.log'))
+                last_line = last_log_line
             elif event == 'button_connect':
-                VC.connect_viperbox()
-                SetLED(window, 'led_connect_hardware', VC._connected_probe)
-                SetLED(window, 'led_connect_BS', VC._connected_BS)
-                SetLED(window, 'led_connect_probe', VC._connected_handle)
+                VB.connect_viperbox()
+                SetLED(window, 'led_connect_hardware', VB._connected_probe)
+                SetLED(window, 'led_connect_BS', VB._connected_BS)
+                SetLED(window, 'led_connect_probe', VB._connected_handle)
             elif event[:3] == 'el_':
                 window[event].update(button_color=toggle_color(event, reference_matrix))
+            elif event == 'Select folder':
+                folder_path = sg.popup_get_folder('Get folder')
+                print(folder_path)
             elif event == 'button_toggle_stim':  # if the graphical button that changes images
                 window['button_toggle_stim'].metadata = not window['button_toggle_stim'].metadata
                 window['button_toggle_stim'].update(image_data=toggle_btn_on if window['button_toggle_stim'].metadata else toggle_btn_off)
-                stim_toggle = not stim_toggle
-                window['key_parameter_sweep'].update(visible=not stim_toggle)
-                window['pulse_shape_col2'].update(visible=stim_toggle)
+                manual_stim = not manual_stim
+                window['key_parameter_sweep'].update(visible=not manual_stim)
+                window['pulse_shape_col2'].update(visible=manual_stim)
+            # elif event == 'button_start':
+            #     if values['checkbox_rec_wo_stim']:
+            #         if not VB.connect_viperbox():
+
+            #         VB.control_rec_setup()
+            #         VB.send_data_to_socket()
+            #         VB.control_rec_start()
+
+
+
+
+            #         if values['biphasic'] == 'Biphasic':
+            #             values['biphasic'] = True
+            #         else:
+            #             values['biphasic'] = False
+            #         filtered_data = {k: int(values[k]) for k in PulseShapeParameters.__annotations__}
+            #         pulse_shape = PulseShapeParameters(**filtered_data)
+            #     elif manual_stim:
+
+            #     pass
             # elif click start: create file name and change led to green
         except Exception as e:
             print(e)
