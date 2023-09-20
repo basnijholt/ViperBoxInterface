@@ -101,8 +101,6 @@ def generate_plot(
     current[(time > tp3) & (time <= tp4)] = -pulse_amplitude_cathode
     current[(time > tp4) & (time <= tp5)] = 0
 
-    print(current)
-
     fig = matplotlib.figure.Figure(figsize=(4, 3), dpi=100)
     fig.add_subplot(111).plot(time, current)
     return fig
@@ -549,7 +547,8 @@ if __name__ == "__main__":
             # Implementation from https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Browser.py
             if figure_agg:
                 delete_figure_agg(figure_agg)
-            fig = generate_plot()
+            plot_vals = {k: int(values[k]) for k in generate_plot.__annotations__}
+            fig = generate_plot(**plot_vals)
             figure_agg = draw_figure(window['-CANVAS-'].TKCanvas, fig)
         # update log
         last_log_timestamp = get_last_timestamp('ViperBoxInterface.log')
