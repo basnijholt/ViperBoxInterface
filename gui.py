@@ -102,7 +102,11 @@ def generate_plot(
     current[(time > tp4) & (time <= tp5)] = 0
 
     fig = matplotlib.figure.Figure(figsize=(4, 3), dpi=100)
-    fig.add_subplot(111).plot(time, current)
+    fig.add_subplot(111).plot(time,current)
+    # ax = fig.add_subplot(111)
+    # fig.get_axes()[0].set_xlabel("Time [us]")
+    # fig.get_axes()[0].set_ylabel("Pulse amplitude [uA]")
+    # ax.plot(time, current)
     return fig
 
 
