@@ -401,24 +401,26 @@ def set_reference_matrix(electrode_list):
         reference_matrix[row][col] = 'on'
     return reference_matrix
 
-if values['biphasic'] == 'Biphasic':
-    values['biphasic'] = True
-else:
-    values['biphasic'] = False
-reference_matrix[0][0] = 'on'
-values['stim_sweep_electrode_list'] = get_electrodes(reference_matrix)
-reference_matrix[0][0] = 'off'
-filtered_data = {k: int(values[k]) for k in PulseShapeParameters.__annotations__}
-pulse_shape = PulseShapeParameters(**filtered_data)
-filtered_data = {k: int(values[k]) for k in PulseTrainParameters.__annotations__}
-pulse_shape = PulseTrainParameters(**filtered_data)
-filtered_data = {k: values[k] for k in StimulationSweepParameters.__annotations__}
-pulse_shape = StimulationSweepParameters(**filtered_data)
+def load_parameter_dicts(values):
+    if values['biphasic'] == 'Biphasic':
+        values['biphasic'] = True
+    else:
+        values['biphasic'] = False
+    reference_matrix[0][0] = 'on'
+    values['stim_sweep_electrode_list'] = get_electrodes(reference_matrix)
+    reference_matrix[0][0] = 'off'
+    filtered_pulse_shape = {k: int(values[k]) for k in PulseShapeParameters.__annotations__}
+    pulse_shape = PulseShapeParameters(**filtered_pulse_shape)
+    filtered_pulse_train = {k: int(values[k]) for k in PulseTrainParameters.__annotations__}
+    pulse_train = PulseTrainParameters(**filtered_pulse_train)
+    filtered_pulse_sweep = {k: values[k] for k in StimulationSweepParameters.__annotations__}
+    pulse_sweep = StimulationSweepParameters(**filtered_pulse_sweep)
+    return pulse_shape, pulse_train, pulse_sweep
 
 tmp_input_filter_name = ''
 
 selected_user_setting = None
-
+update_settings_listbox(settings_folder_path)
 # ------------------------------------------------------------------
 # CF: MAIN
 
@@ -428,14 +430,11 @@ if __name__ == "__main__":
     # os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
 
     while True:
-        # try:
         # event, values = window.read(timeout=100)
         event, values = window.read()
-        update_settings_listbox(settings_folder_path)
-        # event, values = window.read()
-    #     print(event, values)
         if event == sg.WIN_CLOSED or event == 'Exit':
             break
+        # viperbox control
         elif event == 'button_connect':
             if VB._handle == 'no_box':
                 logger.info('VirtualBox initialized in testing mode')
@@ -456,6 +455,7 @@ if __name__ == "__main__":
             if tmp_path is not None:
                 settings_folder_path = tmp_path
                 settings_list = load_settings_folder(settings_folder_path)
+                update_settings_listbox(settings_folder_path)
         elif event == 'button_toggle_stim':
             window['button_toggle_stim'].metadata = not window['button_toggle_stim'].metadata
             window['button_toggle_stim'].update(image_data=toggle_btn_on if window['button_toggle_stim'].metadata else toggle_btn_off)
@@ -469,17 +469,22 @@ if __name__ == "__main__":
             if values['checkbox_rec_wo_stim']:
                 VB.control_rec_start()
             else:
-                pass
-            if manual_stim:
-                pass
+                pulse_shape, pulse_train, pulse_sweep = load_parameter_dicts(values)
+                electrode_list = get_electrodes(reference_matrix)
+                viperbox = ViperBoxConfiguration(0)
+                config = ConfigurationParameters(pulse_shape, pulse_train, viperbox, pulse_sweep, electrode_list)
+                VB.update_config(config)
+                if manual_stim:
+                    VB.control_rec_start()
+                    VB.control_send_parameters()
+                    VB.stimulation_trigger()
+                else:
+                    VB.control_rec_start()
+                    VB.stim_sweep()
         elif event == 'button_stop':
             SetLED(window, "led_rec", False)
             VB.control_rec_stop()
-
-
-
-
-
+        # Edit user settings
         elif event == 'button_save_set':
             values['electrode_list'] = get_electrodes(reference_matrix, True)
             save_settings(settings_folder_path, values['input_set_name'], values)
@@ -498,35 +503,25 @@ if __name__ == "__main__":
             if answer == 'OK':
                 Path.unlink(Path.joinpath(Path(settings_folder_path), selected_user_setting+'.cfg'))
                 update_settings_listbox(settings_folder_path)
-
-
+        # Filter and select user settings
         elif event == 'input_filter_name':
-        # if values['input_filter_name'] != '' and values['listbox_settings'] != []:
             if values['input_filter_name'] != '':
-            # print('about to filter: ', values['listbox_settings'])
                 search = values['input_filter_name']
                 new_values = [x for x in settings_list if search in x]
-                # print(new_values)
                 window['listbox_settings'].update(new_values)
             else:
                 window['listbox_settings'].update(settings_list)
         elif event == 'listbox_settings':
-            # selection = values[event]
             if values['listbox_settings']:
-                # item = selection[0]
-                # index = listbox.get_indexes()[0]
                 selected_user_setting = values['listbox_settings'][0]
-
+        # update log
         last_log_timestamp = get_last_timestamp('ViperBoxInterface.log')
         if last_log_timestamp != last_printed_timestamp:
             window['mul_log'].update(read_log_file('ViperBoxInterface.log'))
             last_printed_timestamp = last_log_timestamp
-        # except Exception as e:
-        #     print(e)
-            # window.close()
 
 window.close()
 
 # TODO with viperbox connected:
 # - Test connect viperbox
-# - 
+# - add version of viperboxinterface to settings to see if they are compatible

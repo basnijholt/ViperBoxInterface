@@ -354,6 +354,7 @@ class ViperBoxControl:
 
     def control_send_parameters(
         self,
+        electrode_list=bytes(128 * [8]),
         polarity: int = 0,
         # config_params: ConfigurationParameters = None,
     ) -> None:
@@ -364,7 +365,7 @@ class ViperBoxControl:
 
         # enable all OSes and connects them to SU 0
         # TODO: this is not correct, this should be only on the selected electrodes
-        NVP.setOSimage(self._handle, self._probe, bytes(128 * [8]))
+        NVP.setOSimage(self._handle, self._probe, electrode_list)
         NVP.writeOSConfiguration(self._handle, self._probe, False)
 
     def stimulation_trigger(self, recording_time=0) -> None:
@@ -386,11 +387,12 @@ class ViperBoxControl:
 
         self.config_params.pulse_shape_parameters.pulse_amplitude_equal = True
 
-        # prep and SU config
-        self.write_SU()
-        # prep and write OS config
-        NVP.setOSimage(self._handle, self._probe, (ctypes.c_byte * 128)())
-        NVP.writeOSConfiguration(self._handle, self._probe, False)
+        self.control_send_parameters(electrode_list=(ctypes.c_byte * 128)())
+        # # prep and SU config
+        # self.write_SU()
+        # # prep and write OS config
+        # NVP.setOSimage(self._handle, self._probe, (ctypes.c_byte * 128)())
+        # NVP.writeOSConfiguration(self._handle, self._probe, False)
 
         if self._recording is False:
             self.control_rec_start(recording_time=0)
