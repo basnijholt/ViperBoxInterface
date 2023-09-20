@@ -19,10 +19,14 @@ import logging
 import logging.handlers
 import os
 from os.path import basename
+import json
+from pathlib import Path
+import glob
 
-folder_path = os.getcwd()
+recording_folder_path = os.getcwd()
+settings_folder_path = os.getcwd()
 
-settings_list = ['Corin_default', 'Cristina_default', 'mouse_jumpy']
+settings_list = []
 
 LOG_FILENAME = 'ViperBoxInterface.log'
 open(LOG_FILENAME, 'w').close()
@@ -122,8 +126,8 @@ viperbox_control_frame = sg.Frame(
             sg.Input("Recording", key="input_filename", size=(15,1))
         ],
         [
-            sg.Text(f"Saving in {basename(folder_path)}", key='current_folder', size=(25,1)),
-            sg.Button('Select different folder'),
+            sg.Text(f"Saving in {basename(recording_folder_path)}", key='current_folder', size=(25,1)),
+            sg.Button('Select recording folder', key='button_select_recording_folder'),
         ],
         [
             sg.Text('Recording status:'),
@@ -202,7 +206,7 @@ stimulation_settings = sg.Frame('Pre-load settings',
         ],
         [
             sg.Text('Filter:'),
-            sg.Input('', size=(15,1), key='input_filter_name', expand_x=True),
+            sg.Input('', size=(15,1), key='input_filter_name', enable_events=True, expand_x=True),
         ],
         [sg.Listbox(
             size=(10, 6),
@@ -210,6 +214,7 @@ stimulation_settings = sg.Frame('Pre-load settings',
             expand_y=True,
             expand_x=True,
             values=settings_list,
+            enable_events=True,
         ),],
         [
             sg.Button("Save settings", size=(10,1), key='button_save_set'),
@@ -282,7 +287,7 @@ parameter_sweep = sg.Frame("Stimulation sweep parameters", [
         [sg.Text("Pulse amplitude min"), sg.Input(1, size=(inpsize_w, inpsize_h), key="pulse_amplitude_min"), sg.T('uA', size=(unit_h, unit_w))],
         [sg.Text("pulse_amplitude_max"), sg.Input(20, size=(inpsize_w, inpsize_h), key="pulse_amplitude_max"), sg.T('uA', size=(unit_h, unit_w))],
         [sg.Text("Pulse amplitude step"), sg.Input(1, size=(inpsize_w, inpsize_h), key="pulse_amplitude_step"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("Repetitions"), sg.Input(1, size=(3, inpsize_w, inpsize_h), key="repetitions"), sg.T(' ', size=(unit_h, unit_w))],
+        [sg.Text("Repetitions"), sg.Input(1, size=(inpsize_w, inpsize_h), key="repetitions"), sg.T(' ', size=(unit_h, unit_w))],
         [sg.Checkbox("Randomize", key='randomize')],
         ], element_justification='r',
         expand_x=True,
@@ -301,45 +306,53 @@ col4 = sg.Column([[plot_frame],[log_frame]], vertical_alignment='t')
 
 layout = [[col1, col2, col3, col4]],
 
+
+
+
+
+def save_settings(location, filename, settings):
+    existing_settings = load_settings_folder(location)
+    answer = 'OK'
+    if filename in existing_settings:
+        answer = sg.popup_ok_cancel(f'Setting "{filename}" already exists, if you want to continue, press OK')
+    if answer == 'OK':
+        filename = filename + '.cfg'
+        settings_save = settings.copy()
+        delete = [
+            'led_connect_hardware', 'led_connect_BS', 'led_connect_probe', 'input_filename', 
+            'led_rec', 'checkbox_rec_wo_stim', 'input_filter_name', 'listbox_settings', 
+            'input_set_name', '-CANVAS-', 'mul_log'
+        ]
+        for key in delete:
+            del settings_save[key]
+        # print('settings: ', settings_save)
+        with open(location+'\\'+filename, 'w') as f:
+            json.dump(settings_save, f)
+
+def read_saved_settings(location, filename):
+    full_path = Path.joinpath(Path(location), filename+'.cfg')
+    with open(full_path, 'r') as f:
+        return json.load(f)
+
+def load_settings_folder(location):
+    settings_list = [path.stem for path in Path(location).glob('*.cfg')]
+    return settings_list
+
+def update_settings_listbox(settings_folder_path):
+    settings_list = load_settings_folder(settings_folder_path)
+    window['listbox_settings'].update(settings_list)
+
+settings_list = load_settings_folder(settings_folder_path)
+
+
+
+
 window = sg.Window(
     "ViperBox Control",
     layout,
     #    size=(800, 800),
     finalize=True
 )
-
-# stim_parameter_dict = {
-#     'manual':[
-#         'biphasic',
-#         'pulse_delay',
-#         'first_pulse_phase_width',
-#         'pulse_interphase_interval',
-#         'second_pulse_phase_width',
-#         'discharge_time',
-#         'pulse_amplitude_anode',
-#         'pulse_amplitude_cathode',
-#         'pulse_amplitude_equal',
-#         'pulse_duration',
-#         'number_of_pulses',
-#         'frequency_of_pulses',
-#         'number_of_trains',
-#         'discharge_time_extra',
-#         'onset_jitter',
-#         ],
-#     'sweep':[
-#         'pulse_amplitude_min',
-#         'pulse_amplitude_max',
-#         'pulse_amplitude_step',
-#         'repetitions',
-#         'randomize',
-#     ]
-# }
-
-
-
-
-
-
 
 
 def get_last_timestamp(log_file_path):
@@ -371,11 +384,22 @@ last_printed_timestamp = get_last_timestamp('ViperBoxInterface.log')
 
 VB = ViperBoxControl(no_box=True)
 
-def get_electrodes(reference_matrix):
+def get_electrodes(reference_matrix, save_purpose=False):
     rows, cols = np.where(np.asarray(reference_matrix)=='on')
-    electrode_list = [i*MAX_ROWS+j+1 for i,j in zip(cols, rows)]
+    if save_purpose:
+        electrode_list = [str(i*MAX_ROWS+j+1) for i,j in zip(cols, rows)]
+    else:
+        electrode_list = [i*MAX_ROWS+j+1 for i,j in zip(cols, rows)]
     electrode_list.sort()
     return electrode_list
+
+def set_reference_matrix(electrode_list):
+    reference_matrix = [['off' for i in range(MAX_COL)] for j in range(MAX_ROWS)]
+    for electrode in electrode_list:
+        row = (int(electrode) - 1) % MAX_ROWS
+        col = (int(electrode) - 1) // MAX_ROWS
+        reference_matrix[row][col] = 'on'
+    return reference_matrix
 
 if values['biphasic'] == 'Biphasic':
     values['biphasic'] = True
@@ -391,8 +415,10 @@ pulse_shape = PulseTrainParameters(**filtered_data)
 filtered_data = {k: values[k] for k in StimulationSweepParameters.__annotations__}
 pulse_shape = StimulationSweepParameters(**filtered_data)
 
-settings_list = ['Corin_default', 'Cristina_default', 'mouse_jumpy']
 tmp_input_filter_name = ''
+
+selected_user_setting = None
+
 # ------------------------------------------------------------------
 # CF: MAIN
 
@@ -402,79 +428,102 @@ if __name__ == "__main__":
     # os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
 
     while True:
-        try:
-            event, values = window.read(timeout=100)
-        #     print(event, values)
-            if event == sg.WIN_CLOSED or event == 'Exit':
-                break
-            elif event == 'button_connect':
-                if VB._handle == 'no_box':
-                    logger.info('VirtualBox initialized in testing mode')
-                else:
-                    VB.connect_viperbox()
-                    SetLED(window, 'led_connect_hardware', VB._connected_probe)
-                    SetLED(window, 'led_connect_BS', VB._connected_BS)
-                    SetLED(window, 'led_connect_probe', VB._connected_handle)
-            elif event[:3] == 'el_':
-                window[event].update(button_color=toggle_color(event, reference_matrix))
-            elif event == 'Select different folder':
-                folder_path = sg.popup_get_folder('Select different folder')
-                window['current_folder'].update(f'Saving in {basename(folder_path)}')
-                # print(folder_path)
-            elif event == 'button_toggle_stim':  # if the graphical button that changes images
-                window['button_toggle_stim'].metadata = not window['button_toggle_stim'].metadata
-                window['button_toggle_stim'].update(image_data=toggle_btn_on if window['button_toggle_stim'].metadata else toggle_btn_off)
-                manual_stim = not manual_stim
-                window['key_parameter_sweep'].update(visible=not manual_stim)
-                window['pulse_shape_col2'].update(visible=manual_stim)
-            elif event == 'button_start':
-                SetLED(window, "led_rec", None)
-                VB.set_file_path(folder_path, values['input_filename'])
-                VB.control_rec_setup()
-                if values['checkbox_rec_wo_stim']:
-                    VB.control_rec_start()
-                else:
-                    pass
-                if manual_stim:
-                    pass
+        # try:
+        # event, values = window.read(timeout=100)
+        event, values = window.read()
+        update_settings_listbox(settings_folder_path)
+        # event, values = window.read()
+    #     print(event, values)
+        if event == sg.WIN_CLOSED or event == 'Exit':
+            break
+        elif event == 'button_connect':
+            if VB._handle == 'no_box':
+                logger.info('VirtualBox initialized in testing mode')
+            else:
+                VB.connect_viperbox()
+                SetLED(window, 'led_connect_hardware', VB._connected_probe)
+                SetLED(window, 'led_connect_BS', VB._connected_BS)
+                SetLED(window, 'led_connect_probe', VB._connected_handle)
+        elif event[:3] == 'el_':
+            window[event].update(button_color=toggle_color(event, reference_matrix))
+        elif event == 'button_select_recording_folder':
+            tmp_path = sg.popup_get_folder('Select recording folder')
+            if tmp_path is not None:
+                recording_folder_path = tmp_path
+                window['current_folder'].update(f'Saving in {basename(recording_folder_path)}')
+        elif event == 'button_select_settings_folder':
+            tmp_path = sg.popup_get_folder('Select settings folder')
+            if tmp_path is not None:
+                settings_folder_path = tmp_path
+                settings_list = load_settings_folder(settings_folder_path)
+        elif event == 'button_toggle_stim':
+            window['button_toggle_stim'].metadata = not window['button_toggle_stim'].metadata
+            window['button_toggle_stim'].update(image_data=toggle_btn_on if window['button_toggle_stim'].metadata else toggle_btn_off)
+            manual_stim = not manual_stim
+            window['key_parameter_sweep'].update(visible=not manual_stim)
+            window['pulse_shape_col2'].update(visible=manual_stim)
+        elif event == 'button_start':
+            SetLED(window, "led_rec", None)
+            VB.set_file_path(recording_folder_path, values['input_filename'])
+            VB.control_rec_setup()
+            if values['checkbox_rec_wo_stim']:
+                VB.control_rec_start()
+            else:
+                pass
+            if manual_stim:
+                pass
+        elif event == 'button_stop':
+            SetLED(window, "led_rec", False)
+            VB.control_rec_stop()
 
 
 
 
 
-            elif event == 'button_stop':
-                SetLED(window, "led_rec", False)
-                VB.control_rec_stop()
-            
+        elif event == 'button_save_set':
+            values['electrode_list'] = get_electrodes(reference_matrix, True)
+            save_settings(settings_folder_path, values['input_set_name'], values)
+            update_settings_listbox(settings_folder_path)
+        elif event == 'button_load_set':
+            if selected_user_setting:
+                loaded_settings = read_saved_settings(settings_folder_path, selected_user_setting)
+                for setting in loaded_settings.keys():
+                    if setting != 'electrode_list':
+                        window[setting].update(loaded_settings[setting])
+                reference_matrix = set_reference_matrix(loaded_settings['electrode_list'])
+                [window[f'el_button_{button+1}'].update(button_color='light gray') for button in range(MAX_ROWS*MAX_COL)]
+                [window[f'el_button_{electrode}'].update(button_color='red') for electrode in loaded_settings['electrode_list']]
+        elif event == 'button_del_set':
+            answer = sg.popup_ok_cancel('This action cannot be undone.\n If you want to delete multiple settings, please do so through the file browser.')
+            if answer == 'OK':
+                Path.unlink(Path.joinpath(Path(settings_folder_path), selected_user_setting+'.cfg'))
+                update_settings_listbox(settings_folder_path)
 
 
-            
-            
-            # elif values['input_filter_name'] != tmp_input_filter_name:
-            #     if settings_list == []:
-            #         print('1')
-            #         pass
-
-
-
-
-
+        elif event == 'input_filter_name':
+        # if values['input_filter_name'] != '' and values['listbox_settings'] != []:
             if values['input_filter_name'] != '':
+            # print('about to filter: ', values['listbox_settings'])
                 search = values['input_filter_name']
                 new_values = [x for x in settings_list if search in x]
+                # print(new_values)
                 window['listbox_settings'].update(new_values)
             else:
                 window['listbox_settings'].update(settings_list)
-            if event == 'listbox_settings' and len(values['listbox_settings']):
-                selected_setting = values['listbox_settings']
+        elif event == 'listbox_settings':
+            # selection = values[event]
+            if values['listbox_settings']:
+                # item = selection[0]
+                # index = listbox.get_indexes()[0]
+                selected_user_setting = values['listbox_settings'][0]
 
-            last_log_timestamp = get_last_timestamp('ViperBoxInterface.log')
-            if last_log_timestamp != last_printed_timestamp:
-                window['mul_log'].update(read_log_file('ViperBoxInterface.log'))
-                last_printed_timestamp = last_log_timestamp
-        except Exception as e:
-            print(e)
-            window.close()
+        last_log_timestamp = get_last_timestamp('ViperBoxInterface.log')
+        if last_log_timestamp != last_printed_timestamp:
+            window['mul_log'].update(read_log_file('ViperBoxInterface.log'))
+            last_printed_timestamp = last_log_timestamp
+        # except Exception as e:
+        #     print(e)
+            # window.close()
 
 window.close()
 
