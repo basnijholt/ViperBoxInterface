@@ -75,31 +75,55 @@ def collapse(layout, key):
 # ------------------------------------------------------------------
 # CF STIMULATION PULSE FRAME
 
-# Parameters for the biphasic pulse
-amplitude = -1  # Amplitude of the first (cathodic) phase, in microAmps
-duration = 0.2  # Duration of each phase, in milliseconds
-inter_phase_interval = 0.05  # Time between the two phases, in milliseconds
+def generate_plot(
+        pulse_delay: int = 0,
+        first_pulse_phase_width: int = 170,
+        pulse_interphase_interval: int = 60,
+        second_pulse_phase_width: int = 170,
+        discharge_time: int = 200,
+        pulse_amplitude_anode: int = 1,
+        pulse_amplitude_cathode: int = 1,
+        pulse_amplitude_equal: bool = False,
+        pulse_duration: int = 600
+    ):
+    if pulse_amplitude_equal:
+        pulse_amplitude_cathode = pulse_amplitude_anode
+    time = np.linspace(0, pulse_duration, pulse_duration)
+    current = np.zeros_like(time)
+    current[(time>=0)&(time<=pulse_delay)] = 0
+    current[(time > pulse_delay) & (time <= first_pulse_phase_width)] = pulse_amplitude_anode
+    current[(time > first_pulse_phase_width) & (time <= pulse_interphase_interval)] = 0
+    current[(time > pulse_interphase_interval) & (time <= second_pulse_phase_width)] = -pulse_amplitude_cathode
+    current[(time > second_pulse_phase_width) & (time <= discharge_time)] = 0
 
-# Generate the time and current arrays for the biphasic pulse
-time = np.linspace(0, 2*duration + inter_phase_interval, 1000)
-current = np.zeros_like(time)
-current[(time>0)&(time<.1)] = 0
-current[(time > .1) & (time <= duration)] = -amplitude
-current[(time > duration + inter_phase_interval) & (time <= 2*duration + inter_phase_interval-0.1)] = amplitude
-current[(time>2*duration + inter_phase_interval-0.1)&(time<2*duration + inter_phase_interval)] = 0
+    fig = matplotlib.figure.Figure(figsize=(4, 3), dpi=100)
+    fig.add_subplot(111).plot(time, current)
+    return fig
 
-fig = matplotlib.figure.Figure(figsize=(4, 3), dpi=100)
-fig.add_subplot(111).plot(time, current)
 
 def draw_figure(canvas, figure):
+    if not hasattr(draw_figure, 'canvas_packed'):
+        draw_figure.canvas_packed = {}
     figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
     figure_canvas_agg.draw()
-    figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
+    widget = figure_canvas_agg.get_tk_widget()
+    if widget not in draw_figure.canvas_packed:
+        draw_figure.canvas_packed[widget] = figure
+        widget.pack(side='top', fill='both', expand=1)
     return figure_canvas_agg
 
 
+def delete_figure_agg(figure_agg):
+    figure_agg.get_tk_widget().forget()
+    try:
+        draw_figure.canvas_packed.pop(figure_agg.get_tk_widget())
+    except Exception as e:
+        print(f'Error removing {figure_agg} from list', e)
+    plt.close('all')
+
 plot_frame = sg.Frame('Pulse preview',
-    [[sg.Canvas(key='-CANVAS-')]],
+    [[sg.Canvas(key='-CANVAS-')],
+     [sg.Button('Reload')]],
     expand_x=True,
 )
 
@@ -371,8 +395,6 @@ def read_log_file(log_file_path):
     with open(log_file_path, 'r') as f:
         return f.read()
 
-fig_canvas_agg = draw_figure(window['-CANVAS-'].TKCanvas, fig)
-
 _, values = window.read(timeout=0)
 SetLED(window, "led_rec", False)
 SetLED(window, "led_connect_hardware", False)
@@ -418,7 +440,8 @@ def load_parameter_dicts(values):
     return pulse_shape, pulse_train, pulse_sweep
 
 tmp_input_filter_name = ''
-
+fig = generate_plot()
+figure_agg = draw_figure(window['-CANVAS-'].TKCanvas, fig)
 selected_user_setting = None
 update_settings_listbox(settings_folder_path)
 # ------------------------------------------------------------------
@@ -514,6 +537,13 @@ if __name__ == "__main__":
         elif event == 'listbox_settings':
             if values['listbox_settings']:
                 selected_user_setting = values['listbox_settings'][0]
+        # replot
+        elif event == 'Reload':
+            # Implementation from https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Browser.py
+            if figure_agg:
+                delete_figure_agg(figure_agg)
+            fig = generate_plot()
+            figure_agg = draw_figure(window['-CANVAS-'].TKCanvas, fig)
         # update log
         last_log_timestamp = get_last_timestamp('ViperBoxInterface.log')
         if last_log_timestamp != last_printed_timestamp:
