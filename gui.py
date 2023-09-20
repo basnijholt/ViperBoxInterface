@@ -90,11 +90,18 @@ def generate_plot(
         pulse_amplitude_cathode = pulse_amplitude_anode
     time = np.linspace(0, pulse_duration, pulse_duration)
     current = np.zeros_like(time)
-    current[(time>=0)&(time<=pulse_delay)] = 0
-    current[(time > pulse_delay) & (time <= first_pulse_phase_width)] = pulse_amplitude_anode
-    current[(time > first_pulse_phase_width) & (time <= pulse_interphase_interval)] = 0
-    current[(time > pulse_interphase_interval) & (time <= second_pulse_phase_width)] = -pulse_amplitude_cathode
-    current[(time > second_pulse_phase_width) & (time <= discharge_time)] = 0
+    tp1 = pulse_delay
+    tp2 = tp1 + first_pulse_phase_width
+    tp3 = tp2 + pulse_interphase_interval
+    tp4 = tp3 + second_pulse_phase_width
+    tp5 = tp4 + discharge_time
+    current[(time>=0)&(time<=tp1)] = 0
+    current[(time > tp1) & (time <= tp2)] = pulse_amplitude_anode
+    current[(time > tp2) & (time <= tp3)] = 0
+    current[(time > tp3) & (time <= tp4)] = -pulse_amplitude_cathode
+    current[(time > tp4) & (time <= tp5)] = 0
+
+    print(current)
 
     fig = matplotlib.figure.Figure(figsize=(4, 3), dpi=100)
     fig.add_subplot(111).plot(time, current)
