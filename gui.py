@@ -21,7 +21,10 @@ import os
 from os.path import basename
 import json
 from pathlib import Path
-import glob
+import requests
+import threading
+
+# os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
 
 recording_folder_path = os.getcwd()
 settings_folder_path = os.getcwd()
@@ -36,7 +39,7 @@ logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ER
 # Create a rotating file handler that logs debug and higher level messages
 file_handler = logging.handlers.RotatingFileHandler(LOG_FILENAME, maxBytes=1e6, backupCount=10)
 file_handler.setLevel(logging.INFO)
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter('%(levelname)-8s %(asctime)s - %(name)s - %(message)s', '%H:%M:%S')
 file_handler.setFormatter(formatter)
 # Add the file handler to the logger
 logger.addHandler(file_handler)
@@ -76,6 +79,7 @@ def collapse(layout, key):
 # CF STIMULATION PULSE FRAME
 
 def generate_plot(
+        biphasic: int = 1,
         pulse_delay: int = 0,
         first_pulse_phase_width: int = 170,
         pulse_interphase_interval: int = 60,
@@ -83,11 +87,13 @@ def generate_plot(
         discharge_time: int = 200,
         pulse_amplitude_anode: int = 1,
         pulse_amplitude_cathode: int = 1,
-        pulse_amplitude_equal: bool = False,
+        pulse_amplitude_equal: int = 0,
         pulse_duration: int = 600
     ):
-    if pulse_amplitude_equal:
+    if bool(pulse_amplitude_equal):
         pulse_amplitude_cathode = pulse_amplitude_anode
+    if not bool(biphasic):
+        pulse_amplitude_cathode = 0
     time = np.linspace(0, pulse_duration, pulse_duration)
     current = np.zeros_like(time)
     tp1 = pulse_delay
@@ -152,7 +158,8 @@ viperbox_control_frame = sg.Frame(
             sg.Text("Probe connection", size=(15,0)), 
             LEDIndicator("led_connect_probe")],
         [
-            sg.Button('(Re)connect', key='button_connect'), ],
+            sg.Button('(Re)connect', key='button_connect'),
+            sg.Button('Disconnect', key='button_disconnect')],
         [sg.HorizontalSeparator('light gray')],
         [
             sg.Text('Subject'),
@@ -270,7 +277,7 @@ stimulation_settings = sg.Frame('Pre-load settings',
 
 manual_stim = True
 pulse_shape_col1 = sg.Column([
-        [sg.Text("Biphasic / Monophasic"),sg.Drop(key='biphasic',  size=(inpsize_w-2, inpsize_h), values=("Biphasic", "Monophasic"), auto_size_text=True, default_value="Biphasic",), sg.T(' ', size=(unit_h, unit_w))],
+        [sg.Text("Biphasic / Monophasic"),sg.Drop(key='biphasic',  size=(inpsize_w-2, inpsize_h), values=("Biphasic", "Monophasic"), auto_size_text=True, default_value="Biphasic", enable_events=True), sg.T(' ', size=(unit_h, unit_w))],
         # [sg.Text("Biphasic? (Else Monophasic)"), sg.Checkbox("", key='biphasic', default=True, size=(inpsize_w, inpsize_h)), sg.T(' ', size=(unit_h, unit_w))],
         [sg.Text("Pulse duration", justification='l'), sg.Input(600, size=(inpsize_w, inpsize_h), key="pulse_duration"), sg.T('uSec', size=(unit_h, unit_w))],
         [sg.Text("Pulse delay"), sg.Input(0, size=(inpsize_w, inpsize_h), key="pulse_delay"), sg.T('uSec', size=(unit_h, unit_w))],
@@ -286,7 +293,7 @@ pulse_shape_col1 = sg.Column([
 pulse_shape_col2 = [
         [sg.Text("Pulse amplitude anode"), sg.Input(5, size=(inpsize_w, inpsize_h), key="pulse_amplitude_anode"), sg.T('uA', size=(unit_h, unit_w))],
         [sg.Text("Pulse amplitude cathode"),sg.Input(5, size=(inpsize_w, inpsize_h), key="pulse_amplitude_cathode"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.T('Pulse amplitude equal'), sg.Checkbox("", key='pulse_amplitude_equal', size=(unit_h, unit_w)), sg.T(' ', size=(unit_h, unit_w))],
+        [sg.T('Pulse amplitude equal'), sg.Checkbox("", key='pulse_amplitude_equal', size=(inpsize_w, inpsize_h)), sg.T(' ', size=(unit_h, unit_w))],
     ]
 
 pulse_shape_frame = sg.Frame("Pulse shape parameters",
@@ -306,7 +313,7 @@ pulse_train_frame = sg.Frame("Pulse train parameters",[
         # [sg.Text("Discharge time extra"), sg.Input(200, size=(inpsize_w, inpsize_h), key="Discharge time extra"), sg.T('uSec', size=(unit_h, unit_w))],
         [sg.Text("Frequency of pulses"), sg.Input(200, size=(inpsize_w, inpsize_h), key="frequency_of_pulses"), sg.T('Hz', size=(unit_h, unit_w))],
         [sg.Text("Number of trains"), sg.Input(5, size=(inpsize_w, inpsize_h), key="number_of_trains"), sg.T(' ', size=(unit_h, unit_w))],
-        [sg.Text("Train interval (discharge)"), sg.Input(1000, size=(inpsize_w, inpsize_h), key="discharge_time_extra"), sg.T('Sec', size=(unit_h, unit_w))],
+        [sg.Text("Train interval (discharge)"), sg.Input(1000, size=(inpsize_w, inpsize_h), key="discharge_time_extra"), sg.T('mSec', size=(unit_h, unit_w))],
         [sg.Text("On-set onset_jitter"), sg.Input(0, size=(inpsize_w, inpsize_h), key="onset_jitter"), sg.T('Sec', size=(unit_h, unit_w))],
         ], 
         element_justification='r',
@@ -340,8 +347,14 @@ col4 = sg.Column([[plot_frame],[log_frame]], vertical_alignment='t')
 layout = [[col1, col2, col3, col4]],
 
 
-
-
+window = sg.Window(
+    "ViperBox Control",
+    layout,
+    #    size=(800, 800),
+    finalize=True
+)
+# ------------------------------------------------------------------
+# HELPER FUNCTIONS
 
 def save_settings(location, filename, settings):
     existing_settings = load_settings_folder(location)
@@ -375,19 +388,6 @@ def update_settings_listbox(settings_folder_path):
     settings_list = load_settings_folder(settings_folder_path)
     window['listbox_settings'].update(settings_list)
 
-settings_list = load_settings_folder(settings_folder_path)
-
-
-
-
-window = sg.Window(
-    "ViperBox Control",
-    layout,
-    #    size=(800, 800),
-    finalize=True
-)
-
-
 def get_last_timestamp(log_file_path):
     last_timestamp = ''
     with open(log_file_path, 'rb') as f:
@@ -403,17 +403,6 @@ def get_last_timestamp(log_file_path):
 def read_log_file(log_file_path):
     with open(log_file_path, 'r') as f:
         return f.read()
-
-_, values = window.read(timeout=0)
-SetLED(window, "led_rec", False)
-SetLED(window, "led_connect_hardware", False)
-SetLED(window, "led_connect_BS", False)
-SetLED(window, "led_connect_probe", False)
-
-window['mul_log'].update(read_log_file('ViperBoxInterface.log'))
-last_printed_timestamp = get_last_timestamp('ViperBoxInterface.log')
-
-VB = ViperBoxControl(no_box=True)
 
 def get_electrodes(reference_matrix, save_purpose=False):
     rows, cols = np.where(np.asarray(reference_matrix)=='on')
@@ -433,13 +422,8 @@ def set_reference_matrix(electrode_list):
     return reference_matrix
 
 def load_parameter_dicts(values):
-    if values['biphasic'] == 'Biphasic':
-        values['biphasic'] = True
-    else:
-        values['biphasic'] = False
-    reference_matrix[0][0] = 'on'
+    values = convert_biphasic(values)
     values['stim_sweep_electrode_list'] = get_electrodes(reference_matrix)
-    reference_matrix[0][0] = 'off'
     filtered_pulse_shape = {k: int(values[k]) for k in PulseShapeParameters.__annotations__}
     pulse_shape = PulseShapeParameters(**filtered_pulse_shape)
     filtered_pulse_train = {k: int(values[k]) for k in PulseTrainParameters.__annotations__}
@@ -448,20 +432,51 @@ def load_parameter_dicts(values):
     pulse_sweep = StimulationSweepParameters(**filtered_pulse_sweep)
     return pulse_shape, pulse_train, pulse_sweep
 
+def convert_biphasic(values):
+    if values['biphasic'] == 'Biphasic':
+        values['biphasic'] = True
+    else:
+        values['biphasic'] = False
+    return values
+
+def start_eo():
+    try:
+        r = requests.get("http://localhost:37497/api/status")
+        if r.json()['mode'] != 'ACQUIRE':
+            r = requests.put("http://localhost:37497/api/status",json={"mode" : "ACQUIRE"})
+    except Exception as e:
+        logger.warn('Failed to set up Open Ephys correctly, please set up manually')
+
+
+# ------------------------------------------------------------------
+# PREPARING
+
+settings_list = load_settings_folder(settings_folder_path)
+
+_, values = window.read(timeout=0)
+SetLED(window, "led_rec", False)
+SetLED(window, "led_connect_hardware", False)
+SetLED(window, "led_connect_BS", False)
+SetLED(window, "led_connect_probe", False)
+
+VB = ViperBoxControl(no_box=False, emulated=True)
+
 tmp_input_filter_name = ''
 fig = generate_plot()
 figure_agg = draw_figure(window['-CANVAS-'].TKCanvas, fig)
 selected_user_setting = None
 update_settings_listbox(settings_folder_path)
+
+window['mul_log'].update(read_log_file(LOG_FILENAME))
+# last_printed_timestamp = get_last_timestamp(LOG_FILENAME)
 # ------------------------------------------------------------------
 # CF: MAIN
-
+logger.info('Starting main')
+threading.Thread(target=start_eo).start()
 if __name__ == "__main__":
 
-    # import os
-    # os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
-
     while True:
+        logger.info('Starting while loop')
         # event, values = window.read(timeout=100)
         event, values = window.read()
         if event == sg.WIN_CLOSED or event == 'Exit':
@@ -472,9 +487,11 @@ if __name__ == "__main__":
                 logger.info('VirtualBox initialized in testing mode')
             else:
                 VB.connect_viperbox()
-                SetLED(window, 'led_connect_hardware', VB._connected_probe)
+                SetLED(window, 'led_connect_hardware', VB._connected_handle)
                 SetLED(window, 'led_connect_BS', VB._connected_BS)
-                SetLED(window, 'led_connect_probe', VB._connected_handle)
+                SetLED(window, 'led_connect_probe', VB._connected_probe)
+        elif event == 'button_disconnect':
+            VB.disconnect_viperbox()
         elif event[:3] == 'el_':
             window[event].update(button_color=toggle_color(event, reference_matrix))
         elif event == 'button_select_recording_folder':
@@ -496,6 +513,7 @@ if __name__ == "__main__":
             window['pulse_shape_col2'].update(visible=manual_stim)
         elif event == 'button_start':
             SetLED(window, "led_rec", None)
+            print('values["input_filename"] :', values['input_filename'])
             VB.set_file_path(recording_folder_path, values['input_filename'])
             VB.control_rec_setup()
             if values['checkbox_rec_wo_stim']:
@@ -546,19 +564,23 @@ if __name__ == "__main__":
         elif event == 'listbox_settings':
             if values['listbox_settings']:
                 selected_user_setting = values['listbox_settings'][0]
+        # make all values ints
         # replot
         elif event == 'Reload':
             # Implementation from https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Browser.py
             if figure_agg:
                 delete_figure_agg(figure_agg)
+            values = convert_biphasic(values)
             plot_vals = {k: int(values[k]) for k in generate_plot.__annotations__}
             fig = generate_plot(**plot_vals)
             figure_agg = draw_figure(window['-CANVAS-'].TKCanvas, fig)
         # update log
-        last_log_timestamp = get_last_timestamp('ViperBoxInterface.log')
-        if last_log_timestamp != last_printed_timestamp:
-            window['mul_log'].update(read_log_file('ViperBoxInterface.log'))
-            last_printed_timestamp = last_log_timestamp
+        # last_log_timestamp = get_last_timestamp('ViperBoxInterface.log')
+        # if last_log_timestamp != last_printed_timestamp:
+        #     window['mul_log'].update(read_log_file('ViperBoxInterface.log'))
+        #     last_printed_timestamp = last_log_timestamp
+        
+        window['mul_log'].update(read_log_file(LOG_FILENAME))
 
 window.close()
 
