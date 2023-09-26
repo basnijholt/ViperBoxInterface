@@ -10,12 +10,21 @@ import ctypes
 from pathlib import Path
 from parameters import (
     ConfigurationParameters,
+    PulseShapeParameters,
+    PulseTrainParameters,
+    ViperBoxConfiguration,
+    StimulationSweepParameters,
 )
-import sys
+
+# import sys
 
 # logging.basicConfig(level=logging.INFO)
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+# logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+# formatter = logging.Formatter('%(levelname)-8s %(asctime)s
+# - %(name)s - %(message)s', '%H:%M:%S')
+# file_handler.setFormatter(formatter)
+# logger.addHandler(file_handler)
 
 
 class ViperBoxControl:
@@ -82,6 +91,7 @@ class ViperBoxControl:
             return False
         if not self._connect_BS():
             return False
+        self._set_emulation()
         if not self._connect_probe():
             return False
         return True
@@ -99,19 +109,6 @@ class ViperBoxControl:
         if not self._connected_handle:
             try:
                 self._handle = NVP.createHandle(0)
-                if self.emulated:
-                    NVP.setDeviceEmulatorMode(
-                        self._handle, NVP.DeviceEmulatorMode.LINEAR
-                    )
-                    NVP.setDeviceEmulatorType(
-                        self._handle, NVP.DeviceEmulatorType.EMULATED_PROBE
-                    )
-                    logger.info("Device emulation switched on.")
-                else:
-                    NVP.setDeviceEmulatorMode(self._handle, NVP.DeviceEmulatorMode.OFF)
-                    NVP.setDeviceEmulatorType(self._handle, NVP.DeviceEmulatorType.OFF)
-                    logger.info("Device emulation switched off.")
-
                 self._connected_handle = True
                 logger.info("Handle created successfully")
                 return True
@@ -144,6 +141,23 @@ class ViperBoxControl:
             except Exception as e:
                 logger.error(f"Error while setting up probe: {e}")
                 return False
+        return False
+
+    def _set_emulation(self):
+        if self._connect_handle:
+            if self.emulated:
+                NVP.setDeviceEmulatorMode(self._handle, NVP.DeviceEmulatorMode.LINEAR)
+                NVP.setDeviceEmulatorType(
+                    self._handle, NVP.DeviceEmulatorType.EMULATED_PROBE
+                )
+                logger.info("Device emulation switched on.")
+                return True
+            else:
+                NVP.setDeviceEmulatorMode(self._handle, NVP.DeviceEmulatorMode.OFF)
+                NVP.setDeviceEmulatorType(self._handle, NVP.DeviceEmulatorType.OFF)
+                logger.info("Device emulation switched off.")
+                return True
+        logger.warning("No handle found while trying to set emulation type.")
         return False
 
     def update_config(self, config_params: ConfigurationParameters) -> bool:
@@ -193,11 +207,10 @@ class ViperBoxControl:
                 self.connect_viperbox()
             except Exception as e:
                 print(e)
-            logger.error("To set up a recording, fix the connection with the ViperBox")
+                logger.error(
+                    "To set up a recording, fix the connection with the ViperBox"
+                )
             return False
-        else:
-            print(self.check_connection() == (True, True, True))
-            print(self.check_connection())
 
         if not reference_electrode:
             if not (0 <= reference_electrode <= 8):
@@ -315,6 +328,16 @@ class ViperBoxControl:
             time.sleep(recording_time)
             self.control_rec_stop()
 
+    def stimulation_trigger(self, recording_time=0) -> None:
+        """Handles start of stimulation."""
+        if self._recording is False:
+            if recording_time:
+                recording_time += 0.5
+            self.control_rec_start(recording_time=recording_time)
+            # sleep to be able to gather some data before stimulation is started.
+            time.sleep(0.5)
+        NVP.SUtrig1(self._handle, self._probe, bytes([8]))
+
     def control_rec_stop(self) -> None:
         """Handles stopping of recording state."""
 
@@ -327,11 +350,6 @@ class ViperBoxControl:
 
         NVP.arm(self._handle)
         NVP.setFileStream(self._handle, "")
-        NVP.closeBS(self._handle)
-        self._connected_BS = False
-        self._connected_probe = False
-        NVP.destroyHandle(self._handle)
-        self._connected_handle = False
         self._recording = False
         logger.info(f"Stopped recording: {self._recording_file_name}")
         self._recording_file_name = None
@@ -342,7 +360,6 @@ class ViperBoxControl:
 
         :return: True if currently recording, False otherwise.
         """
-
         return self._recording
 
     def __str__(self) -> str:
@@ -357,29 +374,26 @@ class ViperBoxControl:
 
     def control_send_parameters(
         self,
-        electrode_list=bytes(128 * [8]),
-        polarity: int = 0,
-        # config_params: ConfigurationParameters = None,
+        asdf=[],
+        # polarity: int = 0,
     ) -> None:
         """Handles setup of stimulation. Sends parameters to the ASIC."""
-        # self.config_params = config_params
 
         self.write_SU()
 
+        print("asdf: ", asdf)
+        print("encode_electrodes(): ", encode_electrodes([1, 2, 3]))
         # enable all OSes and connects them to SU 0
-        # TODO: this is not correct, this should be only on the selected electrodes
-        NVP.setOSimage(self._handle, self._probe, electrode_list)
+        if not asdf:
+            osdata = convert_osdata(bytes(64 * [8]))
+        else:
+            print("electrode list: ", asdf)
+            osdata = encode_electrodes(asdf)
+        print("komt ie dan...")
+        NVP.setOSimage(self._handle, self._probe, convert_osdata(osdata))
+        print("en de volgende: ...")
         NVP.writeOSConfiguration(self._handle, self._probe, False)
-
-    def stimulation_trigger(self, recording_time=0) -> None:
-        """Handles start of stimulation."""
-        if self._recording is False:
-            if recording_time:
-                recording_time += 0.5
-            self.control_rec_start(recording_time=recording_time)
-            # sleep to be able to gather some data before stimulation is started.
-            time.sleep(0.5)
-        NVP.SUtrig1(self._handle, self._probe, bytes([8]))
+        print("klaar")
 
     def stim_sweep(
         self,
@@ -390,7 +404,7 @@ class ViperBoxControl:
 
         self.config_params.pulse_shape_parameters.pulse_amplitude_equal = True
 
-        self.control_send_parameters(electrode_list=(ctypes.c_byte * 128)())
+        self.control_send_parameters(asdf=(ctypes.c_byte * 128)())
         # # prep and SU config
         # self.write_SU()
         # # prep and write OS config
@@ -438,30 +452,57 @@ class ViperBoxControl:
         )
 
 
+def encode_electrodes(stim_electrodes) -> str:
+    """
+    Convert a list of selected electrodes to a binary string representation.
+
+    :param stim_electrodes: List of 0-based electrode indices that are ON.
+    :param num_electrodes: Total number of electrodes.
+    :return: Binary string representation.
+    """
+    hex_list = []
+    num_electrodes: int = 64
+    print("stim_electrodes: ", stim_electrodes)
+    for i in range(num_electrodes):
+        if i + 1 in stim_electrodes:
+            # If the electrode is ON, the representation is '1' followed by '111'
+            hex_list.append(8)
+
+        else:
+            # If the electrode is OFF, the representation is '0000'
+            hex_list.append(0)
+    return bytes(hex_list)
+
+
+def convert_osdata(osdata):
+    return (ctypes.c_ubyte * len(osdata)).from_buffer_copy(osdata)
+
+
 if __name__ == "__main__":
     # Example usage:
-    # pulse_shape = PulseShapeParameters()
-    # pulse_train = PulseTrainParameters()
-    # electrodes = [1, 2, 3]
-    # viperbox = ViperBoxConfiguration(0)
-    # stim_configuration = StimulationSweepParameters(
-    # stim_electrode_list=[1, 2],
-    # rec_electrodes_list=[3, 4],
-    # pulse_amplitudes=(1, 10, 2),
-    # randomize=True,
-    # repetitions=2,
-    # )
-    # config = ConfigurationParameters(
-    #     pulse_shape, pulse_train, viperbox, stim_configuration, electrodes
-    # )
+    pulse_shape = PulseShapeParameters()
+    pulse_train = PulseTrainParameters()
+    electrodes = [1, 2, 3]
+    viperbox = ViperBoxConfiguration(0)
+    stim_configuration = StimulationSweepParameters(
+        # stim_electrode_list=[1, 2],
+        # rec_electrodes_list=[3, 4],
+        # pulse_amplitudes=(1, 10, 2),
+        # randomize=True,
+        # repetitions=2,
+    )
+    config = ConfigurationParameters(
+        pulse_shape, pulse_train, viperbox, stim_configuration, electrodes
+    )
 
     # controller = ViperBoxControl("test", 0, config, no_box=True)
-    controller = ViperBoxControl("test", emulated=True)
+    controller = ViperBoxControl("test", config_params=config, emulated=False)
     print("viperboxcontrol instantiated, setup recording")
     # controller.connect_viperbox()
     # print('viperbox connected')
     controller.control_rec_setup()
     print("recording set up, starting recording")
+    controller.control_send_parameters([1, 2, 3, 6])
     controller.control_rec_start(2)
     print("recording finished, disconnecting")
     # time.sleep(5)

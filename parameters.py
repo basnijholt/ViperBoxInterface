@@ -354,20 +354,19 @@ class ConfigurationParameters:
         """Verifies the electrodes after initialization."""
         self.verify_electrodes()
 
-    def verify_electrodes(self) -> None:
+    def verify_electrodes(self, num_electrodes=64) -> None:
         """Verifies the constraints for the list of electrodes."""
         electrodes_set = set(self.stim_electrode_list)
-        if len(electrodes_set) != len(self.stim_electrode_list):
-            # log "You've supplied duplicate electrodes."
-            raise ValueError("Duplicate electrodes are not allowed.")
-            # pass
         if len(electrodes_set) == 0:
+            logger.info("No electrodes were selected")
             return None
             # raise ValueError("Electrode list can't be empty")
 
         for elec in electrodes_set:
-            if not 1 <= elec <= 128:
-                raise ValueError("Electrodes should have values between 1 and 128.")
+            if not 1 <= elec <= num_electrodes:
+                raise ValueError(
+                    f"Electrodes should have values between 1 and {num_electrodes}."
+                )
 
     def get_SUConfig_pars(
         self, handle=None, probe=0, stim_unit=0, polarity=0
@@ -395,26 +394,36 @@ class ConfigurationParameters:
             probe,
             stim_unit,
             polarity,
-            all_parameters.get("number_of_pulses", None)
-            // self.pulse_train_parameters.number_of_pulses,
-            all_parameters.get("pulse_amplitude_anode", None)
-            // self.pulse_shape_parameters.pulse_amplitude_anode,
-            all_parameters.get("pulse_amplitude_cathode", None)
-            // self.pulse_shape_parameters.pulse_amplitude_cathode,
-            all_parameters.get("pulse_duration", None)
-            // self.pulse_shape_parameters.pulse_duration,
-            all_parameters.get("pulse_delay", None)
-            // self.pulse_shape_parameters.pulse_delay,
-            all_parameters.get("first_pulse_phase_width", None)
-            // self.pulse_shape_parameters.first_pulse_phase_width,
-            all_parameters.get("pulse_interphase_interval", None)
-            // self.pulse_shape_parameters.pulse_interphase_interval,
-            all_parameters.get("second_pulse_phase_width", None)
-            // self.pulse_shape_parameters.second_pulse_phase_width,
-            all_parameters.get("discharge_time", None)
-            // self.pulse_shape_parameters.discharge_time,
-            all_parameters.get("discharge_time_extra", None)
-            // self.pulse_train_parameters.discharge_time_extra,
+            all_parameters.get(
+                "number_of_pulses", None
+            ),  # // self.pulse_train_parameters.number_of_pulses,
+            all_parameters.get(
+                "pulse_amplitude_anode", None
+            ),  # // self.pulse_shape_parameters.pulse_amplitude_anode,
+            all_parameters.get(
+                "pulse_amplitude_cathode", None
+            ),  # // self.pulse_shape_parameters.pulse_amplitude_cathode,
+            all_parameters.get(
+                "pulse_duration", None
+            ),  # // self.pulse_shape_parameters.pulse_duration,
+            all_parameters.get(
+                "pulse_delay", None
+            ),  # // self.pulse_shape_parameters.pulse_delay,
+            all_parameters.get(
+                "first_pulse_phase_width", None
+            ),  # // self.pulse_shape_parameters.first_pulse_phase_width,
+            all_parameters.get(
+                "pulse_interphase_interval", None
+            ),  # // self.pulse_shape_parameters.pulse_interphase_interval,
+            all_parameters.get(
+                "second_pulse_phase_width", None
+            ),  # // self.pulse_shape_parameters.second_pulse_phase_width,
+            all_parameters.get(
+                "discharge_time", None
+            ),  # // self.pulse_shape_parameters.discharge_time,
+            all_parameters.get(
+                "discharge_time_extra", None
+            ),  # // self.pulse_train_parameters.discharge_time_extra,
         )
 
     @property
@@ -451,8 +460,8 @@ if __name__ == "__main__":
 
     print("config: ", config)
 
-    # test = config.get_SUConfig_pars(handle="fakehandle")
-    # print("SUConfig pars: ", test)
+    test = config.get_SUConfig_pars(handle="no_box")
+    print("SUConfig pars: ", test)
     # print(
     #     "StimulationSweepParameters.amplitude_list: ",
     #     config.stim_configuration.amplitude_list,
