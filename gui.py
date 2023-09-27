@@ -132,8 +132,9 @@ def generate_plot(
 
     fig = matplotlib.figure.Figure(figsize=(4, 3), dpi=100)
     ax = fig.add_subplot(111)
-    fig.get_axes()[0].set_xlabel("Time [us]")
-    fig.get_axes()[0].set_ylabel("Pulse amplitude [uA]")
+    fig.get_axes()[0].set_xlabel("Time [μs]")
+    fig.get_axes()[0].set_ylabel("Pulse amplitude [μA]")
+    ax.yaxis.get_major_locator().set_params(integer=True)
     ax.plot(time, current)
     fig.tight_layout()
     return fig
@@ -190,11 +191,7 @@ viperbox_control_frame = sg.Frame(
         ],
         [
             sg.Text(f"Saving in {basename(recording_folder_path)}", key='current_folder', size=(25,1)),
-            sg.Button('Select recording folder', key='button_select_recording_folder'),
-        ],
-        [
-            sg.Text('Recording status:'),
-            LEDIndicator("led_rec"),
+            sg.Button('Change folder', key='button_select_recording_folder'),
         ],
         [sg.HorizontalSeparator('light gray')],
         [sg.Text('Manual stimulation'),
@@ -205,6 +202,10 @@ viperbox_control_frame = sg.Frame(
             sg.Button("Start", size=(10, 1), key='button_start'),
             sg.Button("Stop", size=(10, 1), key='button_stop'),
             sg.Checkbox("Record without stimulation", key='checkbox_rec_wo_stim')
+        ],
+        [
+            sg.Text('Recording status:'),
+            LEDIndicator("led_rec"),
         ],
     ],
     # size=(400, 170),
@@ -304,21 +305,21 @@ manual_stim = True
 pulse_shape_col1 = sg.Column([
         [sg.Text("Biphasic / Monophasic"),sg.Drop(key='biphasic',  size=(inpsize_w-2, inpsize_h), values=("Biphasic", "Monophasic"), auto_size_text=True, default_value="Biphasic", enable_events=True), sg.T(' ', size=(unit_h, unit_w))],
         # [sg.Text("Biphasic? (Else Monophasic)"), sg.Checkbox("", key='biphasic', default=True, size=(inpsize_w, inpsize_h)), sg.T(' ', size=(unit_h, unit_w))],
-        [sg.Text("Pulse duration", justification='l'), sg.Input(600, size=(inpsize_w, inpsize_h), key="pulse_duration"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("Pulse delay"), sg.Input(0, size=(inpsize_w, inpsize_h), key="pulse_delay"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("1st pulse phase width"),sg.Input(170, size=(inpsize_w, inpsize_h), key="first_pulse_phase_width"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("Pulse interphase interval"),sg.Input(60, size=(inpsize_w, inpsize_h), key="pulse_interphase_interval"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("2nd pulse phase width"),sg.Input(170, size=(inpsize_w, inpsize_h), key="second_pulse_phase_width"), sg.T('uSec', size=(unit_h, unit_w))],
-        # [sg.Text("Discharge time"), sg.Input(, size=(inpsize_w, inpsize_h), key="Discharge time"), sg.T('uSec', size=(unit_h, unit_w))],
-        [sg.Text("Interpulse interval (discharge)"), sg.Input(200, size=(inpsize_w, inpsize_h), key="discharge_time"), sg.T('uSec', size=(unit_h, unit_w))],
+        [sg.Text("Pulse duration", justification='l'), sg.Input(600, size=(inpsize_w, inpsize_h), key="pulse_duration"), sg.T('μSec', size=(unit_h, unit_w))],
+        [sg.Text("Pulse delay"), sg.Input(0, size=(inpsize_w, inpsize_h), key="pulse_delay"), sg.T('μSec', size=(unit_h, unit_w))],
+        [sg.Text("1st pulse phase width"),sg.Input(170, size=(inpsize_w, inpsize_h), key="first_pulse_phase_width"), sg.T('μSec', size=(unit_h, unit_w))],
+        [sg.Text("Pulse interphase interval"),sg.Input(60, size=(inpsize_w, inpsize_h), key="pulse_interphase_interval"), sg.T('μSec', size=(unit_h, unit_w))],
+        [sg.Text("2nd pulse phase width"),sg.Input(170, size=(inpsize_w, inpsize_h), key="second_pulse_phase_width"), sg.T('μSec', size=(unit_h, unit_w))],
+        # [sg.Text("Discharge time"), sg.Input(, size=(inpsize_w, inpsize_h), key="Discharge time"), sg.T('μSec', size=(unit_h, unit_w))],
+        [sg.Text("Interpulse interval (discharge)"), sg.Input(200, size=(inpsize_w, inpsize_h), key="discharge_time"), sg.T('μSec', size=(unit_h, unit_w))],
     ], 
     element_justification='r',
     expand_x=True,
 )
 pulse_shape_col2 = [
-        [sg.Text("Pulse amplitude anode"), sg.Input(5, size=(inpsize_w, inpsize_h), key="pulse_amplitude_anode"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("Pulse amplitude cathode"),sg.Input(5, size=(inpsize_w, inpsize_h), key="pulse_amplitude_cathode"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.T('Pulse amplitude equal'), sg.Checkbox("", key='pulse_amplitude_equal', size=(inpsize_w, inpsize_h)), sg.T(' ', size=(unit_h, unit_w))],
+        [sg.Text("Pulse amplitude anode"), sg.Input(5, size=(inpsize_w, inpsize_h), key="pulse_amplitude_anode"), sg.T('μA', size=(unit_h, unit_w))],
+        [sg.Text("Pulse amplitude cathode"),sg.Input(5, size=(inpsize_w, inpsize_h), key="pulse_amplitude_cathode"), sg.T('μA', size=(unit_h, unit_w))],
+        [sg.T('Pulse amplitude equal'), sg.Checkbox("", key='pulse_amplitude_equal', size=(inpsize_w-4, inpsize_h)), sg.T(' ', size=(unit_h, unit_w))],
     ]
 
 pulse_shape_frame = sg.Frame("Pulse shape parameters",
@@ -335,7 +336,7 @@ pulse_shape_frame = sg.Frame("Pulse shape parameters",
 
 pulse_train_frame = sg.Frame("Pulse train parameters",[
         [sg.Text("Number of pulses"), sg.Input(20, size=(inpsize_w, inpsize_h), key="number_of_pulses"), sg.T(' ', size=(unit_h, unit_w))],
-        # [sg.Text("Discharge time extra"), sg.Input(200, size=(inpsize_w, inpsize_h), key="Discharge time extra"), sg.T('uSec', size=(unit_h, unit_w))],
+        # [sg.Text("Discharge time extra"), sg.Input(200, size=(inpsize_w, inpsize_h), key="Discharge time extra"), sg.T('μSec', size=(unit_h, unit_w))],
         [sg.Text("Frequency of pulses"), sg.Input(200, size=(inpsize_w, inpsize_h), key="frequency_of_pulses"), sg.T('Hz', size=(unit_h, unit_w))],
         [sg.Text("Number of trains"), sg.Input(5, size=(inpsize_w, inpsize_h), key="number_of_trains"), sg.T(' ', size=(unit_h, unit_w))],
         [sg.Text("Train interval (discharge)"), sg.Input(1000, size=(inpsize_w, inpsize_h), key="discharge_time_extra"), sg.T('mSec', size=(unit_h, unit_w))],
@@ -349,9 +350,9 @@ pulse_train_frame = sg.Frame("Pulse train parameters",[
 # CF: PARAMETER SWEEP FRAME
 
 parameter_sweep = sg.Frame("Stimulation sweep parameters", [
-        [sg.Text("Pulse amplitude min"), sg.Input(1, size=(inpsize_w, inpsize_h), key="pulse_amplitude_min"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("pulse_amplitude_max"), sg.Input(20, size=(inpsize_w, inpsize_h), key="pulse_amplitude_max"), sg.T('uA', size=(unit_h, unit_w))],
-        [sg.Text("Pulse amplitude step"), sg.Input(1, size=(inpsize_w, inpsize_h), key="pulse_amplitude_step"), sg.T('uA', size=(unit_h, unit_w))],
+        [sg.Text("Pulse amplitude min"), sg.Input(1, size=(inpsize_w, inpsize_h), key="pulse_amplitude_min"), sg.T('μA', size=(unit_h, unit_w))],
+        [sg.Text("pulse_amplitude_max"), sg.Input(20, size=(inpsize_w, inpsize_h), key="pulse_amplitude_max"), sg.T('μA', size=(unit_h, unit_w))],
+        [sg.Text("Pulse amplitude step"), sg.Input(1, size=(inpsize_w, inpsize_h), key="pulse_amplitude_step"), sg.T('μA', size=(unit_h, unit_w))],
         [sg.Text("Repetitions"), sg.Input(1, size=(inpsize_w, inpsize_h), key="repetitions"), sg.T(' ', size=(unit_h, unit_w))],
         [sg.Checkbox("Randomize", key='randomize')],
         ], element_justification='r',
@@ -472,11 +473,12 @@ settings_list = load_settings_folder(settings_folder_path)
 
 _, values = window.read(timeout=0)
 SetLED(window, "led_rec", False)
-SetLED(window, "led_connect_hardware", False)
-SetLED(window, "led_connect_BS", False)
-SetLED(window, "led_connect_probe", False)
 
 VB = ViperBoxControl(no_box=False, emulated=True)
+
+SetLED(window, 'led_connect_hardware', VB._connected_handle)
+SetLED(window, 'led_connect_BS', VB._connected_BS)
+SetLED(window, 'led_connect_probe', VB._connected_probe)
 
 tmp_input_filter_name = ''
 fig = generate_plot()
@@ -507,6 +509,9 @@ if __name__ == "__main__":
                 SetLED(window, 'led_connect_probe', VB._connected_probe)
         elif event == 'button_disconnect':
             VB.disconnect_viperbox()
+            SetLED(window, 'led_connect_hardware', VB._connected_handle)
+            SetLED(window, 'led_connect_BS', VB._connected_BS)
+            SetLED(window, 'led_connect_probe', VB._connected_probe)
         elif event[:3] == 'el_':
             window[event].update(button_color=toggle_color(event, reference_matrix))
         elif event == 'button_select_recording_folder':

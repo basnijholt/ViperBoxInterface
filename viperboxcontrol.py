@@ -247,8 +247,13 @@ class ViperBoxControl:
         bufferInterval: float = self.BUFFER_SIZE / self.FREQ
 
         serverAddressPort: Tuple[str, int] = ("127.0.0.1", 9001)
+        MULTICAST_TTL = 2
         UDPClientSocket: socket.socket = socket.socket(
-            family=socket.AF_INET, type=socket.SOCK_DGRAM
+            socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
+        )
+
+        UDPClientSocket.setsockopt(
+            socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL
         )
         time.sleep(0.5)
         self._read_handle = NVP.streamOpenFile(self._recording_file_name, self._probe)
@@ -271,7 +276,7 @@ class ViperBoxControl:
             # print('len(packets): ',len(packets))
 
             if count < self.BUFFER_SIZE:
-                logger.warning("Out of packets")
+                # logger.warning("Out of packets")
                 break
 
             databuffer = np.asarray(
