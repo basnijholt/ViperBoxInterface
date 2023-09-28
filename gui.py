@@ -317,9 +317,9 @@ pulse_shape_col1 = sg.Column([
     expand_x=True,
 )
 pulse_shape_col2 = [
-        [sg.Text("Pulse amplitude anode"), sg.Input(5, size=(inpsize_w, inpsize_h), key="pulse_amplitude_anode"), sg.T('μA', size=(unit_h, unit_w))],
+        [sg.Text("Pulse amplitude anode"), sg.Input(5, size=(inpsize_w, inpsize_h), key="pulse_amplitude_anode", enable_events=True), sg.T('μA', size=(unit_h, unit_w))],
         [sg.Text("Pulse amplitude cathode"),sg.Input(5, size=(inpsize_w, inpsize_h), key="pulse_amplitude_cathode"), sg.T('μA', size=(unit_h, unit_w))],
-        [sg.T('Pulse amplitude equal'), sg.Checkbox("", key='pulse_amplitude_equal', size=(inpsize_w-4, inpsize_h)), sg.T(' ', size=(unit_h, unit_w))],
+        [sg.T('Pulse amplitude equal'), sg.Checkbox("", key='pulse_amplitude_equal', size=(inpsize_w-4, inpsize_h), enable_events=True), sg.T(' ', size=(unit_h, unit_w),)],
     ]
 
 pulse_shape_frame = sg.Frame("Pulse shape parameters",
@@ -351,7 +351,7 @@ pulse_train_frame = sg.Frame("Pulse train parameters",[
 
 parameter_sweep = sg.Frame("Stimulation sweep parameters", [
         [sg.Text("Pulse amplitude min"), sg.Input(1, size=(inpsize_w, inpsize_h), key="pulse_amplitude_min"), sg.T('μA', size=(unit_h, unit_w))],
-        [sg.Text("pulse_amplitude_max"), sg.Input(20, size=(inpsize_w, inpsize_h), key="pulse_amplitude_max"), sg.T('μA', size=(unit_h, unit_w))],
+        [sg.Text("Pulse amplitude max"), sg.Input(20, size=(inpsize_w, inpsize_h), key="pulse_amplitude_max"), sg.T('μA', size=(unit_h, unit_w))],
         [sg.Text("Pulse amplitude step"), sg.Input(1, size=(inpsize_w, inpsize_h), key="pulse_amplitude_step"), sg.T('μA', size=(unit_h, unit_w))],
         [sg.Text("Repetitions"), sg.Input(1, size=(inpsize_w, inpsize_h), key="repetitions"), sg.T(' ', size=(unit_h, unit_w))],
         [sg.Checkbox("Randomize", key='randomize')],
@@ -474,7 +474,7 @@ settings_list = load_settings_folder(settings_folder_path)
 _, values = window.read(timeout=0)
 SetLED(window, "led_rec", False)
 
-VB = ViperBoxControl(no_box=False, emulated=True)
+VB = ViperBoxControl(no_box=False, emulated=False)
 
 SetLED(window, 'led_connect_hardware', VB._connected_handle)
 SetLED(window, 'led_connect_BS', VB._connected_BS)
@@ -585,6 +585,16 @@ if __name__ == "__main__":
             if values['listbox_settings']:
                 selected_user_setting = values['listbox_settings'][0]
         # make all values ints
+        # grey out option
+        elif event == 'pulse_amplitude_equal':
+            if values['pulse_amplitude_equal']:
+                window['pulse_amplitude_cathode'].update(disabled=True)
+                window['pulse_amplitude_cathode'].update(value=values['pulse_amplitude_anode'])
+            else:
+                window['pulse_amplitude_cathode'].update(disabled=False)
+        elif event == 'pulse_amplitude_anode':
+            if values['pulse_amplitude_equal']:
+                window['pulse_amplitude_cathode'].update(value=values['pulse_amplitude_anode'])
         # replot
         elif event == 'Reload':
             # Implementation from https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Browser.py

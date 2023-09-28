@@ -77,12 +77,15 @@ class ViperBoxControl:
         NVP.setLogLevel(NVP.LogLevel.VERBOSE)
 
     def disconnect_viperbox(self):
-        NVP.setFileStream(self._handle, "")
-        NVP.closeBS(self._handle)
-        self._connected_BS = False
-        self._connected_probe = False
-        NVP.destroyHandle(self._handle)
-        self._connected_handle = False
+        if self._connected_handle:
+            NVP.setFileStream(self._handle, "")
+        if self._connected_BS:
+            NVP.closeBS(self._handle)
+            self._connected_BS = False
+            self._connected_probe = False
+        if self._connected_handle:
+            NVP.destroyHandle(self._handle)
+            self._connected_handle = False
 
     def connect_viperbox(self):
         if self._handle == "no_box":
@@ -333,7 +336,7 @@ class ViperBoxControl:
             time.sleep(recording_time)
             self.control_rec_stop()
 
-    def stimulation_trigger(self, recording_time=0) -> None:
+    def stimulation_trigger(self, SU=0, recording_time=0) -> None:
         """Handles start of stimulation."""
         if self._recording is False:
             if recording_time:
@@ -341,7 +344,7 @@ class ViperBoxControl:
             self.control_rec_start(recording_time=recording_time)
             # sleep to be able to gather some data before stimulation is started.
             time.sleep(0.5)
-        NVP.SUtrig1(self._handle, self._probe, bytes([8]))
+        NVP.SUtrig1(self._handle, self._probe, SU)
 
     def control_rec_stop(self) -> None:
         """Handles stopping of recording state."""
