@@ -50,7 +50,6 @@ class ViperBoxControl:
     ) -> None:
         """Initializes the ViperBoxControl object."""
         # TODO: check which other parameters logically are part of self and init.
-        logger.info("Instantiating ViperBoxControl")
         self._recording = False
         # self._recording_file_name: str = (
         #     recording_file_name + time.strftime("_%Y%m%d_%H%M%S") + ".bin"
@@ -69,6 +68,7 @@ class ViperBoxControl:
         if no_box:
             self._handle = "no_box"
         else:
+            logger.info("Instantiating ViperBoxControl")
             if self.connect_viperbox():
                 logger.info("ViperBox set up completed successfully")
             else:
@@ -117,6 +117,7 @@ class ViperBoxControl:
                 return True
             except Exception:
                 logger.error("Error while setting up handle.", exc_info=True)
+                logger.warning("Check if ViperBox is connected and switched on.")
                 return False
         return True
 
