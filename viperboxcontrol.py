@@ -118,7 +118,7 @@ class ViperBoxControl:
             except Exception:
                 logger.error("Error while setting up handle.", exc_info=True)
                 return False
-        return False
+        return True
 
     def _connect_BS(self):
         if not self._connected_BS and self._connected_handle:
@@ -130,7 +130,7 @@ class ViperBoxControl:
             except Exception as e:
                 logger.error(f"Error while setting up BS: {e}")
                 return False
-        return False
+        return True
 
     def _connect_probe(self):
         if not self._connected_probe and self._connected_BS and self._connected_handle:
@@ -144,7 +144,7 @@ class ViperBoxControl:
             except Exception as e:
                 logger.error(f"Error while setting up probe: {e}")
                 return False
-        return False
+        return True
 
     def _set_emulation(self):
         if self._connect_handle:
@@ -504,7 +504,7 @@ if __name__ == "__main__":
     )
 
     # controller = ViperBoxControl("test", 0, config, no_box=True)
-    controller = ViperBoxControl("test", config_params=config, emulated=False)
+    controller = ViperBoxControl(config_params=config, no_box=False, emulated=True)
     print("viperboxcontrol instantiated, setup recording")
     # controller.connect_viperbox()
     # print('viperbox connected')

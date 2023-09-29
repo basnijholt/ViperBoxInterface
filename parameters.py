@@ -17,6 +17,26 @@ Known limitation of implementation
 # TODO:
 # - implement onset_jitter in trigger probably
 
+verify_int_params = {
+    "pulse_duration": [100, 100, 25500],
+    "pulse_delay": [100, 0, 25500],
+    "first_pulse_phase_width": [10, 10, 2550],
+    "pulse_interphase_interval": [10, 0, 2550],
+    "second_pulse_phase_width": [10, 0, 2550],
+    "discharge_time": [100, 0, 25500],
+    "pulse_amplitude_anode": [1, 0, 255],
+    "pulse_amplitude_cathode": [1, 0, 255],
+    "number_of_pulses": [1, 0, 255],
+    "number_of_trains": [1, 1, 50],
+    "discharge_time_extra": [100, 0, 25500],
+    "onset_jitter": [1000, 0, 2000000],
+    "pulse_amplitude_min": [1, 0, 255],
+    "pulse_amplitude_max": [1, 0, 255],
+    "pulse_amplitude_step": [1, 0, 255],
+    "repetitions": [1, 0, 50],
+    "frequency_of_pulses": [1, 40, 10000],
+}
+
 
 def verify_step_min_max(name: str, value: int, step: int, min_val: int, max_val: int):
     """
@@ -389,42 +409,70 @@ class ConfigurationParameters:
 
         if not handle:
             raise ValueError("No handle was passed")
-        return (
+
+        SU_params = [
+            "number_of_pulses",
+            "pulse_amplitude_anode",
+            "pulse_amplitude_cathode",
+            "pulse_duration",
+            "pulse_delay",
+            "first_pulse_phase_width",
+            "pulse_interphase_interval",
+            "second_pulse_phase_width",
+            "discharge_time",
+            "discharge_time_extra",
+        ]
+
+        SU_converted_params = [
+            all_parameters.get(param, None) // verify_int_params[param][0]
+            for param in SU_params
+        ]
+
+        SU_all_params = [
             handle,
             probe,
             stim_unit,
             polarity,
-            all_parameters.get(
-                "number_of_pulses", None
-            ),  # // self.pulse_train_parameters.number_of_pulses,
-            all_parameters.get(
-                "pulse_amplitude_anode", None
-            ),  # // self.pulse_shape_parameters.pulse_amplitude_anode,
-            all_parameters.get(
-                "pulse_amplitude_cathode", None
-            ),  # // self.pulse_shape_parameters.pulse_amplitude_cathode,
-            all_parameters.get(
-                "pulse_duration", None
-            ),  # // self.pulse_shape_parameters.pulse_duration,
-            all_parameters.get(
-                "pulse_delay", None
-            ),  # // self.pulse_shape_parameters.pulse_delay,
-            all_parameters.get(
-                "first_pulse_phase_width", None
-            ),  # // self.pulse_shape_parameters.first_pulse_phase_width,
-            all_parameters.get(
-                "pulse_interphase_interval", None
-            ),  # // self.pulse_shape_parameters.pulse_interphase_interval,
-            all_parameters.get(
-                "second_pulse_phase_width", None
-            ),  # // self.pulse_shape_parameters.second_pulse_phase_width,
-            all_parameters.get(
-                "discharge_time", None
-            ),  # // self.pulse_shape_parameters.discharge_time,
-            all_parameters.get(
-                "discharge_time_extra", None
-            ),  # // self.pulse_train_parameters.discharge_time_extra,
-        )
+        ] + SU_converted_params
+
+        return SU_all_params
+        # return (
+        #     handle,
+        #     probe,
+        #     stim_unit,
+        #     polarity,
+        #     all_parameters.get(
+        #         "number_of_pulses", None
+        #     ) // verify_int_params['number_of_pulses'][0],
+        #     # // etc. necessary to convert human readable values to machine values
+        #     all_parameters.get(
+        #         "pulse_amplitude_anode", None
+        #     ) // self.pulse_shape_parameters.pulse_amplitude_anode,
+        #     all_parameters.get(
+        #         "pulse_amplitude_cathode", None
+        #     ) // self.pulse_shape_parameters.pulse_amplitude_cathode,
+        #     all_parameters.get(
+        #         "pulse_duration", None
+        #     ) // self.pulse_shape_parameters.pulse_duration,
+        #     all_parameters.get(
+        #         "pulse_delay", None
+        #     ) // self.pulse_shape_parameters.pulse_delay,
+        #     all_parameters.get(
+        #         "first_pulse_phase_width", None
+        #     ) // self.pulse_shape_parameters.first_pulse_phase_width,
+        #     all_parameters.get(
+        #         "pulse_interphase_interval", None
+        #     ) // self.pulse_shape_parameters.pulse_interphase_interval,
+        #     all_parameters.get(
+        #         "second_pulse_phase_width", None
+        #     ) // self.pulse_shape_parameters.second_pulse_phase_width,
+        #     all_parameters.get(
+        #         "discharge_time", None
+        #     ) // self.pulse_shape_parameters.discharge_time,
+        #     all_parameters.get(
+        #         "discharge_time_extra", None
+        #     ) // self.pulse_train_parameters.discharge_time_extra,
+        # )
 
     @property
     def stim_time(self):
@@ -444,7 +492,7 @@ if __name__ == "__main__":
     pulse_shape = PulseShapeParameters()
     pulse_train = PulseTrainParameters()
     electrodes = [1, 2, 3]
-    viperbox = ViperBoxConfiguration(0)
+    viperbox = ViperBoxConfiguration()
     stim_configuration = StimulationSweepParameters(
         # stim_sweep_electrode_list=[1, 2],
         # rec_electrodes_list=[3, 4],
