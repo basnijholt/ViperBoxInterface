@@ -741,31 +741,34 @@ def verify_type_step_min_max(
     step = int(verify_int_params[name][0])
     min_val = int(verify_int_params[name][1])
     max_val = int(verify_int_params[name][2])
-    print(type(value), type(min_val))
     if name != "frequency_of_pulses":
         try:
             value = int(value)
         except:
             value = min_val
-            logger.error(
-                f"parameter {name} is should be between {min_val} and "
-                + f"{max_val} with a step size of {step}."
+            logger.warning(
+                f"parameter {name} should be an integer."
             )
     else:
         value = float(value)
     if not min_val <= value <= max_val:
-        logger.error(
-            f"parameter {name} is should be between {min_val} and "
+        logger.warning(
+            f"parameter {name} should be between {min_val} and "
             + f"{max_val} with a step size of {step}."
         )
+        color = 'red'
         # value = min_val+step
-    if (value - min_val) % step != 0:
-        logger.error(
-            f"parameter {name} is should be between {min_val} and "
-            + f"{max_val} with a step size of {step}."
-        )
+    elif (value - min_val) % step != 0:
+        if name != "frequency_of_pulses":
+            logger.warning(
+                f"parameter {name} should be between {min_val} and "
+                + f"{max_val} with a step size of {step}."
+            )
+            color = 'red'
         # value = min_val+step
-    return value
+    else:
+        color = 'white'
+    return value, color
 
 
 def verify_duration(values):
@@ -786,7 +789,6 @@ def verify_duration(values):
 
 
 def pulse2freq_conversion(pulse):
-    print('pulse: ', type(pulse), pulse)
     freq = 1 / (int(pulse) / 1000000)
     return pulse, freq
 
@@ -799,27 +801,6 @@ def freq2pulse_conversion(freq):
 
 def verify_pulse_min_max(amp_min, amp_max, step):
     return amp_min <= amp_max
-
-
-# def check_parameters(values, window=window, verify_int_params=verify_int_params):
-#     for event in verify_int_params.keys():
-#         if values["pulse_amplitude_equal"]:
-#             window["pulse_amplitude_cathode"].update(
-#                 value=values["pulse_amplitude_anode"]
-#             )
-#         if event == 'pulse_duration':
-#             _, frequency_of_pulses = pulse2freq_conversion(values['pulse_duration'])
-#             window['frequency_of_pulses'].update(value=frequency_of_pulses)
-#         if event == 'frequency_of_pulses':
-#             pulse_duration, frequency_of_pulses = freq2pulse_conversion(values['frequency_of_pulses'])
-#             window['frequency_of_pulses'].update(value=frequency_of_pulses)
-#             window['pulse_duration'].update(value=pulse_duration)
-#         for key in verify_int_params.keys():
-#             checked_val = verify_type_step_min_max(key, values[key])
-#             if not key == 'frequency_of_pulses':
-#                 if values[key] != checked_val:
-#                     window[key].update(value=checked_val)
-#     return window
 
 # ------------------------------------------------------------------
 # PREPARING
@@ -847,7 +828,7 @@ for element in elements:
     element.bind('<FocusOut>','+FOCUS OUT')
 
 window["mul_log"].update(read_log_file(LOG_FILENAME))
-# last_printed_timestamp = get_last_timestamp(LOG_FILENAME)
+
 # ------------------------------------------------------------------
 # CF: MAIN
 
@@ -982,10 +963,10 @@ if __name__ == "__main__":
         elif event.endswith("+FOCUS OUT"):
             event = event.split('+')[0]
             for key in verify_int_params.keys():
-                checked_val = verify_type_step_min_max(key, values[key])
+                checked_val, color = verify_type_step_min_max(key, values[key])
                 if values[key] != checked_val:
                     # print('key and value: ', key, values[key], checked_val, type(checked_val))
-                    window[key].update(value=checked_val)
+                    window[key].update(value=checked_val, background_color=color)
             if values["pulse_amplitude_equal"]:
                 window["pulse_amplitude_cathode"].update(
                     value=values["pulse_amplitude_anode"]

@@ -90,7 +90,7 @@ class PulseShapeParameters:
     pulse_amplitude_cathode: int = 1
     pulse_amplitude_equal: bool = False
 
-    pulse_duration: int = 600
+    pulse_duration: int = 1000
 
     # shape_step_size_dict = {
     #     pulse_delay: 100,
@@ -201,7 +201,7 @@ class PulseTrainParameters:
     """
 
     number_of_pulses: int = 20
-    frequency_of_pulses: int = 2500
+    frequency_of_pulses: float = 1000.0
     number_of_trains: int = 1
     # train_interval: int = 1000
     onset_jitter: int = 1000
