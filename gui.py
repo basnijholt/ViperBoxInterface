@@ -709,18 +709,18 @@ def set_reference_matrix(electrode_list):
 def load_parameter_dicts(values):
     values = convert_biphasic(values)
     values["stim_sweep_electrode_list"] = get_electrodes(reference_matrix)
-    filtered_pulse_shape = {
+    pulse_shape_dct_from_gui = {
         k: int(values[k]) for k in PulseShapeParameters.__annotations__
     }
-    pulse_shape = PulseShapeParameters(**filtered_pulse_shape)
-    filtered_pulse_train = {
+    pulse_shape = PulseShapeParameters(**pulse_shape_dct_from_gui)
+    pulse_train_dct_from_gui = {
         k: int(values[k]) for k in PulseTrainParameters.__annotations__
     }
-    pulse_train = PulseTrainParameters(**filtered_pulse_train)
-    filtered_pulse_sweep = {
+    pulse_train = PulseTrainParameters(**pulse_train_dct_from_gui)
+    pulse_sweep_dct_from_gui = {
         k: values[k] for k in StimulationSweepParameters.__annotations__
     }
-    pulse_sweep = StimulationSweepParameters(**filtered_pulse_sweep)
+    pulse_sweep = StimulationSweepParameters(**pulse_sweep_dct_from_gui)
     return pulse_shape, pulse_train, pulse_sweep
 
 

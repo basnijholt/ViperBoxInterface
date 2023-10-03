@@ -153,7 +153,7 @@ class PulseShapeParameters:
     pulse_amplitude_cathode: int = 1
     pulse_amplitude_equal: bool = False
 
-    pulse_duration: int = 1000
+    pulse_duration: int = 600
 
     # shape_step_size_dict = {
     #     pulse_delay: 100,
@@ -237,6 +237,7 @@ class PulseShapeParameters:
             + self.discharge_time
         )
         if self.pulse_duration != sum_pulses:
+            print("pulse duration in parameter: ", self.pulse_duration)
             print(
                 self.pulse_delay,
                 self.first_pulse_phase_width,
@@ -245,8 +246,8 @@ class PulseShapeParameters:
                 self.discharge_time,
             )
             logger.warning(
-                f"Expected pulse_duration ({self.pulse_duration} us) is not equal to "
-                + f"the sum of independent pulse parts ({sum_pulses} us)."
+                f"User input for Pulse duration ({self.pulse_duration} us) is not equal"
+                + f" to the sum of independent pulse parts ({sum_pulses} us)."
             )
 
 
@@ -264,7 +265,7 @@ class PulseTrainParameters:
     """
 
     number_of_pulses: int = 20
-    frequency_of_pulses: float = 1000.0
+    # frequency_of_pulses: float = 1000.0
     number_of_trains: int = 1
     # train_interval: int = 1000
     onset_jitter: int = 1000
