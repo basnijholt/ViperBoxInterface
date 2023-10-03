@@ -46,6 +46,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+handler = logging.StreamHandler(sys.stdout)
+logger.addHandler(handler)
+
 # # Create a logger
 # logger = logging.getLogger()
 # logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
@@ -336,7 +339,7 @@ stimulation_settings = sg.Frame(
                 expand_y=True,
                 expand_x=True,
                 values=settings_list,
-                # enable_events=True,
+                enable_events=True,
             ),
         ],
         [
@@ -648,7 +651,6 @@ def save_settings(location, filename, settings):
         ]
         for key in delete:
             del settings_save[key]
-        # print('settings: ', settings_save)
         with open(location + "\\" + filename, "w") as f:
             json.dump(settings_save, f)
 
@@ -694,7 +696,6 @@ def get_electrodes(reference_matrix, save_purpose=False):
     else:
         electrode_list = [i * MAX_ROWS + j + 1 for i, j in zip(cols, rows)]
     electrode_list.sort()
-    # electrode_list_
     return electrode_list
 
 
@@ -919,6 +920,7 @@ if __name__ == "__main__":
             VB.control_rec_stop()
         # Edit user settings
         elif event == "button_save_set":
+            electrode_list = get_electrodes(reference_matrix, True)
             values["electrode_list"] = get_electrodes(reference_matrix, True)
             save_settings(settings_folder_path, values["input_set_name"], values)
             update_settings_listbox(settings_folder_path)
