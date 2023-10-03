@@ -8,13 +8,10 @@
 * ~~~~~~~
 * Version   Date        Authors   Comments
 * v0.1      28/09/2023  JAW       Preliminary version
-*
-*
+* v0.2      02/10/2023  JAW       Added metadata input and initialization tweak
 *
 * Feature requests:
-* -not require 1 for 2 or 1 and 2 for 3, etc.
 * -buffer for systems with lower memory
-* -more fields in GUI to input NWB metadata   
 ****************************************************************************"""
 
 import numpy as np
@@ -40,19 +37,19 @@ def name(name):
     return sg.Text(name + ' ' + '•'*dots, size=(NAME_SIZE,1), justification='r',pad=(0,0), font='Courier 10')
 
 layout = [
-    [sg.Text("Automatic NWB file generation during ViperBox recording", font = 14)],
+    [sg.Text("Automatic NWB file generation for ViperBox recording", font = 18)],
     [
     sg.Text("ViperBox Recording Directory"),
-    sg.In(size=(50, 1), enable_events=True, key="-FOLDER-"),
+    sg.In(size=(36, 1), enable_events=True, key="-FOLDER-"),
     sg.FolderBrowse(),
     ],
     [sg.Listbox(
-        values=[], enable_events=True, size=(50, 10), key="-FILE LIST-"
+        values=[], enable_events=True, size=(70, 10), key="-FILE LIST-"
     )],
     [sg.Text('Probe 0 State:'), sg.Text('Off'), sg.Button( 
         image_data=toggle_btn_off, 
         key='-TOGGLE PROBE 0-', 
-        button_color=(sg.theme_background_color(), sg.theme_background_color()), 
+        button_color=(sg.theme_background_color(), sg.theme_background_color()),  
         border_width=0, 
         metadata=False
     ), sg.Text('On')],
@@ -77,7 +74,15 @@ layout = [
         border_width=0, 
         metadata=False
     ), sg.Text('On')],
-    [sg.Button("RUN", size=(25, 1), key='-RECORD-', metadata=False)]
+    [sg.Text('NWB METADATA', font = 18)],
+    [name('DATE'), sg.Input(default_text='20231002', key='-DATE-', s=45)],
+    [name('INSTITUTION'), sg.Input(default_text='Netherlands Institute for Neuroscience', key='-INSTITUTION-',s=45)],
+    [name('LAB'), sg.Input(default_text='Vision and Cognition Group', key='-LAB-',s=45)],
+    [name('EXPERIMENTER'), sg.Input(default_text='JA Westerberg', key='-EXPERIMENTER-',s=45)],
+    [name('SUBJECT'), sg.Input(default_text='toucan', key='-SUBJECT-',s=45)],
+    [name('SESSION ID'), sg.Input(default_text='000', key='-SESSION ID-',s=45)],
+    [name('EXPERIMENT'), sg.Input(default_text='conversion_demo', key='-EXPERIMENT-', s=45)],
+    [sg.Button("RUN", size=(63, 1), key='-RECORD-', metadata=False)]
 ]
 
 window = sg.Window(
@@ -88,6 +93,7 @@ window = sg.Window(
 while True:
     
     event, values = window.read()
+    
     if event == "EXIT" or event == sg.WIN_CLOSED:
         break
     
@@ -132,14 +138,10 @@ while True:
     elif event == '-TOGGLE PROBE 3-':
         window['-TOGGLE PROBE 3-'].metadata = not window['-TOGGLE PROBE 3-'].metadata
         window['-TOGGLE PROBE 3-'].update(image_data=toggle_btn_on if window['-TOGGLE PROBE 3-'].metadata else toggle_btn_off)
-
-
+        
     elif event == '-RECORD-':
-            window['-RECORD-'].metadata = not window['-RECORD-'].metadata                      
+        window['-RECORD-'].metadata = not window['-RECORD-'].metadata         
     
-    no_new_data_counter = 0
-    index_m1 = 0
-    index_counter = 0
     while window["-RECORD-"].metadata:
         
         if os.path.exists(os.path.join(values["-FOLDER-"], values["-FILE LIST-"][0][:-3] + "nwb")):
@@ -186,11 +188,15 @@ while True:
             session_description = "auto-generated NWB for viperbox recording",
             identifier = str(uuid4()),
             session_start_time = datetime.now(tzlocal()),
-            experimenter = ["PLACEHOLDER"],
-            lab = "PLACEHOLDER",
-            institution = "PLACEHOLDER",
-            experiment_description = "PLACEHOLDER",
-            session_id = "PLACEHOLDER"
+            experimenter = values['-EXPERIMENTER-'],
+            lab = values['-LAB-'],
+            institution = values['-INSTITUTION-'],
+            experiment_description = values['-EXPERIMENT-'],
+            session_id = 
+                "sub-" + values['-SUBJECT-'] + 
+                "-ses-" + values['-DATE-'] + 
+                "-exp-" + values['-EXPERIMENT-'] + 
+                "-blk-" + values['-SESSION ID-']
         )
         
         # init the device information
@@ -296,24 +302,50 @@ while True:
             
         if window['-TOGGLE PROBE 1-'].metadata:
             stream = streamReadData(probe1_Handle, packet_estimate)
-            temp_current_data = np.asarray(
-                [stream[i].data for i in range(np.size(stream))], dtype="uint16"
-                )
-            current_data = np.concatenate([current_data, temp_current_data], 1)
+            if not window['-TOGGLE PROBE 0-'].metadata:
+                current_data = np.asarray(
+                    [stream[i].data for i in range(np.size(stream))], dtype="uint16"
+                    )
+                current_time = np.asarray(
+                    [stream[i].timestamp for i in range(np.size(stream))], dtype="uint32")
+                current_time = current_time / 1000.0
+                
+            else:
+                temp_current_data = np.asarray(
+                    [stream[i].data for i in range(np.size(stream))], dtype="uint16"
+                    )
+                current_data = np.concatenate([current_data, temp_current_data], 1)
             
         if window['-TOGGLE PROBE 2-'].metadata:
             stream = streamReadData(probe2_Handle, packet_estimate)
-            temp_current_data = np.asarray(
-                [stream[i].data for i in range(np.size(stream))], dtype="uint16"
-                )
-            current_data = np.concatenate([current_data, temp_current_data], 1)
+            if not window['-TOGGLE PROBE 0-'].metadata and not window['-TOGGLE PROBE 1-'].metadata:
+                current_data = np.asarray(
+                    [stream[i].data for i in range(np.size(stream))], dtype="uint16"
+                    )
+                current_time = np.asarray(
+                    [stream[i].timestamp for i in range(np.size(stream))], dtype="uint32")
+                current_time = current_time / 1000.0
+            
+            else:
+                temp_current_data = np.asarray(
+                    [stream[i].data for i in range(np.size(stream))], dtype="uint16"
+                    )
+                current_data = np.concatenate([current_data, temp_current_data], 1)
             
         if window['-TOGGLE PROBE 3-'].metadata:
             stream = streamReadData(probe3_Handle, packet_estimate)
-            temp_current_data = np.asarray(
-                [stream[i].data for i in range(np.size(stream))], dtype="uint16"
-                )
-            current_data = np.concatenate([current_data, temp_current_data], 1)
+            if not window['-TOGGLE PROBE 0-'].metadata and not window['-TOGGLE PROBE 1-'].metadata and not window['-TOGGLE PROBE 2-'].metadata:
+                current_data = np.asarray(
+                    [stream[i].data for i in range(np.size(stream))], dtype="uint16"
+                    )
+                current_time = np.asarray(
+                    [stream[i].timestamp for i in range(np.size(stream))], dtype="uint32")
+                current_time = current_time / 1000.0
+            else:
+                temp_current_data = np.asarray(
+                    [stream[i].data for i in range(np.size(stream))], dtype="uint16"
+                    )
+                current_data = np.concatenate([current_data, temp_current_data], 1)
 
         probes_ElectricalSeries = ElectricalSeries(
             name = "neuraviper",
