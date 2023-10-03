@@ -63,6 +63,7 @@ class ViperBoxControl:
         self._connected_handle: bool = False
         self._connected_BS: bool = False
         self._connected_probe: bool = False
+        self._emulation_set: bool = False
         self.emulated: bool = emulated
 
         if no_box:
@@ -90,12 +91,13 @@ class ViperBoxControl:
     def connect_viperbox(self):
         if self._handle == "no_box":
             return True
-        if not self._connect_handle():
+        elif not self._connect_handle():
             return False
-        if not self._connect_BS():
+        elif not self._connect_BS():
             return False
-        self._set_emulation()
-        if not self._connect_probe():
+        elif not self._set_emulation():
+            return False
+        elif not self._connect_probe():
             return False
         return True
 
@@ -134,7 +136,12 @@ class ViperBoxControl:
         return True
 
     def _connect_probe(self):
-        if not self._connected_probe and self._connected_BS and self._connected_handle:
+        if (
+            not self._connected_probe
+            and self._connected_BS
+            and self._connected_handle
+            and self._emulation_set
+        ):
             logger.info("Connecting probe")
             try:
                 NVP.openProbes(self._handle)
@@ -147,22 +154,32 @@ class ViperBoxControl:
                 return False
         return True
 
-    def _set_emulation(self):
-        if self._connect_handle:
+    def _set_emulation(self, reset=False):
+        if self._connected_handle and self._connected_BS and not self._emulation_set:
             if self.emulated:
                 NVP.setDeviceEmulatorMode(self._handle, NVP.DeviceEmulatorMode.LINEAR)
                 NVP.setDeviceEmulatorType(
                     self._handle, NVP.DeviceEmulatorType.EMULATED_PROBE
                 )
                 logger.info("Device emulation switched on.")
+                self._emulation_set = True
                 return True
             else:
                 NVP.setDeviceEmulatorMode(self._handle, NVP.DeviceEmulatorMode.OFF)
                 NVP.setDeviceEmulatorType(self._handle, NVP.DeviceEmulatorType.OFF)
                 logger.info("Device emulation switched off.")
+                self._emulation_set = True
                 return True
         logger.warning("No handle found while trying to set emulation type.")
+        self._emulation_set = False
         return False
+
+    def _reset_emulation(self, emulated):
+        self.emulated = emulated
+        if self._connected_BS:
+            NVP.closeBS(self._handle)
+            NVP.openBS(self._handle)
+        self.connect_viperbox()
 
     def update_config(self, config_params: ConfigurationParameters) -> bool:
         self.config_params = config_params

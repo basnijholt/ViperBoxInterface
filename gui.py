@@ -693,6 +693,7 @@ def get_electrodes(reference_matrix, save_purpose=False):
     else:
         electrode_list = [i * MAX_ROWS + j + 1 for i, j in zip(cols, rows)]
     electrode_list.sort()
+    # electrode_list_
     return electrode_list
 
 
@@ -819,7 +820,7 @@ settings_list = load_settings_folder(settings_folder_path)
 _, values = window.read(timeout=0)
 SetLED(window, "led_rec", False)
 
-VB = ViperBoxControl(no_box=True, emulated=True)
+VB = ViperBoxControl(no_box=False, emulated=True)
 
 SetLED(window, "led_connect_hardware", VB._connected_handle)
 SetLED(window, "led_connect_BS", VB._connected_BS)
