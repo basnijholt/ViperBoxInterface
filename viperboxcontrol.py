@@ -14,6 +14,8 @@ from parameters import (
     PulseTrainParameters,
     ViperBoxConfiguration,
     StimulationSweepParameters,
+    nvpelectrode2OS,
+    OS2chip,
 )
 
 # import sys
@@ -91,7 +93,7 @@ class ViperBoxControl:
             self._connected_handle = False
         logger.warning("ViperBox disconnected")
 
-    def free_library():
+    def free_library(self):
         NVP.free_library()
 
     def connect_viperbox(self):
@@ -173,7 +175,12 @@ class ViperBoxControl:
         return True
 
     def _set_emulation(self, reset=False):
-        if self._connected_handle and self._connected_BS and not self._emulation_set:
+        if (
+            self._connected_handle
+            and self._connected_BS
+            and not self._emulation_set
+            and not self._connected_probe
+        ):
             if self.emulated:
                 NVP.setDeviceEmulatorMode(self._handle, NVP.DeviceEmulatorMode.LINEAR)
                 NVP.setDeviceEmulatorType(
@@ -261,13 +268,14 @@ class ViperBoxControl:
         self._metadata_stream = metadata_stream
 
         # Uncommented and included the setup as needed:
-        if electrode_mapping:
-            for channel, electrode in enumerate(electrode_mapping):
-                NVP.selectElectrode(self._handle, self._probe, channel, electrode)
+        # if electrode_mapping:
+        #     for channel, electrode in enumerate(electrode_mapping):
+        for channel in range(64):
+            NVP.selectElectrode(self._handle, self._probe, channel, 0)
 
-            # NVP.setReference(self._handle, self._probe, 0, reference_electrode)
-            # (which reference electrodes?)
-            NVP.writeChannelConfiguration(self._handle, self._probe)
+        # NVP.setReference(self._handle, self._probe, 0, reference_electrode)
+        # (which reference electrodes?)
+        NVP.writeChannelConfiguration(self._handle, self._probe, False)
 
         return True
 
@@ -278,6 +286,12 @@ class ViperBoxControl:
         :param metadata_stream: Metadata stream to process.
         """
         pass
+
+    def os2chip_mat(self):
+        mtx = np.zeros((64, 60), dtype="uint16")
+        for k, v in OS2chip.items():
+            mtx[k - 1][v - 1] = 1
+        return mtx
 
     def send_data_to_socket(self) -> None:
         """Send data packets to a UDP socket, such that Open Ephys and other systems
@@ -294,7 +308,7 @@ class ViperBoxControl:
         UDPClientSocket.setsockopt(
             socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL
         )
-        time.sleep(0.5)
+        # time.sleep(0.5)
         self._read_handle = NVP.streamOpenFile(self._recording_file_name, self._probe)
 
         # status = NVP.readDiagStats(self._handle)
@@ -307,6 +321,7 @@ class ViperBoxControl:
         # print('dump_count: ', dump_count)
 
         logger.info("Started sending data to Open Ephys")
+        mtx = self.os2chip_mat()
         while True:
             t1 = self._currentTime()
 
@@ -320,7 +335,8 @@ class ViperBoxControl:
 
             databuffer = np.asarray(
                 [packets[i].data for i in range(self.BUFFER_SIZE)], dtype="uint16"
-            ).T
+            )
+            databuffer = (databuffer @ mtx).T
             databuffer = databuffer.copy(order="C")
             UDPClientSocket.sendto(databuffer, serverAddressPort)
 
@@ -418,26 +434,20 @@ class ViperBoxControl:
 
     def control_send_parameters(
         self,
-        asdf=[],
+        electrode_list=[],
         # polarity: int = 0,
     ) -> None:
         """Handles setup of stimulation. Sends parameters to the ASIC."""
 
         self.write_SU()
 
-        print("asdf: ", asdf)
-        print("encode_electrodes(): ", encode_electrodes([1, 2, 3]))
         # enable all OSes and connects them to SU 0
-        if not asdf:
+        if not electrode_list:
             osdata = convert_osdata(bytes(64 * [8]))
         else:
-            print("electrode list: ", asdf)
-            osdata = encode_electrodes(asdf)
-        print("komt ie dan...")
+            osdata = encode_electrodes(electrode_list)
         NVP.setOSimage(self._handle, self._probe, convert_osdata(osdata))
-        print("en de volgende: ...")
         NVP.writeOSConfiguration(self._handle, self._probe, False)
-        print("klaar")
 
     def stim_sweep(
         self,
@@ -448,7 +458,7 @@ class ViperBoxControl:
 
         self.config_params.pulse_shape_parameters.pulse_amplitude_equal = True
 
-        self.control_send_parameters(asdf=(ctypes.c_byte * 128)())
+        self.control_send_parameters(electrode_list=(ctypes.c_byte * 128)())
         # # prep and SU config
         # self.write_SU()
         # # prep and write OS config
@@ -506,10 +516,11 @@ def encode_electrodes(stim_electrodes) -> str:
     """
     hex_list = []
     num_electrodes: int = 64
-    print("stim_electrodes: ", stim_electrodes)
+    stim_electrodes = [int(nvpelectrode2OS[el]) for el in stim_electrodes]
+    stim_electrodes.sort()
     for i in range(num_electrodes):
         if i + 1 in stim_electrodes:
-            # If the electrode is ON, the representation is '1' followed by '111'
+            # If the electrode is ON, the representation is '1' followed by '000'
             hex_list.append(8)
 
         else:

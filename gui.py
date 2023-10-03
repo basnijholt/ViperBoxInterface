@@ -910,7 +910,7 @@ if __name__ == "__main__":
                 VB.update_config(config)
                 if manual_stim:
                     # VB.control_rec_start(start_directly=False)
-                    VB.control_send_parameters(asdf=electrode_list)
+                    VB.control_send_parameters(electrode_list=electrode_list)
                     VB.stimulation_trigger()
                 else:
                     # VB.control_rec_start()
