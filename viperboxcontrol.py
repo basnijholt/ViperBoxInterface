@@ -21,6 +21,8 @@ from parameters import (
 # logging.basicConfig(level=logging.INFO)
 # logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+# handler = logging.StreamHandler(sys.stdout)
+# logger.addHandler(handler)
 # formatter = logging.Formatter('%(levelname)-8s %(asctime)s
 # - %(name)s - %(message)s', '%H:%M:%S')
 # file_handler.setFormatter(formatter)
@@ -159,6 +161,7 @@ class ViperBoxControl:
         ):
             # logger.info("Connecting probe")
             try:
+                logger.info("Opening probes")
                 NVP.openProbes(self._handle)
                 NVP.init(self._handle, self._probe)
                 self._connected_probe = True
@@ -535,17 +538,19 @@ if __name__ == "__main__":
     config = ConfigurationParameters(
         pulse_shape, pulse_train, viperbox, stim_configuration, electrodes
     )
+    # import profile
+    controller = ViperBoxControl("test", 0, config, no_box=True)
+    # profile.run('ViperBoxControl(config_params=config, no_box=False, emulated=False);
+    # print')
+    # controller.set_file_path(os.getcwd(), 'test')
+    # print("viperboxcontrol instantiated, setup recording")
 
-    # controller = ViperBoxControl("test", 0, config, no_box=True)
-    controller = ViperBoxControl(config_params=config, no_box=False, emulated=True)
-    print("viperboxcontrol instantiated, setup recording")
-    # controller.connect_viperbox()
-    # print('viperbox connected')
-    controller.control_rec_setup()
-    print("recording set up, starting recording")
-    controller.control_send_parameters([1, 2, 3, 6])
-    controller.control_rec_start(2)
-    print("recording finished, disconnecting")
+    # controller.control_rec_setup()
+    # print("recording set up, starting recording")
+    # controller.control_send_parameters([1, 2, 3, 6])
+    # controller.control_rec_start(2)
+    # print("recording finished, disconnecting")
+
     # time.sleep(5)
     # controller.disconnect_viperbox()
     # print('viperbox disconnected')

@@ -294,6 +294,7 @@ log_frame = sg.Frame(
                 autoscroll=True,
                 horizontal_scroll=True,
                 font=("Cascadia Mono", 8),
+                default_text='Initializing ViperBox...',
             )
         ],
     ],
@@ -821,9 +822,8 @@ _, values = window.read(timeout=0)
 SetLED(window, "led_rec", False)
 
 no_box, emulated = False, False
-logger.info(f'Setting up with no_box = {no_box} and emulated = {emulated}')
+print(f'Setting up with no_box = {no_box} and emulated = {emulated}')
 VB = ViperBoxControl(no_box=no_box, emulated=emulated)
-
 
 SetLED(window, "led_connect_hardware", VB._connected_handle)
 SetLED(window, "led_connect_BS", VB._connected_BS)
