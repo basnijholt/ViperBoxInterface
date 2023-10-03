@@ -87,6 +87,10 @@ class ViperBoxControl:
         if self._connected_handle:
             NVP.destroyHandle(self._handle)
             self._connected_handle = False
+        logger.warning("ViperBox disconnected")
+
+    def free_library():
+        NVP.free_library()
 
     def connect_viperbox(self):
         if self._handle == "no_box":
@@ -113,13 +117,24 @@ class ViperBoxControl:
     def _connect_handle(self):
         if not self._connected_handle:
             try:
-                self._handle = NVP.createHandle(0)
-                self._connected_handle = True
-                logger.info("Handle created successfully")
-                return True
+                NVP.scanBS()
+                devices = NVP.getDeviceList(16)
+                logger.info(f"Devices: {devices}")
+                if len(devices) == 0:
+                    logger.warning(
+                        "No devices were found, check if probe is connected."
+                    )
+                    return False
+                else:
+                    self._handle = NVP.createHandle(devices[0].ID)
+                    self._connected_handle = True
+                    logger.info("Handle created successfully")
+                    return True
             except Exception:
                 logger.error("Error while setting up handle.", exc_info=True)
-                logger.warning("Check if ViperBox is connected and switched on.")
+                logger.warning(
+                    "Check if probe and ViperBox are connected and switched on."
+                )
                 return False
         return True
 
@@ -142,7 +157,7 @@ class ViperBoxControl:
             and self._connected_handle
             and self._emulation_set
         ):
-            logger.info("Connecting probe")
+            # logger.info("Connecting probe")
             try:
                 NVP.openProbes(self._handle)
                 NVP.init(self._handle, self._probe)

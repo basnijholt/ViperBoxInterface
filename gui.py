@@ -820,13 +820,15 @@ settings_list = load_settings_folder(settings_folder_path)
 _, values = window.read(timeout=0)
 SetLED(window, "led_rec", False)
 
-VB = ViperBoxControl(no_box=False, emulated=True)
+no_box, emulated = False, False
+logger.info(f'Setting up with no_box = {no_box} and emulated = {emulated}')
+VB = ViperBoxControl(no_box=no_box, emulated=emulated)
+
 
 SetLED(window, "led_connect_hardware", VB._connected_handle)
 SetLED(window, "led_connect_BS", VB._connected_BS)
 SetLED(window, "led_connect_probe", VB._connected_probe)
 
-tmp_input_filter_name = ""
 fig = generate_plot()
 figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
 selected_user_setting = None
@@ -1032,6 +1034,7 @@ if __name__ == "__main__":
         window["mul_log"].update(read_log_file(LOG_FILENAME))
 
 VB.disconnect_viperbox()
+VB.free_library()
 
 window.close()
 

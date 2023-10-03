@@ -212,19 +212,19 @@ class PulseShapeParameters:
 
         if self.pulse_amplitude_equal:
             if self.pulse_amplitude_cathode != self.pulse_amplitude_anode:
-                raise ValueError(
+                logger.warning(
                     "Expected pulse_amplitude_cathode to be equal to "
                     + "pulse_amplitude_anode when pulse_amplitude_equal is True"
                 )
 
             if self.biphasic is False:
-                raise ValueError(
+                logger.warning(
                     "Expected biphasic to be True when pulse_amplitude_equal is True"
                 )
 
         if self.biphasic is False:
             if self.pulse_amplitude_cathode != 0:
-                raise ValueError(
+                logger.warning(
                     "Expected pulse_amplitude_cathode to be 0 when biphasic is False "
                     + "(i.e. monophasic)"
                 )
@@ -244,7 +244,7 @@ class PulseShapeParameters:
                 self.second_pulse_phase_width,
                 self.discharge_time,
             )
-            raise ValueError(
+            logger.warning(
                 f"Expected pulse_duration ({self.pulse_duration} us) is not equal to "
                 + f"the sum of independent pulse parts ({sum_pulses} us)."
             )
