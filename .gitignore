@@ -25,3 +25,8 @@ ViperBoxInterface.log
 *.cfg
 
 testt
+
+.dockerignore
+.vsconfig-2017
+Dockerfile
+environment.yml

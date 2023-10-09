@@ -308,7 +308,7 @@ class ViperBoxControl:
         UDPClientSocket.setsockopt(
             socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL
         )
-        # time.sleep(0.5)
+        time.sleep(0.1)
         self._read_handle = NVP.streamOpenFile(self._recording_file_name, self._probe)
 
         # status = NVP.readDiagStats(self._handle)
@@ -327,10 +327,9 @@ class ViperBoxControl:
 
             packets = NVP.streamReadData(self._read_handle, self.BUFFER_SIZE)
             count = len(packets)
-            # print('len(packets): ',len(packets))
 
             if count < self.BUFFER_SIZE:
-                # logger.warning("Out of packets")
+                logger.warning("Out of packets")
                 break
 
             databuffer = np.asarray(
@@ -366,7 +365,8 @@ class ViperBoxControl:
 
         # self.set_file_path(self._recording_file_folder, recording_file_name)
 
-        NVP.setFileStream(self._handle, str(self._recording_path))
+        # NVP.setFileStream(self._handle, str(self._recording_path))
+        NVP.setFileStream(self._handle, str(self._recording_file_name))
         NVP.enableFileStream(self._handle, True)
 
         NVP.arm(self._handle)

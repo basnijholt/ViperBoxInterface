@@ -15,7 +15,7 @@ from parameters import (
     PulseTrainParameters,
     ViperBoxConfiguration,
     StimulationSweepParameters,
-    verify_int_params
+    verify_int_params,
 )
 import logging
 import logging.handlers
@@ -27,6 +27,7 @@ import requests
 import threading
 import sys
 import time
+import socket
 
 recording_folder_path = os.getcwd()
 settings_folder_path = os.getcwd()
@@ -82,9 +83,29 @@ def start_eo_acquire(start_oe=False):
                 "Failed to set up Open Ephys correctly, trying to start it now"
             )
 
+def empty_socket():
+    serverAddressPort= ("127.0.0.1", 9001)
+    MULTICAST_TTL = 2
+    UDPClientSocket: socket.socket = socket.socket(
+        socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
+    )
 
+    UDPClientSocket.setsockopt(
+        socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL
+    )
+    databuffer = np.ones((30,500), dtype="uint16")
+
+    while True:
+        global stop_threads
+        UDPClientSocket.sendto(databuffer, serverAddressPort)
+        time.sleep(0.1)
+        if stop_threads:
+            break
+
+stop_threads = False
+threading.Thread(target = empty_socket).start()
 threading.Thread(target=start_eo_acquire, args=(True,)).start()
-
+print('EO started')
 
 def LEDIndicator(key=None, radius=15):
     return sg.Graph(
@@ -186,8 +207,8 @@ def delete_figure_agg(figure_agg):
 plot_frame = sg.Frame(
     "Pulse preview",
     [
-        [sg.Canvas(key="-CANVAS-")], 
-        # [sg.Button("Reload")],
+        [sg.Canvas(key="-CANVAS-")],
+        [sg.Button("Reload")],
     ],
     expand_x=True,
 )
@@ -297,7 +318,7 @@ log_frame = sg.Frame(
                 autoscroll=True,
                 horizontal_scroll=True,
                 font=("Cascadia Mono", 8),
-                default_text='Initializing ViperBox...',
+                default_text="Initializing ViperBox...",
             )
         ],
     ],
@@ -389,9 +410,9 @@ pulse_shape_col1 = sg.Column(
         [
             sg.Text("Pulse delay"),
             sg.Input(
-                0, 
-                size=(inpsize_w, inpsize_h), 
-                key="pulse_delay", 
+                0,
+                size=(inpsize_w, inpsize_h),
+                key="pulse_delay",
                 # enable_events=True
             ),
             sg.T("μSec", size=(unit_h, unit_w)),
@@ -532,9 +553,9 @@ pulse_train_frame = sg.Frame(
         [
             sg.Text("On-set onset_jitter"),
             sg.Input(
-                0, 
-                size=(inpsize_w, inpsize_h), 
-                key="onset_jitter", 
+                0,
+                size=(inpsize_w, inpsize_h),
+                key="onset_jitter",
                 # enable_events=True
             ),
             sg.T("Sec", size=(unit_h, unit_w)),
@@ -584,9 +605,9 @@ parameter_sweep = sg.Frame(
         [
             sg.Text("Repetitions"),
             sg.Input(
-                1, 
-                size=(inpsize_w, inpsize_h), 
-                key="repetitions", 
+                1,
+                size=(inpsize_w, inpsize_h),
+                key="repetitions",
                 # enable_events=True
             ),
             sg.T(" ", size=(unit_h, unit_w)),
@@ -746,7 +767,7 @@ def verify_type_step_min_max(
     step = int(verify_int_params[name][0])
     min_val = int(verify_int_params[name][1])
     max_val = int(verify_int_params[name][2])
-    color = 'white'
+    color = "white"
     try:
         if name == "frequency_of_pulses":
             value = float(value)
@@ -754,33 +775,33 @@ def verify_type_step_min_max(
             value = int(value)
     except:
         value = min_val
-        logger.warning(
-            f"parameter {name} was not a float or an integer."
-        )
+        logger.warning(f"parameter {name} was not a float or an integer.")
     if not min_val <= value <= max_val:
         logger.warning(
             f"Out of range. Parameter {name} should be between {min_val} and "
             + f"{max_val} with a step size of {step}."
         )
-        color = 'orange'
+        color = "orange"
     elif (value - min_val) % step != 0:
         if name != "frequency_of_pulses":
             logger.warning(
                 f"Wrong stepsize. Parameter {name} should be between {min_val} and "
                 + f"{max_val} with a step size of {step}."
             )
-            color = 'orange'
+            color = "orange"
     else:
-        color = 'white'
+        color = "white"
     return value, color
 
+
 pulse_sum_list = [
-    'pulse_delay',
-    'first_pulse_phase_width',
-    'pulse_interphase_interval',
-    'second_pulse_phase_width',
-    'discharge_time',
+    "pulse_delay",
+    "first_pulse_phase_width",
+    "pulse_interphase_interval",
+    "second_pulse_phase_width",
+    "discharge_time",
 ]
+
 
 def verify_duration(values):
     sum_pulses = (
@@ -792,8 +813,8 @@ def verify_duration(values):
     )
     if int(values["pulse_duration"]) < sum_pulses:
         logger.error(
-            f"User input for pulse_duration ({values['pulse_duration']} μs) is smaller than "
-            + f"the sum of independent pulse parts ({sum_pulses} μs)."
+            f"User input for pulse_duration ({values['pulse_duration']} us) is smaller than "
+            + f"the sum of independent pulse parts ({sum_pulses} us)."
         )
         return False, sum_pulses
     else:
@@ -814,6 +835,7 @@ def freq2pulse_conversion(freq):
 def verify_pulse_min_max(amp_min, amp_max, step):
     return amp_min <= amp_max
 
+
 # ------------------------------------------------------------------
 # PREPARING
 
@@ -823,7 +845,7 @@ _, values = window.read(timeout=0)
 SetLED(window, "led_rec", False)
 
 no_box, emulated = False, False
-print(f'Setting up with no_box = {no_box} and emulated = {emulated}')
+print(f"Setting up with no_box = {no_box} and emulated = {emulated}")
 VB = ViperBoxControl(no_box=no_box, emulated=emulated)
 
 SetLED(window, "led_connect_hardware", VB._connected_handle)
@@ -838,9 +860,10 @@ update_settings_listbox(settings_folder_path)
 
 elements = [window[key] for key in verify_int_params.keys()]
 for element in elements:
-    element.bind('<FocusOut>','+FOCUS OUT')
+    element.bind("<FocusOut>", "+FOCUS OUT")
 
 window["mul_log"].update(read_log_file(LOG_FILENAME))
+last_event = ''
 
 # ------------------------------------------------------------------
 # CF: MAIN
@@ -850,6 +873,9 @@ if __name__ == "__main__":
     while True:
         # time.sleep(1)
         event, values = window.read()
+        stop_threads = True
+        print('########################################################################')
+        print('main event generation: ', event)
         if event == sg.WIN_CLOSED or event == "Exit":
             break
         # viperbox control
@@ -894,12 +920,12 @@ if __name__ == "__main__":
             window["key_parameter_sweep"].update(visible=not manual_stim)
             window["pulse_shape_col2"].update(visible=manual_stim)
         elif event == "button_start":
-            start_eo_acquire()
             SetLED(window, "led_rec", None)
             VB.set_file_path(recording_folder_path, values["input_filename"])
             VB.control_rec_setup()
             if values["checkbox_rec_wo_stim"]:
                 VB.control_rec_start()
+                start_eo_acquire()
             else:
                 pulse_shape, pulse_train, pulse_sweep = load_parameter_dicts(values)
                 electrode_list = get_electrodes(reference_matrix)
@@ -912,9 +938,11 @@ if __name__ == "__main__":
                     # VB.control_rec_start(start_directly=False)
                     VB.control_send_parameters(electrode_list=electrode_list)
                     VB.stimulation_trigger()
+                    start_eo_acquire()
                 else:
                     # VB.control_rec_start()
                     VB.stim_sweep()
+                    start_eo_acquire()
         elif event == "button_stop":
             SetLED(window, "led_rec", False)
             VB.control_rec_stop()
@@ -945,7 +973,8 @@ if __name__ == "__main__":
                 ]
         elif event == "button_del_set":
             answer = sg.popup_ok_cancel(
-                "This action cannot be undone.\n\n If you want to delete multiple settings, please do so through the file browser."
+                "This action cannot be undone.\n\n If you want to delete multiple"
+                + " settings, please do so through the file browser."
             )
             if answer == "OK":
                 Path.unlink(
@@ -977,36 +1006,51 @@ if __name__ == "__main__":
                 window["pulse_amplitude_cathode"].update(disabled=False)
 
         # FOCUS
-        elif event.endswith("+FOCUS OUT"):
-            event = event.split('+')[0]
+        elif event.endswith("+FOCUS OUT") and event != last_event:
+            last_event = event
+            event = event.split("+")[0]
+            # print('event: ', event, window[event])
+            next_element = window[event].get_next_focus()
+            print('next event: ', next_element)
+            # next_element = window[event].get_previous_focus()
+            # next_element = next_element.get_next_focus()
             for key in verify_int_params.keys():
                 checked_val, color = verify_type_step_min_max(key, values[key])
                 if values[key] != checked_val:
                     # print(key, checked_val)
                     window[key].update(value=checked_val, background_color=color)
                 # print("values['second_pulse_phase_width']: ", values['second_pulse_phase_width'])
-            window.finalize()
+            # window.finalize()
             if values["pulse_amplitude_equal"]:
                 window["pulse_amplitude_cathode"].update(
                     value=values["pulse_amplitude_anode"]
                 )
-            elif event == 'pulse_duration':
-                _, frequency_of_pulses = pulse2freq_conversion(values['pulse_duration'])
-                window['frequency_of_pulses'].update(value=frequency_of_pulses)
-            elif event == 'frequency_of_pulses':
-                pulse_duration, frequency_of_pulses = freq2pulse_conversion(values['frequency_of_pulses'])
-                window['frequency_of_pulses'].update(value=frequency_of_pulses)
-                window['pulse_duration'].update(value=pulse_duration)
+            elif event == "pulse_duration":
+                _, frequency_of_pulses = pulse2freq_conversion(values["pulse_duration"])
+                window["frequency_of_pulses"].update(value=frequency_of_pulses)
+            elif event == "frequency_of_pulses":
+                pulse_duration, frequency_of_pulses = freq2pulse_conversion(
+                    values["frequency_of_pulses"]
+                )
+                window["frequency_of_pulses"].update(value=frequency_of_pulses)
+                window["pulse_duration"].update(value=pulse_duration)
             elif event in pulse_sum_list:
                 check, new_sum = verify_duration(values)
                 if not check:
-                    window['pulse_duration'].update(value=new_sum)
-            if figure_agg:
-                delete_figure_agg(figure_agg)
-            values = convert_biphasic(values)
-            plot_vals = {k: int(values[k]) for k in generate_plot.__annotations__}
-            fig = generate_plot(**plot_vals)
-            figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
+                    window["pulse_duration"].update(value=new_sum)
+            # if figure_agg:
+            #     delete_figure_agg(figure_agg)
+            # values = convert_biphasic(values)
+            # plot_vals = {k: int(values[k]) for k in generate_plot.__annotations__}
+            # fig = generate_plot(**plot_vals)
+            # figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
+            # print('try to set focus after this')
+            # elements = [window[key] for key in verify_int_params.keys()]
+            # for element in elements:
+            #     print(element)
+            # next_element.set_focus()
+            # print(event)
+            # window[event].set_focus()
             # event, window = window.read()
             # print('event na figure hooplijk: ', event)
 
@@ -1015,18 +1059,17 @@ if __name__ == "__main__":
             #     if not key == 'frequency_of_pulses':
             #         if values[key] != checked_val:
             #             window[key].update(value=checked_val)
-                
-        # replot
-        # elif event == "Reload":
-        #     # Implementation from https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Browser.py
-        #     if figure_agg:
-        #         delete_figure_agg(figure_agg)
-        #     values = convert_biphasic(values)
-        #     plot_vals = {k: int(values[k]) for k in generate_plot.__annotations__}
-        #     fig = generate_plot(**plot_vals)
-        #     figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
 
-        
+        # replot
+        elif event == "Reload":
+            # Implementation from https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Browser.py
+            if figure_agg:
+                delete_figure_agg(figure_agg)
+            values = convert_biphasic(values)
+            plot_vals = {k: int(values[k]) for k in generate_plot.__annotations__}
+            fig = generate_plot(**plot_vals)
+            figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
+
         # update log
         # last_log_timestamp = get_last_timestamp('ViperBoxInterface.log')
         # if last_log_timestamp != last_printed_timestamp:
