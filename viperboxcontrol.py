@@ -7,6 +7,7 @@ import numpy as np
 import socket
 import logging
 import ctypes
+import os
 from pathlib import Path
 from parameters import (
     ConfigurationParameters,
@@ -79,6 +80,8 @@ class ViperBoxControl:
             else:
                 logger.warning("ViperBox instantiation failed")
 
+        self.check_recset_folder()
+
         NVP.setLogLevel(NVP.LogLevel.VERBOSE)
 
     def disconnect_viperbox(self):
@@ -95,6 +98,13 @@ class ViperBoxControl:
 
     def free_library(self):
         NVP.free_library()
+
+    def check_recset_folder(self):
+        folders = ["Recordings", "Settings"]
+        for folder in folders:
+            if not os.path.exists(folder):
+                os.makedirs(folder)
+                logger.info(f"Created folder: {folder}")
 
     def connect_viperbox(self):
         if self._handle == "no_box":

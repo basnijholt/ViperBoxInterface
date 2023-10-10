@@ -21,6 +21,7 @@ $software = @{
 }
 
 # Install the software
+$ProgressPreference = 'SilentlyContinue'
 foreach ($s in $software.GetEnumerator()) {
     if (Test-Path -Path $s.Value.checkPath) {
         Write-Host "$($s.Name) is already installed." -ForegroundColor Green

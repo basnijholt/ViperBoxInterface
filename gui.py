@@ -29,6 +29,8 @@ import sys
 import time
 import socket
 
+no_box, emulated = False, False
+
 recording_folder_path = os.getcwd()
 settings_folder_path = os.getcwd()
 
@@ -211,6 +213,7 @@ plot_frame = sg.Frame(
         [sg.Button("Reload")],
     ],
     expand_x=True,
+    visible=False,
 )
 
 # ------------------------------------------------------------------
@@ -231,30 +234,30 @@ viperbox_control_frame = sg.Frame(
         ],
         [sg.HorizontalSeparator("light gray")],
         [sg.Text("Subject"), sg.Input("Recording", key="input_filename", size=(15, 1))],
-        [
-            sg.Text(
-                f"Saving in {basename(recording_folder_path)}",
-                key="current_folder",
-                size=(25, 1),
-            ),
-            sg.Button("Change folder", key="button_select_recording_folder"),
-        ],
-        [sg.HorizontalSeparator("light gray")],
-        [
-            sg.Text("Manual stimulation"),
-            sg.Button(
-                image_data=toggle_btn_off,
-                key="button_toggle_stim",
-                button_color=(sg.theme_background_color(), sg.theme_background_color()),
-                border_width=0,
-                metadata=False,
-            ),
-            sg.Text("Current amplitude sweep"),
-        ],
+        # [
+        #     sg.Text(
+        #         f"Saving in {basename(recording_folder_path)}",
+        #         key="current_folder",
+        #         size=(25, 1),
+        #     ),
+        #     sg.Button("Change folder", key="button_select_recording_folder"),
+        # ],
+        # [sg.HorizontalSeparator("light gray")],
+        # [
+        #     sg.Text("Manual stimulation"),
+        #     sg.Button(
+        #         image_data=toggle_btn_off,
+        #         key="button_toggle_stim",
+        #         button_color=(sg.theme_background_color(), sg.theme_background_color()),
+        #         border_width=0,
+        #         metadata=False,
+        #     ),
+        #     sg.Text("Current amplitude sweep"),
+        # ],
         [
             sg.Button("Start", size=(10, 1), key="button_start"),
             sg.Button("Stop", size=(10, 1), key="button_stop"),
-            sg.Checkbox("Record without stimulation", key="checkbox_rec_wo_stim"),
+            sg.Checkbox("Record without stimulation", key="checkbox_rec_wo_stim", default=True, visible=False),
         ],
         [
             sg.Text("Recording status:"),
@@ -376,6 +379,7 @@ stimulation_settings = sg.Frame(
     # size=(185,60),
     expand_y=True,
     vertical_alignment="t",
+    visible=False,
 )
 
 
@@ -627,10 +631,14 @@ parameter_sweep = sg.Frame(
 col1 = sg.Column(
     [[viperbox_control_frame], [stimulation_settings]], vertical_alignment="t"
 )
-col2 = sg.Column([[electrode_frame]], vertical_alignment="t")
+col2 = sg.Column([[electrode_frame]], 
+    vertical_alignment="t",
+    visible=False,
+)
 col3 = sg.Column(
     [[pulse_shape_frame], [pulse_train_frame], [parameter_sweep]],
     vertical_alignment="t",
+    visible=False,
 )
 col4 = sg.Column([[plot_frame], [log_frame]], vertical_alignment="t")
 
@@ -844,7 +852,6 @@ settings_list = load_settings_folder(settings_folder_path)
 _, values = window.read(timeout=0)
 SetLED(window, "led_rec", False)
 
-no_box, emulated = False, False
 print(f"Setting up with no_box = {no_box} and emulated = {emulated}")
 VB = ViperBoxControl(no_box=no_box, emulated=emulated)
 
