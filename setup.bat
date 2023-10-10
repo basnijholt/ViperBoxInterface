@@ -1,3 +1,3 @@
 @echo off
-PowerShell.exe -NoProfile -ExecutionPolicy Bypass -Command "& 'setup.ps1'"
+PowerShell.exe -NoProfile -ExecutionPolicy Bypass -Command "& 'install_dependencies.ps1'"
 pause
