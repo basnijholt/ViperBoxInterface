@@ -34,14 +34,14 @@ foreach ($s in $software.GetEnumerator()) {
     }
 }
 
-# Create and configure the Conda environment
-if ((conda env list) -match 'neuraviper') {
-    Write-Host "Conda environment 'neuraviper' already exists." -ForegroundColor Green
-} else {
-    Write-Host "Creating Conda environment 'neuraviper'..." -ForegroundColor Yellow
-    conda create --name neuraviper --clone base
-    conda activate neuraviper
-    conda env update --file "$(Get-Location)\environment.yaml" --prune
-}
+# Create a new Conda environment and install packages from environment.yaml
+
+$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+$envYamlPath = Join-Path -Path $scriptPath -ChildPath "environment.yaml"
+
+Write-Host "Creating a new Conda environment and installing packages..." -ForegroundColor Yellow
+Start-Process -FilePath "C:\ProgramData\Anaconda3\Scripts\conda.exe" -ArgumentList "env create -f `"$envYamlPath`"" -Wait
+Read-Host -Prompt "Press Enter to exit"
+
 
 Write-Host "All tasks completed!" -ForegroundColor Green
