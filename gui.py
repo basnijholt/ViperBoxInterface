@@ -28,8 +28,12 @@ import threading
 import sys
 import time
 import socket
+import subprocess
 
 no_box, emulated = False, False
+
+batch_script_path = os.getcwd() + "\\update.bat"
+print(batch_script_path)
 
 recording_folder_path = os.getcwd()
 settings_folder_path = os.getcwd()
@@ -625,6 +629,12 @@ parameter_sweep = sg.Frame(
 )
 
 # ------------------------------------------------------------------
+# UPDATE
+
+menu_def = [['&Application', ['&Update']]]
+layout = [sg.Menu(menu_def, key='-MENU-', tearoff=False)],
+
+# ------------------------------------------------------------------
 # INTEGRATION OF COMPONENTS
 
 # sub_col1 = sg.Column([[stimulation_settings, ]], vertical_alignment='t')
@@ -642,7 +652,7 @@ col3 = sg.Column(
 )
 col4 = sg.Column([[plot_frame], [log_frame]], vertical_alignment="t")
 
-layout = ([[col1, col2, col3, col4]],)
+layout += ([[col1, col2, col3, col4]],)
 
 
 window = sg.Window(
@@ -1076,6 +1086,10 @@ if __name__ == "__main__":
             plot_vals = {k: int(values[k]) for k in generate_plot.__annotations__}
             fig = generate_plot(**plot_vals)
             figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
+        elif event == "Update":
+            if sg.popup_ok_cancel("Are you sure? This will close the application."):
+                subprocess.Popen(batch_script_path, shell=True, stdin=None, stdout=None, stderr=None, close_fds=True, creationflags=subprocess.DETACHED_PROCESS)
+                break
 
         # update log
         # last_log_timestamp = get_last_timestamp('ViperBoxInterface.log')
