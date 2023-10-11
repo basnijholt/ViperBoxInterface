@@ -234,14 +234,14 @@ viperbox_control_frame = sg.Frame(
         ],
         [sg.HorizontalSeparator("light gray")],
         [sg.Text("Subject"), sg.Input("Recording", key="input_filename", size=(15, 1))],
-        # [
-        #     sg.Text(
-        #         f"Saving in {basename(recording_folder_path)}",
-        #         key="current_folder",
-        #         size=(25, 1),
-        #     ),
-        #     sg.Button("Change folder", key="button_select_recording_folder"),
-        # ],
+        [
+            sg.Text(
+                f"Saving in {basename(recording_folder_path)}",
+                key="current_folder",
+                size=(25, 1),
+            ),
+            sg.Button("Change folder", key="button_select_recording_folder"),
+        ],
         # [sg.HorizontalSeparator("light gray")],
         # [
         #     sg.Text("Manual stimulation"),

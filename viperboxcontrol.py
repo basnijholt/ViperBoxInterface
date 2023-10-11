@@ -239,7 +239,7 @@ class ViperBoxControl:
 
     def control_rec_setup(
         self,
-        reference_electrode: Optional[int] = 0,
+        reference_electrode: Optional[int] = 1,
         electrode_mapping: Optional[bytes] = None,
         metadata_stream: Optional[List[Any]] = None,
     ) -> bool:
@@ -283,7 +283,7 @@ class ViperBoxControl:
         for channel in range(64):
             NVP.selectElectrode(self._handle, self._probe, channel, 0)
 
-        # NVP.setReference(self._handle, self._probe, 0, reference_electrode)
+        NVP.setReference(self._handle, self._probe, 0, reference_electrode)
         # (which reference electrodes?)
         NVP.writeChannelConfiguration(self._handle, self._probe, False)
 
