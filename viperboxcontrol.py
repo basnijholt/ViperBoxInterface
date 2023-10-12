@@ -220,8 +220,19 @@ class ViperBoxControl:
         self.config_params = config_params
         return True
 
+    def set_folder(self, folder_path):
+        self._recording_file_folder = folder_path
+        return True
+
+    def set_file_name(self, file_name):
+        self._recording_file_name = file_name
+        return True
+
     def set_file_path(self, folder_path, file_name):
         self._recording_file_folder = folder_path
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+            logger.info(f"Created folder: {folder_path}")
         self._recording_file_name = file_name + time.strftime("_%Y%m%d_%H%M%S") + ".bin"
         return True
 
@@ -229,7 +240,7 @@ class ViperBoxControl:
     def _recording_path(self) -> Optional[str]:
         """Return the combined path of the recording file location and name."""
         if self._recording_file_name and self._recording_file_folder:
-            return Path(self._recording_file_folder) / self._recording_file_name
+            return str(Path(self._recording_file_folder) / self._recording_file_name)
         return None
 
     @staticmethod
@@ -323,7 +334,7 @@ class ViperBoxControl:
             socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL
         )
         time.sleep(0.1)
-        self._read_handle = NVP.streamOpenFile(self._recording_file_name, self._probe)
+        self._read_handle = NVP.streamOpenFile(self._recording_path, self._probe)
 
         # status = NVP.readDiagStats(self._handle)
         # skip_packages = status.session_mismatch
@@ -379,8 +390,8 @@ class ViperBoxControl:
 
         # self.set_file_path(self._recording_file_folder, recording_file_name)
 
-        # NVP.setFileStream(self._handle, str(self._recording_path))
-        NVP.setFileStream(self._handle, str(self._recording_file_name))
+        NVP.setFileStream(self._handle, str(self._recording_path))
+        # NVP.setFileStream(self._handle, str(self._recording_file_name))
         NVP.enableFileStream(self._handle, True)
 
         NVP.arm(self._handle)
