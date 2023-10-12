@@ -239,7 +239,8 @@ class ViperBoxControl:
 
     def control_rec_setup(
         self,
-        reference_electrode: Optional[int] = 1,
+        reference_electrode: Optional[int] = 5,
+        gain: Optional[int] = 1,
         electrode_mapping: Optional[bytes] = None,
         metadata_stream: Optional[List[Any]] = None,
     ) -> bool:
@@ -269,7 +270,7 @@ class ViperBoxControl:
             return False
 
         if not reference_electrode:
-            if not (0 <= reference_electrode <= 8):
+            if not (1 <= reference_electrode <= 9):
                 raise ValueError(
                     "Error: Invalid reference electrode. "
                     + "Expected a value between 0 and 8."
@@ -284,6 +285,9 @@ class ViperBoxControl:
             NVP.selectElectrode(self._handle, self._probe, channel, 0)
 
         NVP.setReference(self._handle, self._probe, 0, reference_electrode)
+        for i in range(64):
+            NVP.setGain(self._handle, self._probe, i, gain)
+
         # (which reference electrodes?)
         NVP.writeChannelConfiguration(self._handle, self._probe, False)
 
@@ -405,6 +409,7 @@ class ViperBoxControl:
                 recording_time += 0.5
             self.control_rec_start(recording_time=recording_time)
             # sleep to be able to gather some data before stimulation is started.
+            # without it, Open Ephys might not be able to start.
             time.sleep(0.5)
         NVP.SUtrig1(self._handle, self._probe, SU)
 

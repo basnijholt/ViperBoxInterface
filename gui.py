@@ -108,6 +108,7 @@ toggle_btn_on = b"iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAABmJLR0QA/wD/AP
     YoMZSwsVEz6o26i/G9Lgitb+ZmLu/YZtshfn5FZDPBCcJFQRQ+8ih9DctOFvdLIKHH6uUQnq9yhFu0bec7z\
     nZ+xpAGmuqef5/wd8hAyEDIQMjAETHwP7nQl2WnYk4yAAAAAElFTkSuQmCC"
 
+
 def start_eo_acquire(start_oe=False):
     try:
         r = requests.get("http://localhost:37497/api/status")
@@ -123,8 +124,9 @@ def start_eo_acquire(start_oe=False):
                 "Failed to set up Open Ephys correctly, trying to start it now"
             )
 
+
 def empty_socket():
-    serverAddressPort= ("127.0.0.1", 9001)
+    serverAddressPort = ("127.0.0.1", 9001)
     MULTICAST_TTL = 2
     UDPClientSocket: socket.socket = socket.socket(
         socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
@@ -133,7 +135,7 @@ def empty_socket():
     UDPClientSocket.setsockopt(
         socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL
     )
-    databuffer = np.ones((30,500), dtype="uint16")
+    databuffer = np.ones((30, 500), dtype="uint16")
 
     while True:
         global stop_threads
@@ -142,10 +144,12 @@ def empty_socket():
         if stop_threads:
             break
 
+
 stop_threads = False
-threading.Thread(target = empty_socket).start()
+threading.Thread(target=empty_socket).start()
 threading.Thread(target=start_eo_acquire, args=(True,)).start()
-print('EO started')
+print("EO started")
+
 
 def LEDIndicator(key=None, radius=15):
     return sg.Graph(
@@ -295,7 +299,12 @@ viperbox_control_frame = sg.Frame(
         [
             sg.Button("Start", size=(10, 1), key="button_start"),
             sg.Button("Stop", size=(10, 1), key="button_stop"),
-            sg.Checkbox("Record without stimulation", key="checkbox_rec_wo_stim", default=True, visible=False),
+            sg.Checkbox(
+                "Record without stimulation",
+                key="checkbox_rec_wo_stim",
+                default=True,
+                visible=False,
+            ),
         ],
         [
             sg.Text("Recording status:"),
@@ -665,8 +674,8 @@ parameter_sweep = sg.Frame(
 # ------------------------------------------------------------------
 # UPDATE
 
-menu_def = [['&Application', ['&Update']]]
-layout = [sg.Menu(menu_def, key='-MENU-', tearoff=False)],
+menu_def = [["&Application", ["&Update"]]]
+layout = ([sg.Menu(menu_def, key="-MENU-", tearoff=False)],)
 
 # ------------------------------------------------------------------
 # INTEGRATION OF COMPONENTS
@@ -675,7 +684,8 @@ layout = [sg.Menu(menu_def, key='-MENU-', tearoff=False)],
 col1 = sg.Column(
     [[viperbox_control_frame], [stimulation_settings]], vertical_alignment="t"
 )
-col2 = sg.Column([[electrode_frame]], 
+col2 = sg.Column(
+    [[electrode_frame]],
     vertical_alignment="t",
     visible=False,
 )
@@ -914,7 +924,7 @@ for element in elements:
     element.bind("<FocusOut>", "+FOCUS OUT")
 
 window["mul_log"].update(read_log_file(LOG_FILENAME))
-last_event = ''
+last_event = ""
 
 # ------------------------------------------------------------------
 # CF: MAIN
@@ -925,8 +935,10 @@ if __name__ == "__main__":
         # time.sleep(1)
         event, values = window.read()
         stop_threads = True
-        print('########################################################################')
-        print('main event generation: ', event)
+        print(
+            "########################################################################"
+        )
+        print("main event generation: ", event)
         if event == sg.WIN_CLOSED or event == "Exit":
             break
         # viperbox control
@@ -1062,7 +1074,7 @@ if __name__ == "__main__":
             event = event.split("+")[0]
             # print('event: ', event, window[event])
             next_element = window[event].get_next_focus()
-            print('next event: ', next_element)
+            print("next event: ", next_element)
             # next_element = window[event].get_previous_focus()
             # next_element = next_element.get_next_focus()
             for key in verify_int_params.keys():
@@ -1122,7 +1134,15 @@ if __name__ == "__main__":
             figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
         elif event == "Update":
             if sg.popup_ok_cancel("Are you sure? This will close the application."):
-                subprocess.Popen(batch_script_path, shell=True, stdin=None, stdout=None, stderr=None, close_fds=True, creationflags=subprocess.DETACHED_PROCESS)
+                subprocess.Popen(
+                    batch_script_path,
+                    shell=True,
+                    stdin=None,
+                    stdout=None,
+                    stderr=None,
+                    close_fds=True,
+                    creationflags=subprocess.DETACHED_PROCESS,
+                )
                 break
 
         # update log
