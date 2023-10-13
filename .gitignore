@@ -1,7 +1,6 @@
 *.bin
 __pycache__/*
 close_box.py
-NeuraviperPy.py
 FTD3XX.dll
 NeuraviperAPI_1_0_x64.dll
 
