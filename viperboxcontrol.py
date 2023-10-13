@@ -250,7 +250,7 @@ class ViperBoxControl:
 
     def control_rec_setup(
         self,
-        reference_electrode: Optional[int] = 5,
+        reference_electrode: Optional[int] = 0x001,
         gain: Optional[int] = 1,
         electrode_mapping: Optional[bytes] = None,
         metadata_stream: Optional[List[Any]] = None,
@@ -280,12 +280,12 @@ class ViperBoxControl:
                 )
             return False
 
-        if not reference_electrode:
-            if not (1 <= reference_electrode <= 9):
-                raise ValueError(
-                    "Error: Invalid reference electrode. "
-                    + "Expected a value between 0 and 8."
-                )
+        # if not reference_electrode:
+        #     if not (1 <= reference_electrode <= 9):
+        #         raise ValueError(
+        #             "Error: Invalid reference electrode. "
+        #             + "Expected a value between 0 and 8."
+        #         )
 
         self._metadata_stream = metadata_stream
 
