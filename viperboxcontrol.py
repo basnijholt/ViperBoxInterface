@@ -280,26 +280,13 @@ class ViperBoxControl:
                 )
             return False
 
-        # if not reference_electrode:
-        #     if not (1 <= reference_electrode <= 9):
-        #         raise ValueError(
-        #             "Error: Invalid reference electrode. "
-        #             + "Expected a value between 0 and 8."
-        #         )
-
         self._metadata_stream = metadata_stream
 
-        # Uncommented and included the setup as needed:
-        # if electrode_mapping:
-        #     for channel, electrode in enumerate(electrode_mapping):
         for channel in range(64):
             NVP.selectElectrode(self._handle, self._probe, channel, 0)
+            NVP.setReference(self._handle, self._probe, channel, reference_electrode)
+            NVP.setGain(self._handle, self._probe, channel, gain)
 
-        NVP.setReference(self._handle, self._probe, 0, reference_electrode)
-        for i in range(64):
-            NVP.setGain(self._handle, self._probe, i, gain)
-
-        # (which reference electrodes?)
         NVP.writeChannelConfiguration(self._handle, self._probe, False)
 
         return True
