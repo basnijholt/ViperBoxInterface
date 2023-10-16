@@ -1134,23 +1134,17 @@ if __name__ == "__main__":
             figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
         elif event == "Update":
             if sg.popup_ok_cancel("Are you sure? This will close the application."):
-                subprocess.Popen(
-                    batch_script_path,
-                    shell=True,
-                    stdin=None,
-                    stdout=None,
-                    stderr=None,
-                    close_fds=True,
-                    creationflags=subprocess.DETACHED_PROCESS,
-                )
+                if not os.path.exists("update_blocker"):
+                    subprocess.Popen(
+                        batch_script_path,
+                        shell=True,
+                        stdin=None,
+                        stdout=None,
+                        stderr=None,
+                        close_fds=True,
+                        creationflags=subprocess.DETACHED_PROCESS,
+                    )
                 break
-
-        # update log
-        # last_log_timestamp = get_last_timestamp('ViperBoxInterface.log')
-        # if last_log_timestamp != last_printed_timestamp:
-        #     window['mul_log'].update(read_log_file('ViperBoxInterface.log'))
-        #     last_printed_timestamp = last_log_timestamp
-
         window["mul_log"].update(read_log_file(LOG_FILENAME))
 
 VB.disconnect_viperbox()
