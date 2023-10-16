@@ -49,7 +49,10 @@ logging.basicConfig(
     # stream=sys.stdout,
     format="%(levelname)-8s - %(asctime)s - %(name)s - %(message)s",
     datefmt="%H:%M:%S",
-    filename=LOG_FILENAME,
+    handlers=[
+        logging.FileHandler(LOG_FILENAME),
+        logging.StreamHandler(sys.stdout),
+    ],
 )
 logger = logging.getLogger(__name__)
 

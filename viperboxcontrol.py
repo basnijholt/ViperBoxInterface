@@ -349,6 +349,7 @@ class ViperBoxControl:
             )
             databuffer = (databuffer @ mtx).T
             databuffer = databuffer.copy(order="C")
+            print(databuffer.shape)
             UDPClientSocket.sendto(databuffer, serverAddressPort)
 
             t2 = self._currentTime()
