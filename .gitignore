@@ -1,11 +1,16 @@
 *.bin
+*.dll
+*.h
+*.lib
+*.cfg
 __pycache__/*
-close_box.py
-FTD3XX.dll
-NeuraviperAPI_1_0_x64.dll
-
 .pytest_cache
 .ruff_cache
+.ipynb_checkpoints/
+
+
+close_box.py
+
 mypy.ini
 
 docs/build
@@ -13,17 +18,12 @@ docs/source/_static
 docs/source/_templates
 
 testarea.ipynb
-.ipynb_checkpoints/
 
 multiwin.json
 multiwin.py
 testgui.py
 activity.log
 ViperBoxInterface.log
-
-*.cfg
-
-testt
 
 .dockerignore
 .vsconfig-2017

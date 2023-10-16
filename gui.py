@@ -935,10 +935,10 @@ if __name__ == "__main__":
         # time.sleep(1)
         event, values = window.read()
         stop_threads = True
-        print(
-            "########################################################################"
-        )
-        print("main event generation: ", event)
+        # print(
+        #     "########################################################################"
+        # )
+        # print("main event generation: ", event)
         if event == sg.WIN_CLOSED or event == "Exit":
             break
         # viperbox control
