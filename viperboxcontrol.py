@@ -250,7 +250,7 @@ class ViperBoxControl:
 
     def control_rec_setup(
         self,
-        reference_electrode: Optional[int] = 0x001,
+        reference_electrode: Optional[int] = bytes(0x100),
         gain: Optional[int] = 1,
         electrode_mapping: Optional[bytes] = None,
         metadata_stream: Optional[List[Any]] = None,
@@ -375,7 +375,7 @@ class ViperBoxControl:
         # recording_file_name: str = 'Recording',
         recording_time: int = 0,
         store_NWB: bool = False,
-    ) -> None:
+    ) -> bool:
         """
         Handles starting of recording state.
 
@@ -412,6 +412,7 @@ class ViperBoxControl:
         if recording_time:
             time.sleep(recording_time)
             self.control_rec_stop()
+        return True
 
     def stimulation_trigger(self, SU=0, recording_time=0) -> None:
         """Handles start of stimulation."""
@@ -424,7 +425,7 @@ class ViperBoxControl:
             time.sleep(0.5)
         NVP.SUtrig1(self._handle, self._probe, SU)
 
-    def control_rec_stop(self) -> None:
+    def control_rec_stop(self) -> bool:
         """Handles stopping of recording state."""
 
         if self._handle == "no_box":
@@ -523,13 +524,13 @@ class ViperBoxControl:
     ) -> bool:
         # Configure SU 0 and check if SU config was updated.
         # NVP.transferSPI(self._handle, self._probe, 0x00)
-
         # self.config_params = config_params
         NVP.writeSUConfiguration(
             *self.config_params.get_SUConfig_pars(
                 self._handle, self._probe, self._stim_unit, polarity
             )
         )
+        return True
 
 
 def encode_electrodes(stim_electrodes) -> str:
