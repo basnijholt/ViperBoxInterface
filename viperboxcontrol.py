@@ -251,7 +251,7 @@ class ViperBoxControl:
     def control_rec_setup(
         self,
         reference_electrode: Optional[int] = 256,
-        gain: Optional[int] = 1,
+        gain: Optional[int] = 3,
         electrode_mapping: Optional[bytes] = None,
         metadata_stream: Optional[List[Any]] = None,
     ) -> bool:
