@@ -35,8 +35,8 @@ no_box, emulated = False, False
 batch_script_path = os.getcwd() + "\\update.bat"
 print(batch_script_path)
 
-recording_folder_path = os.getcwd()
-settings_folder_path = os.getcwd()
+recording_folder_path = os.getcwd() + "\\Recordings"
+settings_folder_path = os.getcwd() + "\\Settings"
 
 settings_list = []
 

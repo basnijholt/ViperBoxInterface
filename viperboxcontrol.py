@@ -357,7 +357,6 @@ class ViperBoxControl:
             t2 = self._currentTime()
             while (t2 - t0) < counter * bufferInterval:
                 t2 = self._currentTime()
-            print((t2 - t0) * 1000 / counter)
 
         NVP.streamClose(self._read_handle)
 
