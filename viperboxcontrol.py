@@ -286,6 +286,7 @@ class ViperBoxControl:
             NVP.selectElectrode(self._handle, self._probe, channel, 0)
             NVP.setReference(self._handle, self._probe, channel, reference_electrode)
             NVP.setGain(self._handle, self._probe, channel, gain)
+            NVP.setAZ(self._handle, self._probe, channel, True)
 
         NVP.writeChannelConfiguration(self._handle, self._probe, False)
 
@@ -462,6 +463,9 @@ class ViperBoxControl:
         else:
             osdata = encode_electrodes(electrode_list)
         NVP.setOSimage(self._handle, self._probe, convert_osdata(osdata))
+        for OS in range(128):
+            NVP.setOSDischargeperm(self._handle, self._probe, OS, False)
+            NVP.setOSStimblank(self._handle, self._probe, OS, True)
         NVP.writeOSConfiguration(self._handle, self._probe, False)
 
     def stim_sweep(

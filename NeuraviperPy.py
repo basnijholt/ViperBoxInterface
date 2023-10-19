@@ -826,6 +826,27 @@ def setGain(handle: DeviceHandle, probe: int, channel: int, gain: int) -> None:
     __assertnvperror(_c_fn(handle, probe, channel, gain))
 
 
+@_wrap_function("setAZ", NVP_ErrorCode, [DeviceHandle, c_uint8, c_uint8, c_bool])
+def setAZ(handle: DeviceHandle, probe: int, channel: int, autoreset: bool) -> None:
+    __assertnvperror(_c_fn(handle, probe, channel, autoreset))
+
+
+@_wrap_function(
+    "setOSDischargeperm", NVP_ErrorCode, [DeviceHandle, c_uint8, c_uint8, c_bool]
+)
+def setOSDischargeperm(
+    handle: DeviceHandle, probe: int, OS: int, discharge_perm: bool
+) -> None:
+    __assertnvperror(_c_fn(handle, probe, OS, discharge_perm))
+
+
+@_wrap_function(
+    "setOSStimblank", NVP_ErrorCode, [DeviceHandle, c_uint8, c_uint8, c_bool]
+)
+def setOSStimblank(handle: DeviceHandle, probe: int, OS: int, stimblank: bool) -> None:
+    __assertnvperror(_c_fn(handle, probe, OS, stimblank))
+
+
 ###############################################################################
 
 if __name__ == "__main__":
