@@ -335,8 +335,10 @@ class ViperBoxControl:
 
         logger.info("Started sending data to Open Ephys")
         mtx = self.os2chip_mat()
+        counter = 0
+        t0 = self._currentTime()
         while True:
-            t1 = self._currentTime()
+            counter += 1
 
             packets = NVP.streamReadData(self._read_handle, self.BUFFER_SIZE)
             count = len(packets)
@@ -350,12 +352,12 @@ class ViperBoxControl:
             )
             databuffer = (databuffer @ mtx).T
             databuffer = databuffer.copy(order="C")
-            print(databuffer.shape)
             UDPClientSocket.sendto(databuffer, serverAddressPort)
 
             t2 = self._currentTime()
-            while (t2 - t1) < bufferInterval:
+            while (t2 - t0) < counter * bufferInterval:
                 t2 = self._currentTime()
+            print((t2 - t0) * 1000 / counter)
 
         NVP.streamClose(self._read_handle)
 
