@@ -274,7 +274,7 @@ viperbox_control_frame = sg.Frame(
         [sg.Text("BS connection", size=(15, 0)), LEDIndicator("led_connect_BS")],
         [sg.Text("Probe connection", size=(15, 0)), LEDIndicator("led_connect_probe")],
         [
-            sg.Button("(Re)connect", key="button_connect"),
+            sg.Button("Reconnect", key="button_connect"),
             sg.Button("Disconnect", key="button_disconnect"),
         ],
         [sg.HorizontalSeparator("light gray")],
@@ -319,13 +319,100 @@ viperbox_control_frame = sg.Frame(
 )
 
 # ------------------------------------------------------------------
+# CF: GAIN AND REFERENCE FRAME
+
+ref_MAX_COL = 8
+reference_switch_matrix = ["off" for _ in range(ref_MAX_COL + 1)]
+reference_switch_matrix[8] = "on"
+reference_button_matrix = [
+    sg.Button(
+        f"{i+1}",
+        size=(2, 1),
+        key=(f"reference_{i+1}"),
+        pad=(1, 1),
+        button_color="light gray",
+    )
+    for i in range(ref_MAX_COL)
+]
+reference_button_matrix.append(
+    sg.Button(
+        "B",
+        size=(10, 1),
+        key=(f"reference_{9}"),
+        pad=(1, 1),
+        button_color="red",
+    )
+)
+reference_button_matrix = [reference_button_matrix]
+
+gain_MAX_COL = 4
+gain_switch_matrix = ["off" for _ in range(gain_MAX_COL)]
+gain_switch_matrix[0] = "on"
+gain_dict = {
+    "x60": 0,
+    "x16": 1,
+    "x12": 2,
+    "x0.16": 3,
+}
+gain_button_matrix = [
+    [
+        sg.Button(
+            i,
+            size=(8, 1),
+            key=(f"gain_{j}"),
+            pad=(1, 1),
+            button_color="red" if i == "x60" else "light gray",
+        )
+        for i, j in gain_dict.items()
+    ]
+]
+
+reference_frame = sg.Frame(
+    "Reference selection", reference_button_matrix, expand_y=True
+)
+gain_frame = sg.Frame("Gain selection", gain_button_matrix, expand_x=True)
+update_button = sg.Button("Update ViperBox", key="update_viperbox_settings")
+recording_frame = sg.Frame(
+    "Recording settings",
+    [[reference_frame], [gain_frame], [update_button]],
+    expand_x=True,
+)
+
+
+def toggle_1d_color(event, reference_switch_matrix):
+    row = int(event[-1]) - 1
+
+    if reference_switch_matrix[row] == "off":
+        reference_switch_matrix[row] = "on"
+        return "red"
+    else:
+        reference_switch_matrix[row] = "off"
+        return "light gray"
+
+
+def toggle_gain_color(event, gain_switch_matrix):
+    row = int(event[-1])
+
+    gain_switch_matrix = ["off"] * 4
+    gain_switch_matrix[row] = "on"
+    return "red"
+
+
+def get_references(reference_switch_matrix):
+    bin_input_list = "".join(
+        ["1" if item == "on" else "0" for item in reference_switch_matrix]
+    )
+    return int(bin_input_list, 2)
+
+
+# ------------------------------------------------------------------
 # CF: ELECTRODE SELECTION FRAME
 
 MAX_ROWS = 15
 MAX_COL = 4
 
-reference_matrix = [["off" for i in range(MAX_COL)] for j in range(MAX_ROWS)]
-electrode_matrix = [
+electrode_switch_matrix = [["off" for i in range(MAX_COL)] for j in range(MAX_ROWS)]
+electrode_button_matrix = [
     [
         sg.Button(
             f"{i*MAX_ROWS+j+1}",
@@ -338,23 +425,42 @@ electrode_matrix = [
     ]
     for j in range(MAX_ROWS)
 ]
-electrode_matrix = electrode_matrix[::-1]
+electrode_button_matrix = electrode_button_matrix[::-1]
 electrode_frame = sg.Frame(
-    "Stimulation electrode selection", electrode_matrix, expand_y=True
+    "Stimulation electrode selection", electrode_button_matrix, expand_y=True
 )
 
 
-def toggle_color(event, reference_matrix):
+def toggle_2d_color(event, electrode_switch_matrix):
     electrode = int(event[10:])
     row = (electrode - 1) % MAX_ROWS
     col = (electrode - 1) // MAX_ROWS
 
-    if reference_matrix[row][col] == "off":
-        reference_matrix[row][col] = "on"
+    if electrode_switch_matrix[row][col] == "off":
+        electrode_switch_matrix[row][col] = "on"
         return "red"
     else:
-        reference_matrix[row][col] = "off"
+        electrode_switch_matrix[row][col] = "off"
         return "light gray"
+
+
+def get_electrodes(electrode_switch_matrix, save_purpose=False):
+    rows, cols = np.where(np.asarray(electrode_switch_matrix) == "on")
+    if save_purpose:
+        electrode_list = [str(i * MAX_ROWS + j + 1) for i, j in zip(cols, rows)]
+    else:
+        electrode_list = [i * MAX_ROWS + j + 1 for i, j in zip(cols, rows)]
+    electrode_list.sort()
+    return electrode_list
+
+
+def set_reference_matrix(electrode_list):
+    electrode_switch_matrix = [["off" for i in range(MAX_COL)] for j in range(MAX_ROWS)]
+    for electrode in electrode_list:
+        row = (int(electrode) - 1) % MAX_ROWS
+        col = (int(electrode) - 1) // MAX_ROWS
+        electrode_switch_matrix[row][col] = "on"
+    return electrode_switch_matrix
 
 
 # ------------------------------------------------------------------
@@ -431,6 +537,51 @@ stimulation_settings = sg.Frame(
     vertical_alignment="t",
     visible=False,
 )
+
+
+def save_settings(location, filename, settings):
+    existing_settings = load_settings_folder(location)
+    answer = "OK"
+    if filename in existing_settings:
+        answer = sg.popup_ok_cancel(
+            f'Setting "{filename}" already exists, if you want to continue, press OK'
+        )
+    if answer == "OK":
+        filename = filename + ".cfg"
+        settings_save = settings.copy()
+        delete = [
+            "led_connect_hardware",
+            "led_connect_BS",
+            "led_connect_probe",
+            "input_filename",
+            "led_rec",
+            "checkbox_rec_wo_stim",
+            "input_filter_name",
+            "listbox_settings",
+            "input_set_name",
+            "-CANVAS-",
+            "mul_log",
+        ]
+        for key in delete:
+            del settings_save[key]
+        with open(location + "\\" + filename, "w") as f:
+            json.dump(settings_save, f)
+
+
+def read_saved_settings(location, filename):
+    full_path = Path.joinpath(Path(location), filename + ".cfg")
+    with open(full_path, "r") as f:
+        return json.load(f)
+
+
+def load_settings_folder(location):
+    settings_list = [path.stem for path in Path(location).glob("*.cfg")]
+    return settings_list
+
+
+def update_settings_listbox(settings_folder_path):
+    settings_list = load_settings_folder(settings_folder_path)
+    window["listbox_settings"].update(settings_list)
 
 
 # ------------------------------------------------------------------
@@ -685,7 +836,8 @@ layout = ([sg.Menu(menu_def, key="-MENU-", tearoff=False)],)
 
 # sub_col1 = sg.Column([[stimulation_settings, ]], vertical_alignment='t')
 col1 = sg.Column(
-    [[viperbox_control_frame], [stimulation_settings]], vertical_alignment="t"
+    [[viperbox_control_frame], [stimulation_settings], [recording_frame]],
+    vertical_alignment="t",
 )
 col2 = sg.Column(
     [[electrode_frame]],
@@ -699,6 +851,7 @@ col3 = sg.Column(
 )
 col4 = sg.Column([[plot_frame], [log_frame]], vertical_alignment="t")
 
+
 layout += ([[col1, col2, col3, col4]],)
 
 
@@ -710,51 +863,6 @@ window = sg.Window(
 )
 # ------------------------------------------------------------------
 # HELPER FUNCTIONS
-
-
-def save_settings(location, filename, settings):
-    existing_settings = load_settings_folder(location)
-    answer = "OK"
-    if filename in existing_settings:
-        answer = sg.popup_ok_cancel(
-            f'Setting "{filename}" already exists, if you want to continue, press OK'
-        )
-    if answer == "OK":
-        filename = filename + ".cfg"
-        settings_save = settings.copy()
-        delete = [
-            "led_connect_hardware",
-            "led_connect_BS",
-            "led_connect_probe",
-            "input_filename",
-            "led_rec",
-            "checkbox_rec_wo_stim",
-            "input_filter_name",
-            "listbox_settings",
-            "input_set_name",
-            "-CANVAS-",
-            "mul_log",
-        ]
-        for key in delete:
-            del settings_save[key]
-        with open(location + "\\" + filename, "w") as f:
-            json.dump(settings_save, f)
-
-
-def read_saved_settings(location, filename):
-    full_path = Path.joinpath(Path(location), filename + ".cfg")
-    with open(full_path, "r") as f:
-        return json.load(f)
-
-
-def load_settings_folder(location):
-    settings_list = [path.stem for path in Path(location).glob("*.cfg")]
-    return settings_list
-
-
-def update_settings_listbox(settings_folder_path):
-    settings_list = load_settings_folder(settings_folder_path)
-    window["listbox_settings"].update(settings_list)
 
 
 def get_last_timestamp(log_file_path):
@@ -775,28 +883,9 @@ def read_log_file(log_file_path):
         return f.read()
 
 
-def get_electrodes(reference_matrix, save_purpose=False):
-    rows, cols = np.where(np.asarray(reference_matrix) == "on")
-    if save_purpose:
-        electrode_list = [str(i * MAX_ROWS + j + 1) for i, j in zip(cols, rows)]
-    else:
-        electrode_list = [i * MAX_ROWS + j + 1 for i, j in zip(cols, rows)]
-    electrode_list.sort()
-    return electrode_list
-
-
-def set_reference_matrix(electrode_list):
-    reference_matrix = [["off" for i in range(MAX_COL)] for j in range(MAX_ROWS)]
-    for electrode in electrode_list:
-        row = (int(electrode) - 1) % MAX_ROWS
-        col = (int(electrode) - 1) // MAX_ROWS
-        reference_matrix[row][col] = "on"
-    return reference_matrix
-
-
 def load_parameter_dicts(values):
     values = convert_biphasic(values)
-    values["stim_sweep_electrode_list"] = get_electrodes(reference_matrix)
+    values["stim_sweep_electrode_list"] = get_electrodes(electrode_switch_matrix)
     pulse_shape_dct_from_gui = {
         k: int(values[k]) for k in PulseShapeParameters.__annotations__
     }
@@ -921,27 +1010,21 @@ figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
 selected_user_setting = None
 update_settings_listbox(settings_folder_path)
 
-
 elements = [window[key] for key in verify_int_params.keys()]
 for element in elements:
     element.bind("<FocusOut>", "+FOCUS OUT")
 
 window["mul_log"].update(read_log_file(LOG_FILENAME))
 last_event = ""
+gain = None
 
 # ------------------------------------------------------------------
 # CF: MAIN
 
-
 if __name__ == "__main__":
     while True:
-        # time.sleep(1)
         event, values = window.read()
         stop_threads = True
-        # print(
-        #     "########################################################################"
-        # )
-        # print("main event generation: ", event)
         if event == sg.WIN_CLOSED or event == "Exit":
             break
         # viperbox control
@@ -959,7 +1042,26 @@ if __name__ == "__main__":
             SetLED(window, "led_connect_BS", VB._connected_BS)
             SetLED(window, "led_connect_probe", VB._connected_probe)
         elif event[:3] == "el_":
-            window[event].update(button_color=toggle_color(event, reference_matrix))
+            window[event].update(
+                button_color=toggle_2d_color(event, electrode_switch_matrix)
+            )
+        elif event[:3] == "ref":
+            window[event].update(
+                button_color=toggle_1d_color(event, reference_switch_matrix)
+            )
+        elif event[:3] == "gai":
+            window["gain_0"].update(button_color="light grey")
+            window["gain_1"].update(button_color="light grey")
+            window["gain_2"].update(button_color="light grey")
+            window["gain_3"].update(button_color="light grey")
+            window[event].update(
+                button_color=toggle_gain_color(event, gain_switch_matrix)
+            )
+            gain = int(event[-1])
+        elif event == "update_viperbox_settings":
+            print("updating viperbox settings")
+            reference_electrode = get_references(reference_switch_matrix)
+            VB.update_channel_settings(reference_electrode, gain)
         elif event == "button_select_recording_folder":
             tmp_path = sg.popup_get_folder("Select recording folder")
             if tmp_path is not None:
@@ -994,19 +1096,17 @@ if __name__ == "__main__":
                 start_eo_acquire()
             else:
                 pulse_shape, pulse_train, pulse_sweep = load_parameter_dicts(values)
-                electrode_list = get_electrodes(reference_matrix)
+                electrode_list = get_electrodes(electrode_switch_matrix)
                 viperbox = ViperBoxConfiguration(0)
                 config = ConfigurationParameters(
                     pulse_shape, pulse_train, viperbox, pulse_sweep, electrode_list
                 )
                 VB.update_config(config)
                 if manual_stim:
-                    # VB.control_rec_start(start_directly=False)
                     VB.control_send_parameters(electrode_list=electrode_list)
                     VB.stimulation_trigger()
                     start_eo_acquire()
                 else:
-                    # VB.control_rec_start()
                     VB.stim_sweep()
                     start_eo_acquire()
         elif event == "button_stop":
@@ -1014,8 +1114,8 @@ if __name__ == "__main__":
             VB.control_rec_stop()
         # Edit user settings
         elif event == "button_save_set":
-            electrode_list = get_electrodes(reference_matrix, True)
-            values["electrode_list"] = get_electrodes(reference_matrix, True)
+            electrode_list = get_electrodes(electrode_switch_matrix, True)
+            values["electrode_list"] = get_electrodes(electrode_switch_matrix, True)
             save_settings(settings_folder_path, values["input_set_name"], values)
             update_settings_listbox(settings_folder_path)
         elif event == "button_load_set":
@@ -1026,7 +1126,7 @@ if __name__ == "__main__":
                 for setting in loaded_settings.keys():
                     if setting != "electrode_list":
                         window[setting].update(loaded_settings[setting])
-                reference_matrix = set_reference_matrix(
+                electrode_switch_matrix = set_reference_matrix(
                     loaded_settings["electrode_list"]
                 )
                 [

@@ -71,6 +71,9 @@ class ViperBoxControl:
         self._emulation_set: bool = False
         self.emulated: bool = emulated
 
+        self.reference_electrode = (256,)
+        self.gain = (3,)
+
         if no_box:
             self._handle = "no_box"
         else:
@@ -248,6 +251,36 @@ class ViperBoxControl:
         """Return the current time in seconds since the epoch."""
         return time.time_ns() / (10**9)
 
+    def update_channel_settings(
+        self,
+        new_reference_electrode: Optional[int] = None,
+        new_gain: Optional[int] = None,
+    ) -> bool:
+        counter = 0
+        if (
+            new_reference_electrode != self.reference_electrode
+            and new_reference_electrode is not None
+        ):
+            counter += 1
+            self.reference_electrode = new_reference_electrode
+        if new_gain != self.gain and new_gain is not None:
+            counter += 1
+            self.gain = new_gain
+        if counter < 1:
+            logger.warning("No new settings detected")
+            return False
+
+        for channel in range(64):
+            NVP.selectElectrode(self._handle, self._probe, channel, 0)
+            NVP.setReference(
+                self._handle, self._probe, channel, self.reference_electrode
+            )
+            NVP.setGain(self._handle, self._probe, channel, self.gain)
+            NVP.setAZ(self._handle, self._probe, channel, True)
+
+        NVP.writeChannelConfiguration(self._handle, self._probe, False)
+        return True
+
     def control_rec_setup(
         self,
         reference_electrode: Optional[int] = 256,
@@ -265,6 +298,8 @@ class ViperBoxControl:
 
         :return: True if setup was successful, False otherwise.
         """
+        self.reference_electrode = reference_electrode
+        self.gain = gain
 
         if self._handle == "no_box":
             logger.info("Running without ViperBox connected")
@@ -430,6 +465,7 @@ class ViperBoxControl:
         self._recording = False
         logger.info(f"Stopped recording: {self._recording_file_name}")
         self._recording_file_name = None
+        return True
 
     def control_rec_status(self) -> bool:
         """
