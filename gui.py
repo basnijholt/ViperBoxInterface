@@ -30,7 +30,8 @@ import time
 import socket
 import subprocess
 
-no_box, emulated = False, False
+no_box, emulated = True, True
+visibility_swap = True
 
 batch_script_path = os.getcwd() + "\\update.bat"
 print(batch_script_path)
@@ -257,37 +258,33 @@ plot_frame = sg.Frame(
         [sg.Canvas(key="-CANVAS-")],
         [sg.Button("Reload")],
     ],
-    expand_x=True,
-    visible=False,
+    size=(420,360),
+    visible=visibility_swap,
 )
 
 # ------------------------------------------------------------------
 # CF: VIPERBOX CONTROL FRAME
 
 viperbox_control_frame = sg.Frame(
-    "Viperbox control",
+    "Viperbox Connection",
     [
         [
-            sg.Text("Hardware connection", size=(15, 0)),
-            LEDIndicator("led_connect_hardware"),
-        ],
-        [sg.Text("BS connection", size=(15, 0)), LEDIndicator("led_connect_BS")],
-        [sg.Text("Probe connection", size=(15, 0)), LEDIndicator("led_connect_probe")],
-        [
+            sg.Text("Probe connection", size=(15, 0)),
+            LEDIndicator("led_connect_probe"),
             sg.Button("Reconnect", key="button_connect"),
             sg.Button("Disconnect", key="button_disconnect"),
         ],
-        [sg.HorizontalSeparator("light gray")],
-        [sg.Text("Subject"), sg.Input("Recording", key="input_filename", size=(15, 1))],
+    ],
+)
+
+viperbox_recording_settings_frame = sg.Frame(
+    "Recording control",
+    [
         [
-            sg.Text(
-                f"Saving in {basename(recording_folder_path)}",
-                key="current_folder",
-                size=(25, 1),
-            ),
+            sg.Text("Subject"),
+            sg.Input("Recording", key="input_filename", size=(15, 1)),
             sg.Button("Change folder", key="button_select_recording_folder"),
         ],
-        # [sg.HorizontalSeparator("light gray")],
         # [
         #     sg.Text("Manual stimulation"),
         #     sg.Button(
@@ -314,7 +311,6 @@ viperbox_control_frame = sg.Frame(
             LEDIndicator("led_rec"),
         ],
     ],
-    # size=(400, 170),
     expand_x=True,
 )
 
@@ -368,14 +364,19 @@ gain_button_matrix = [
 ]
 
 reference_frame = sg.Frame(
-    "Reference selection", reference_button_matrix, expand_y=True
+    "Reference selection",
+    reference_button_matrix,
 )
-gain_frame = sg.Frame("Gain selection", gain_button_matrix, expand_x=True)
+
+gain_frame = sg.Frame(
+    "Gain selection", gain_button_matrix, expand_x=True, vertical_alignment="bottom"
+)
+
 update_button = sg.Button("Update ViperBox", key="update_viperbox_settings")
-recording_frame = sg.Frame(
+
+recording_settings_frame = sg.Frame(
     "Recording settings",
     [[reference_frame], [gain_frame], [update_button]],
-    expand_x=True,
 )
 
 
@@ -476,13 +477,14 @@ log_frame = sg.Frame(
                 expand_x=True,
                 autoscroll=True,
                 horizontal_scroll=True,
+                disabled=True,
                 font=("Cascadia Mono", 8),
                 default_text="Initializing ViperBox...",
             )
         ],
     ],
-    size=(400, 280),
-    # expand_y=True,
+    # size=(400, 280),
+    expand_y=True,
     expand_x=True,
 )
 
@@ -532,10 +534,9 @@ stimulation_settings = sg.Frame(
         ],
     ],
     expand_x=True,
-    # size=(185,60),
     expand_y=True,
     vertical_alignment="t",
-    visible=False,
+    visible=True,
 )
 
 
@@ -550,8 +551,8 @@ def save_settings(location, filename, settings):
         filename = filename + ".cfg"
         settings_save = settings.copy()
         delete = [
-            "led_connect_hardware",
-            "led_connect_BS",
+            # "led_connect_hardware",
+            # "led_connect_BS",
             "led_connect_probe",
             "input_filename",
             "led_rec",
@@ -588,7 +589,7 @@ def update_settings_listbox(settings_folder_path):
 # CF: PULSE SHAPE FRAME
 
 manual_stim = True
-pulse_shape_col1 = sg.Column(
+pulse_shape_col_settings = sg.Column(
     [
         [
             sg.Text("Biphasic / Monophasic"),
@@ -666,7 +667,7 @@ pulse_shape_col1 = sg.Column(
     element_justification="r",
     expand_x=True,
 )
-pulse_shape_col2 = [
+pulse_shape_col_el_frame = [
     [
         sg.Text("Pulse amplitude anode"),
         sg.Input(
@@ -704,7 +705,10 @@ pulse_shape_col2 = [
 
 pulse_shape_frame = sg.Frame(
     "Pulse shape parameters",
-    [[pulse_shape_col1], [collapse(pulse_shape_col2, "pulse_shape_col2")]],
+    [
+        [pulse_shape_col_settings],
+        [collapse(pulse_shape_col_el_frame, "pulse_shape_col_el_frame")],
+    ],
     element_justification="r",
     expand_x=True,
 )
@@ -829,37 +833,63 @@ parameter_sweep = sg.Frame(
 # UPDATE
 
 menu_def = [["&Application", ["&Update"]]]
-layout = ([sg.Menu(menu_def, key="-MENU-", tearoff=False)],)
+layout = [[sg.Menu(menu_def, key="-MENU-", tearoff=False)]]
 
 # ------------------------------------------------------------------
 # INTEGRATION OF COMPONENTS
 
-# sub_col1 = sg.Column([[stimulation_settings, ]], vertical_alignment='t')
-col1 = sg.Column(
-    [[viperbox_control_frame], [stimulation_settings], [recording_frame]],
+col_settings = sg.Column(
+    [
+        [viperbox_control_frame],
+        [viperbox_recording_settings_frame],
+        [stimulation_settings],
+    ],
+    k="col_settings",
     vertical_alignment="t",
 )
-col2 = sg.Column(
+col_el_frame = sg.Column(
     [[electrode_frame]],
-    vertical_alignment="t",
-    visible=False,
+    k="col_el_frame",
+    expand_y=True,
+    visible=visibility_swap,
 )
-col3 = sg.Column(
+col_params = sg.Column(
     [[pulse_shape_frame], [pulse_train_frame], [parameter_sweep]],
+    k="col_params",
     vertical_alignment="t",
-    visible=False,
+    visible=visibility_swap,
 )
-col4 = sg.Column([[plot_frame], [log_frame]], vertical_alignment="t")
+col_plot = sg.Column([[plot_frame]], k="col_plot", vertical_alignment="t")
+col_log = sg.Column(
+    [[log_frame]], k="col_log", vertical_alignment="t", expand_x=True, expand_y=True
+)
 
-
-layout += ([[col1, col2, col3, col4]],)
+layout += [
+    [
+        col_settings,
+        sg.TabGroup(
+            [
+                [
+                    sg.Tab(
+                        "Log",
+                        [[col_log]],
+                    ),
+                    sg.Tab("Recording settings", [[recording_settings_frame]]),
+                    sg.Tab(
+                        "Stimulation settings",
+                        [[col_el_frame, col_params, col_plot]],
+                    ),
+                ]
+            ],
+        ),
+    ]
+]
 
 
 window = sg.Window(
     "ViperBox Control",
     layout,
-    #    size=(800, 800),
-    finalize=True,
+    finalize=False,
 )
 # ------------------------------------------------------------------
 # HELPER FUNCTIONS
@@ -927,20 +957,22 @@ def verify_type_step_min_max(
             value = float(value)
         else:
             value = int(value)
-    except:
+    except Exception as e:
         value = min_val
-        logger.warning(f"parameter {name} was not a float or an integer.")
+        logger.warning(f"parameter {name} was not a float or an integer. Error: {e}")
+        print("Did exception loop")
     if not min_val <= value <= max_val:
-        logger.warning(
-            f"Out of range. Parameter {name} should be between {min_val} and "
-            + f"{max_val} with a step size of {step}."
-        )
-        color = "orange"
+        if name != "frequency_of_pulses":
+            logger.warning(
+                f"Out of range. Parameter {name} with value {value} should be between"
+                + f" {min_val} and {max_val} with a step size of {step}."
+            )
+            color = "orange"
     elif (value - min_val) % step != 0:
         if name != "frequency_of_pulses":
             logger.warning(
-                f"Wrong stepsize. Parameter {name} should be between {min_val} and "
-                + f"{max_val} with a step size of {step}."
+                f"Wrong stepsize. Parameter {name} with value {value} should be between"
+                + f" {min_val} and {max_val} with a step size of {step}."
             )
             color = "orange"
     else:
@@ -959,15 +991,15 @@ pulse_sum_list = [
 
 def verify_duration(values):
     sum_pulses = (
-        int(values["pulse_delay"])
-        + int(values["first_pulse_phase_width"])
-        + int(values["pulse_interphase_interval"])
-        + int(values["second_pulse_phase_width"])
-        + int(values["discharge_time"])
+        int(values["pulse_delay"][0])
+        + int(values["first_pulse_phase_width"][0])
+        + int(values["pulse_interphase_interval"][0])
+        + int(values["second_pulse_phase_width"][0])
+        + int(values["discharge_time"][0])
     )
-    if int(values["pulse_duration"]) < sum_pulses:
+    if int(values["pulse_duration"][0]) < sum_pulses:
         logger.error(
-            f"User input for pulse_duration ({values['pulse_duration']} us) is smaller than "
+            f"User input for pulse_duration ({values['pulse_duration'][0]} us) is smaller than "
             + f"the sum of independent pulse parts ({sum_pulses} us)."
         )
         return False, sum_pulses
@@ -990,6 +1022,21 @@ def verify_pulse_min_max(amp_min, amp_max, step):
     return amp_min <= amp_max
 
 
+def find_indices(lst, value):
+    return [index for index, item in enumerate(lst) if item == value]
+
+
+def get_next_object(target, obj_list):
+    try:
+        idx = obj_list.index(target)
+        if idx < len(obj_list) - 1:
+            return obj_list[idx + 1]
+        else:
+            return None  # No next object as target is the last object
+    except ValueError:
+        return None  # Target object not found
+
+
 # ------------------------------------------------------------------
 # PREPARING
 
@@ -1001,12 +1048,13 @@ SetLED(window, "led_rec", False)
 print(f"Setting up with no_box = {no_box} and emulated = {emulated}")
 VB = ViperBoxControl(no_box=no_box, emulated=emulated)
 
-SetLED(window, "led_connect_hardware", VB._connected_handle)
-SetLED(window, "led_connect_BS", VB._connected_BS)
+# SetLED(window, "led_connect_hardware", VB._connected_handle)
+# SetLED(window, "led_connect_BS", VB._connected_BS)
 SetLED(window, "led_connect_probe", VB._connected_probe)
 
 fig = generate_plot()
 figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
+
 selected_user_setting = None
 update_settings_listbox(settings_folder_path)
 
@@ -1033,13 +1081,13 @@ if __name__ == "__main__":
                 logger.info("VirtualBox initialized in testing mode")
             else:
                 VB.connect_viperbox()
-                SetLED(window, "led_connect_hardware", VB._connected_handle)
-                SetLED(window, "led_connect_BS", VB._connected_BS)
+                # SetLED(window, "led_connect_hardware", VB._connected_handle)
+                # SetLED(window, "led_connect_BS", VB._connected_BS)
                 SetLED(window, "led_connect_probe", VB._connected_probe)
         elif event == "button_disconnect":
             VB.disconnect_viperbox()
-            SetLED(window, "led_connect_hardware", VB._connected_handle)
-            SetLED(window, "led_connect_BS", VB._connected_BS)
+            # SetLED(window, "led_connect_hardware", VB._connected_handle)
+            # SetLED(window, "led_connect_BS", VB._connected_BS)
             SetLED(window, "led_connect_probe", VB._connected_probe)
         elif event[:3] == "el_":
             window[event].update(
@@ -1086,7 +1134,7 @@ if __name__ == "__main__":
             )
             manual_stim = not manual_stim
             window["key_parameter_sweep"].update(visible=not manual_stim)
-            window["pulse_shape_col2"].update(visible=manual_stim)
+            window["pulse_shape_col_el_frame"].update(visible=manual_stim)
         elif event == "button_start":
             SetLED(window, "led_rec", None)
             VB.set_file_path(recording_folder_path, values["input_filename"])
@@ -1172,59 +1220,120 @@ if __name__ == "__main__":
                 window["pulse_amplitude_cathode"].update(disabled=False)
 
         # FOCUS
-        elif event.endswith("+FOCUS OUT") and event != last_event:
-            last_event = event
+        elif event.endswith("+FOCUS OUT"):  # and event != last_event:
             event = event.split("+")[0]
-            # print('event: ', event, window[event])
-            next_element = window[event].get_next_focus()
-            print("next event: ", next_element)
+            print("current event: ", event, window[event])
+            # vals = {key: values[key] for key in verify_int_params.keys()}
+            # print("current event value: ", values[event])
+            # next_event = get_next_object(event, elements)
+            # print("next event self: ", next_event)
+
+            # current problems: write up what the order of checking is, do it seperately and just give back the results and update everything.
+            # color update takes two cycles for frequency if you change duration
+            # replot needs some kind of indication that it didn't happen yet.
+
+            # next_element = window.find_element_with_focus().get_next_focus()
+            # last_event = event
+            # print('current focus event: ', event, window[event])
+            # print("next event: ", next_element)
+
             # next_element = window[event].get_previous_focus()
             # next_element = next_element.get_next_focus()
-            for key in verify_int_params.keys():
-                checked_val, color = verify_type_step_min_max(key, values[key])
-                if values[key] != checked_val:
-                    # print(key, checked_val)
-                    window[key].update(value=checked_val, background_color=color)
-                # print("values['second_pulse_phase_width']: ", values['second_pulse_phase_width'])
-            # window.finalize()
+
+            temp_values = {
+                key: [values[key], 0, "0"] for key in verify_int_params.keys()
+            }
+            print(temp_values)
             if values["pulse_amplitude_equal"]:
+                # temp_values["pulse_amplitude_cathode"][1] = values[
+                #     "pulse_amplitude_anode"
+                # ]
                 window["pulse_amplitude_cathode"].update(
                     value=values["pulse_amplitude_anode"]
                 )
-            elif event == "pulse_duration":
-                _, frequency_of_pulses = pulse2freq_conversion(values["pulse_duration"])
-                window["frequency_of_pulses"].update(value=frequency_of_pulses)
+            if event == "pulse_duration":
+                _, frequency_of_pulses = pulse2freq_conversion(
+                    temp_values["pulse_duration"][0]
+                )
+                print("1: ", temp_values["frequency_of_pulses"])
+                temp_values["frequency_of_pulses"][0] = frequency_of_pulses
+                temp_values["frequency_of_pulses"][1] = frequency_of_pulses
+                # window["frequency_of_pulses"].update(value=frequency_of_pulses)
+                print("2: ", temp_values["frequency_of_pulses"])
+                # window.finalize()
+                # print("3: ", values["frequency_of_pulses"])
+                # print(f"UPDATED from pulse_duration, new freq: {frequency_of_pulses}")
             elif event == "frequency_of_pulses":
                 pulse_duration, frequency_of_pulses = freq2pulse_conversion(
-                    values["frequency_of_pulses"]
+                    temp_values["frequency_of_pulses"][0]
                 )
-                window["frequency_of_pulses"].update(value=frequency_of_pulses)
-                window["pulse_duration"].update(value=pulse_duration)
-            elif event in pulse_sum_list:
-                check, new_sum = verify_duration(values)
+                temp_values["frequency_of_pulses"][0] = frequency_of_pulses
+                temp_values["pulse_duration"][0] = pulse_duration
+                temp_values["frequency_of_pulses"][1] = frequency_of_pulses
+                temp_values["pulse_duration"][1] = pulse_duration
+                # window["frequency_of_pulses"].update(value=frequency_of_pulses)
+                # window["pulse_duration"].update(value=pulse_duration)
+                print("Updated from frequency")
+            if event in pulse_sum_list:
+                check, new_sum = verify_duration(temp_values)
                 if not check:
-                    window["pulse_duration"].update(value=new_sum)
+                    # window["pulse_duration"].update(value=new_sum)
+                    temp_values["pulse_duration"][0] = new_sum
+
+            print(temp_values)
+            for key in verify_int_params.keys():
+                checked_val, color = verify_type_step_min_max(key, temp_values[key][0])
+                temp_values[key] = temp_values[key][0], checked_val, color
+            print(temp_values)
+
+            for key in temp_values.keys():
+                if temp_values[key][0] != temp_values[key][1]:
+                    # print(key, checked_val)
+                    window[key].update(
+                        value=temp_values[key][1], background_color=temp_values[key][2]
+                    )
+                    # window[key].update(value=checked_val, background_color=color)
+                # print("values['second_pulse_phase_width']: ", values['second_pulse_phase_width'])
+            # window.finalize()
+
             # if figure_agg:
             #     delete_figure_agg(figure_agg)
             # values = convert_biphasic(values)
             # plot_vals = {k: int(values[k]) for k in generate_plot.__annotations__}
             # fig = generate_plot(**plot_vals)
             # figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
+
+            # for key in verify_int_params.keys():
+            #     checked_val, color = verify_type_step_min_max(key, values[key])
+            #     if not key == "frequency_of_pulses":
+            #         if values[key] != checked_val:
+            #             # window[key].update(value=checked_val)
+            #             window[key].update(value=checked_val, background_color=color)
+            #     else:
+            #         if values[key] != checked_val:
+            #             # window[key].update(value=checked_val)
+            #             window[key].update(background_color=color)
+
+            # # Testing the function
+            # lst = ['apple', 'banana', 'cherry', 'apple', 'cherry', 'banana', 'apple']
+            # value = 'cherry'
+            # indices = find_indices(lst, value)
+            # print(indices)  # Expected output: [0, 3, 6]
+
+            # # try to focus next element
             # print('try to set focus after this')
             # elements = [window[key] for key in verify_int_params.keys()]
             # for element in elements:
             #     print(element)
+            # next_element =next_element.get_previous_focus()
+
+            # next_element = window[event].get_next_focus()
             # next_element.set_focus()
+            # skip_next = True
             # print(event)
             # window[event].set_focus()
-            # event, window = window.read()
+            # event, values = window.read()
             # print('event na figure hooplijk: ', event)
-
-            # for key in verify_int_params.keys():
-            #     checked_val = verify_type_step_min_max(key, values[key])
-            #     if not key == 'frequency_of_pulses':
-            #         if values[key] != checked_val:
-            #             window[key].update(value=checked_val)
 
         # replot
         elif event == "Reload":
