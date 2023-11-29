@@ -328,17 +328,20 @@ gain_button_matrix = [
 reference_frame = sg.Frame(
     "Reference selection",
     reference_button_matrix,
+    expand_x=True,
 )
 
 gain_frame = sg.Frame(
     "Gain selection", gain_button_matrix, expand_x=True, vertical_alignment="bottom"
 )
 
-update_button = sg.Button("Update ViperBox", key="update_viperbox_settings")
+update_button = sg.Button("Update ViperBox", key="upload_recording_settings")
 
 recording_settings_frame = sg.Frame(
     "Recording settings",
     [[reference_frame], [gain_frame], [update_button]],
+    expand_x=True,
+    # expand_y=True,
 )
 
 
@@ -445,7 +448,7 @@ log_frame = sg.Frame(
             )
         ],
     ],
-    size=(400, 150),
+    size=(420, 200),
     expand_y=True,
     expand_x=True,
 )
@@ -1020,8 +1023,6 @@ SetLED(window, "led_rec", False)
 print(f"Setting up with no_box = {no_box} and emulated = {emulated}")
 VB = ViperBoxControl(no_box=no_box, emulated=emulated)
 
-# SetLED(window, "led_connect_hardware", VB._connected_handle)
-# SetLED(window, "led_connect_BS", VB._connected_BS)
 SetLED(window, "led_connect_probe", VB._connected_probe)
 
 fig = generate_plot()
@@ -1052,6 +1053,8 @@ if __name__ == "__main__":
             if VB._handle == "no_box":
                 logger.info("VirtualBox initialized in testing mode")
             else:
+                logger.info("Starting ViperBox initialization")
+                window["mul_log"].update(read_log_file(LOG_FILENAME))
                 VB.connect_viperbox()
                 SetLED(window, "led_connect_probe", VB._connected_probe)
         elif event == "button_disconnect":
@@ -1074,10 +1077,6 @@ if __name__ == "__main__":
                 button_color=toggle_gain_color(event, gain_switch_matrix)
             )
             gain = int(event[-1])
-        elif event == "update_viperbox_settings":
-            print("updating viperbox settings")
-            reference_electrode = get_references(reference_switch_matrix)
-            VB.update_channel_settings(reference_electrode, gain)
         elif event == "button_select_recording_folder":
             tmp_path = sg.popup_get_folder("Select recording folder")
             if tmp_path is not None:
@@ -1085,6 +1084,35 @@ if __name__ == "__main__":
                 window["current_folder"].update(
                     f"Saving in {basename(recording_folder_path)}"
                 )
+        elif event == "button_rec":
+            SetLED(window, "led_rec", None)
+            VB.set_file_path(recording_folder_path, values["input_filename"])
+            VB.control_rec_setup()
+            if values["checkbox_rec_wo_stim"]:
+                VB.control_rec_start()
+                start_eo_acquire()
+        elif event == "button_stim":
+            pulse_shape, pulse_train, pulse_sweep = load_parameter_dicts(values)
+            electrode_list = get_electrodes(electrode_switch_matrix)
+            viperbox = ViperBoxConfiguration(0)
+            config = ConfigurationParameters(
+                pulse_shape, pulse_train, viperbox, pulse_sweep, electrode_list
+            )
+            VB.update_config(config)
+            if manual_stim:
+                VB.control_send_parameters(electrode_list=electrode_list)
+                VB.stimulation_trigger()
+                start_eo_acquire()
+            else:
+                VB.stim_sweep()
+                start_eo_acquire()
+        elif event == "button_stop":
+            SetLED(window, "led_rec", False)
+            VB.control_rec_stop()
+        elif event == "upload_recording_settings":
+            print("updating viperbox settings")
+            reference_electrode = get_references(reference_switch_matrix)
+            VB.update_channel_settings(reference_electrode, gain)
         # elif event == "button_select_settings_folder":
         #     tmp_path = sg.popup_get_folder("Select settings folder")
         #     if tmp_path is not None:
@@ -1103,79 +1131,76 @@ if __name__ == "__main__":
         #     manual_stim = not manual_stim
         #     window["key_parameter_sweep"].update(visible=not manual_stim)
         #     window["pulse_shape_col_el_frame"].update(visible=manual_stim)
-        elif event == "button_rec":
-            SetLED(window, "led_rec", None)
-            VB.set_file_path(recording_folder_path, values["input_filename"])
-            VB.control_rec_setup()
-            if values["checkbox_rec_wo_stim"]:
-                VB.control_rec_start()
-                start_eo_acquire()
-            else:
-                pulse_shape, pulse_train, pulse_sweep = load_parameter_dicts(values)
-                electrode_list = get_electrodes(electrode_switch_matrix)
-                viperbox = ViperBoxConfiguration(0)
-                config = ConfigurationParameters(
-                    pulse_shape, pulse_train, viperbox, pulse_sweep, electrode_list
-                )
-                VB.update_config(config)
-                if manual_stim:
-                    VB.control_send_parameters(electrode_list=electrode_list)
-                    VB.stimulation_trigger()
-                    start_eo_acquire()
-                else:
-                    VB.stim_sweep()
-                    start_eo_acquire()
-        elif event == "button_stop":
-            SetLED(window, "led_rec", False)
-            VB.control_rec_stop()
+        # elif event == "button_rec":
+        #     SetLED(window, "led_rec", None)
+        #     VB.set_file_path(recording_folder_path, values["input_filename"])
+        #     VB.control_rec_setup()
+        #     if values["checkbox_rec_wo_stim"]:
+        #         VB.control_rec_start()
+        #         start_eo_acquire()
+        #     else:
+        #         pulse_shape, pulse_train, pulse_sweep = load_parameter_dicts(values)
+        #         electrode_list = get_electrodes(electrode_switch_matrix)
+        #         viperbox = ViperBoxConfiguration(0)
+        #         config = ConfigurationParameters(
+        #             pulse_shape, pulse_train, viperbox, pulse_sweep, electrode_list
+        #         )
+        #         VB.update_config(config)
+        #         if manual_stim:
+        #             VB.control_send_parameters(electrode_list=electrode_list)
+        #             VB.stimulation_trigger()
+        #             start_eo_acquire()
+        #         else:
+        #             VB.stim_sweep()
+        #             start_eo_acquire()
         # Edit user settings
-        elif event == "button_save_set":
-            electrode_list = get_electrodes(electrode_switch_matrix, True)
-            values["electrode_list"] = get_electrodes(electrode_switch_matrix, True)
-            save_settings(settings_folder_path, values["input_set_name"], values)
-            update_settings_listbox(settings_folder_path)
-        elif event == "button_load_set":
-            if selected_user_setting:
-                loaded_settings = read_saved_settings(
-                    settings_folder_path, selected_user_setting
-                )
-                for setting in loaded_settings.keys():
-                    if setting != "electrode_list":
-                        window[setting].update(loaded_settings[setting])
-                electrode_switch_matrix = set_reference_matrix(
-                    loaded_settings["electrode_list"]
-                )
-                [
-                    window[f"el_button_{button+1}"].update(button_color="light gray")
-                    for button in range(MAX_ROWS * MAX_COL)
-                ]
-                [
-                    window[f"el_button_{electrode}"].update(button_color="red")
-                    for electrode in loaded_settings["electrode_list"]
-                ]
-        elif event == "button_del_set":
-            answer = sg.popup_ok_cancel(
-                "This action cannot be undone.\n\n If you want to delete multiple"
-                + " settings, please do so through the file browser."
-            )
-            if answer == "OK":
-                Path.unlink(
-                    Path.joinpath(
-                        Path(settings_folder_path), selected_user_setting + ".cfg"
-                    )
-                )
-                update_settings_listbox(settings_folder_path)
-        # Filter and select user settings
-        elif event == "input_filter_name":
-            if values["input_filter_name"] != "":
-                search = values["input_filter_name"]
-                new_values = [x for x in settings_list if search in x]
-                window["listbox_settings"].update(new_values)
-            else:
-                window["listbox_settings"].update(settings_list)
-        elif event == "listbox_settings":
-            if values["listbox_settings"]:
-                selected_user_setting = values["listbox_settings"][0]
+        # elif event == "button_save_set":
+        #     electrode_list = get_electrodes(electrode_switch_matrix, True)
+        #     values["electrode_list"] = get_electrodes(electrode_switch_matrix, True)
+        #     save_settings(settings_folder_path, values["input_set_name"], values)
+        #     update_settings_listbox(settings_folder_path)
+        # elif event == "button_load_set":
+        #     if selected_user_setting:
+        #         loaded_settings = read_saved_settings(
+        #             settings_folder_path, selected_user_setting
+        #         )
+        #         for setting in loaded_settings.keys():
+        #             if setting != "electrode_list":
+        #                 window[setting].update(loaded_settings[setting])
+        #         electrode_switch_matrix = set_reference_matrix(
+        #             loaded_settings["electrode_list"]
+        #         )
+        #         [
+        #             window[f"el_button_{button+1}"].update(button_color="light gray")
+        #             for button in range(MAX_ROWS * MAX_COL)
+        #         ]
+        #         [
+        #             window[f"el_button_{electrode}"].update(button_color="red")
+        #             for electrode in loaded_settings["electrode_list"]
+        #         ]
+        # elif event == "button_del_set":
+        #     answer = sg.popup_ok_cancel(
+        #         "This action cannot be undone.\n\n If you want to delete multiple"
+        #         + " settings, please do so through the file browser."
+        #     )
+        #     if answer == "OK":
+        #         Path.unlink(
+        #             Path.joinpath(
+        #                 Path(settings_folder_path), selected_user_setting + ".cfg"
+        #             )
+        #         )
+        #         update_settings_listbox(settings_folder_path)
+        # # Filter and select user settings
+        # elif event == "input_filter_name":
+        #     if values["input_filter_name"] != "":
+        #         search = values["input_filter_name"]
+        #         new_values = [x for x in settings_list if search in x]
+        #         window["listbox_settings"].update(new_values)
+        #     else:
+        #         window["listbox_settings"].update(settings_list)
+        # elif event == "listbox_settings":
+        #     if values["listbox_settings"]:
+        #         selected_user_setting = values["listbox_settings"][0]
         # make all values ints
         # check pulse parameters
         elif event == "pulse_amplitude_equal":
