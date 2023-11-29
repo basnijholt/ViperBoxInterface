@@ -74,45 +74,6 @@ logging.getLogger("matplotlib.font_manager").setLevel(logging.CRITICAL)
 
 sg.theme("SystemDefaultForReal")
 
-toggle_btn_off = b"iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAABmJLR0QA/wD/AP+gvaeT\
-    AAAED0lEQVRYCe1WTWwbRRR+M/vnv9hO7BjHpElMKSlpqBp6gRNHxAFVcKM3qgohQSqoqhQ45YAILUUVDRx\
-    Aor2VAweohMSBG5ciodJUSVqa/iikaePEP4nj2Ovdnd1l3qqJksZGXscVPaylt7Oe/d6bb9/svO8BeD8vA1\
-    4GvAx4GXiiM0DqsXv3xBcJU5IO+RXpLQvs5yzTijBmhurh3cyLorBGBVokQG9qVe0HgwiXLowdy9aKsY3g8\
-    PA5xYiQEUrsk93JTtjd1x3siIZBkSWQudUK4nZO1w3QuOWXV+HuP/fL85klAJuMCUX7zPj4MW1zvC0Ej4yM\
-    p/w++K2rM9b70sHBYCjo34x9bPelsgp/XJksZ7KFuwZjr3732YcL64ttEDw6cq5bVuCvgy/sje7rT0sI8Pt\
-    kSHSEIRIKgCQKOAUGM6G4VoGlwiqoVd2Za9Vl8u87bGJqpqBqZOj86eEHGNch+M7otwHJNq4NDexJD+59Ri\
-    CEQG8qzslFgN8ibpvZNsBifgXmFvJg459tiOYmOElzYvr2bbmkD509e1ylGEZk1Y+Ssfan18n1p7vgqVh9c\
-    uiDxJPxKPT3dfGXcN4Tp3dsg/27hUQs0qMGpRMYjLz38dcxS7Dm3nztlUAb38p0d4JnLozPGrbFfBFm79c8\
-    hA3H2AxcXSvDz7/+XtZE1kMN23hjV7LTRnKBh9/cZnAj94mOCOD32gi2EUw4FIRUMm6LGhyiik86nO5NBdG\
-    RpxYH14bbjYfJteN/OKR7UiFZVg5T27QHYu0RBxoONV9W8KQ7QVp0iXdE8fANUGZa0QAvfhhXlkQcmjJZbt\
-    631oIBnwKmacYoEJvwiuFgWncWnXAtuVBBEAoVVXWCaQZzxmYuut68b631KmoVBEHMUUrJjQLXRAQVSxUcm\
-    rKVHfjWWjC3XOT1FW5QrWpc5IJdQhDKVzOigEqS5dKHMVplnNOqrmsXqUSkn+YzWaHE9RW1FeXL7SKZXBFU\
-    rXW6jIV6YTEvMAUu0W/G3kcxPXP5ylQZs4fa6marcWvvZfJu36kuHjlc/nMSuXz+/ejxgqPFpuQ/xVude9e\
-    u39Jxu27OLvBGoMjrUN04zrNMbgVmOBZ96iPdPZmYntH5Ls76KuxL9NyoLA/brav7n382emDfHqeooXyhQm\
-    ARVhSnAwNNMx5bu3V1+habun5nWdXhwJZ2C5mirTesyUR738sv7g88UQ0rEkTDlp+1wwe8Pf0klegUenYlg\
-    yg7bby75jUTITs2rhCAXXQ2vwxz84vlB0tZ0wL4NEcLX/04OrrltG1s8aOrHhk51SaK0us+n/K2xexBxljc\
-    sm1n6x/Fuv1PCWGiKOaoQCY1Vb9gWPov50+fdEqd21ge3suAlwEvA14G/ucM/AuppqNllLGPKwAAAABJRU5\
-    ErkJggg=="
-toggle_btn_on = b"iVBORw0KGgoAAAANSUhEUgAAACgAAAAoCAYAAACM/rhtAAAABmJLR0QA/wD/AP+gvaeTA\
-    AAD+UlEQVRYCe1XzW8bVRCffbvrtbP+2NhOD7GzLm1VoZaPhvwDnKBUKlVyqAQ3/gAkDlWgPeVQEUCtEOIP\
-    4AaHSI0CqBWCQyXOdQuRaEFOk3g3IMWO46+tvZ+PeZs6apq4ipON1MNafrvreTPzfvub92bGAOEnZCBkIGQ\
-    gZOClZoDrh25y5pdjruleEiX+A+rCaQo05bpuvJ/+IHJCSJtwpAHA/e269g8W5RbuzF6o7OVjF8D3Pr4tSS\
-    kyjcqfptPDMDKSleW4DKIggIAD5Yf+Oo4DNg6jbUBlvWLUNutAwZu1GnDjzrcXzGcX2AHw/emFUV6Sfk0pq\
-    cKpEydkKSo9q3tkz91uF5aWlo1Gs/mYc+i7tz4//19vsW2AU9O381TiioVCQcnlRsWeQhD3bJyH1/MiFLIC\
-    yBHiuzQsD1arDvypW7DR9nzZmq47q2W95prm+I9fXfqXCX2AF2d+GhI98Y8xVX0lnxvl2UQQg0csb78ag3N\
-    jEeD8lXZ7pRTgftmCu4864OGzrq+5ZU0rCa3m+NzXlzvoAoB3+M+SyWQuaHBTEzKMq/3BMbgM+FuFCDBd9k\
-    K5XI5PJBKqLSev+POTV29lKB8rT0yMD0WjUSYLZLxzNgZvIHODOHuATP72Vwc6nQ4Uiw8MUeBU4nHS5HA6T\
-    YMEl02wPRcZBJuv+ya+UCZOIBaLwfCwQi1Mc4QXhA+PjWRkXyOgC1uIhW5Qd8yG2TK7kSweLcRGKKVnMNEx\
-    WWBDTQsH9qVmtmzjiThQDs4Qz/OUSGTwcLwIQTLW58i+yOjpXDLqn1tgmDzXzRCk9eDenjo9yhvBmlizrB3\
-    V5dDrNTuY0A7opdndStqmaQLPC1WCGfShYRgHdLe32UrV3ntiH9LliuNrsToNlD4kruN8v75eafnSgC6Luo\
-    2+B3fGKskilj5muV6pNhk2Qqg5v7lZ51nBZhNBjGrbxfI1+La5t2JCzfD8RF1HTBGJXyDzs1MblONulEqPD\
-    VYXgwDIfNx91IUVbAbY837GMur+/k/XZ75UWmJ77ou5mfM1/0x7vP1ls9XQdF2z9uNsPzosXPNFA5m0/EX7\
-    2TBSiqsWzN8z/GZB08pWq9VeEZ+0bjKb7RTD2i1P4u6r+bwypo5tZUumEcDAmuC3W8ezIqSGfE6g/sTd1W5\
-    p5bKjaWubrmWd29Fu9TD0GlYlmTx+8tTJoZeqYe2BZC1/JEU+wQR5TVEUPptJy3Fs+Vkzgf8lemqHumP1An\
-    YoMZSwsVEz6o26i/G9Lgitb+ZmLu/YZtshfn5FZDPBCcJFQRQ+8ih9DctOFvdLIKHH6uUQnq9yhFu0bec7z\
-    nZ+xpAGmuqef5/wd8hAyEDIQMjAETHwP7nQl2WnYk4yAAAAAElFTkSuQmCC"
-
-
 def start_eo_acquire(start_oe=False):
     try:
         r = requests.get("http://localhost:37497/api/status")
@@ -151,7 +112,7 @@ def empty_socket():
 
 stop_threads = False
 threading.Thread(target=empty_socket).start()
-threading.Thread(target=start_eo_acquire, args=(True,)).start()
+# threading.Thread(target=start_eo_acquire, args=(True,)).start()
 print("EO started")
 
 
@@ -258,7 +219,7 @@ plot_frame = sg.Frame(
         [sg.Canvas(key="-CANVAS-")],
         [sg.Button("Reload")],
     ],
-    size=(420,360),
+    size=(420, 360),
     visible=visibility_swap,
 )
 
@@ -266,10 +227,10 @@ plot_frame = sg.Frame(
 # CF: VIPERBOX CONTROL FRAME
 
 viperbox_control_frame = sg.Frame(
-    "Viperbox Connection",
+    "Viperbox connection",
     [
         [
-            sg.Text("Probe connection", size=(15, 0)),
+            sg.Text("ASIC initialization", size=(15, 0)),
             LEDIndicator("led_connect_probe"),
             sg.Button("Reconnect", key="button_connect"),
             sg.Button("Disconnect", key="button_disconnect"),
@@ -278,7 +239,7 @@ viperbox_control_frame = sg.Frame(
 )
 
 viperbox_recording_settings_frame = sg.Frame(
-    "Recording control",
+    "ViperBox control",
     [
         [
             sg.Text("Subject"),
@@ -297,7 +258,8 @@ viperbox_recording_settings_frame = sg.Frame(
         #     sg.Text("Current amplitude sweep"),
         # ],
         [
-            sg.Button("Start", size=(10, 1), key="button_start"),
+            sg.Button("Start", size=(10, 1), key="button_rec"),
+            sg.Button("Stimulate", size=(10, 1), key="button_stim"),
             sg.Button("Stop", size=(10, 1), key="button_stop"),
             sg.Checkbox(
                 "Record without stimulation",
@@ -483,7 +445,7 @@ log_frame = sg.Frame(
             )
         ],
     ],
-    # size=(400, 280),
+    size=(400, 150),
     expand_y=True,
     expand_x=True,
 )
@@ -494,50 +456,50 @@ log_frame = sg.Frame(
 unit_h, unit_w = (4, 1)
 inpsize_w, inpsize_h = (10, 1)
 
-stimulation_settings = sg.Frame(
-    "Pre-load settings",
-    [
-        [
-            sg.Button(
-                "Select settings folder",
-                key="button_select_settings_folder",
-                expand_x=True,
-            )
-        ],
-        [
-            sg.Text("Filter:"),
-            sg.Input(
-                "",
-                size=(15, 1),
-                key="input_filter_name",
-                # enable_events=True,
-                expand_x=True,
-            ),
-        ],
-        [
-            sg.Listbox(
-                size=(10, 6),
-                key="listbox_settings",
-                expand_y=True,
-                expand_x=True,
-                values=settings_list,
-                enable_events=True,
-            ),
-        ],
-        [
-            sg.Button("Save settings", size=(10, 1), key="button_save_set"),
-            sg.Input("sett_name", size=(15, 1), key="input_set_name"),
-        ],
-        [
-            sg.Button("Load", size=(10, 1), key="button_load_set"),
-            sg.Button("Delete", size=(10, 1), key="button_del_set"),
-        ],
-    ],
-    expand_x=True,
-    expand_y=True,
-    vertical_alignment="t",
-    visible=True,
-)
+# stimulation_settings = sg.Frame(
+#     "Pre-load settings",
+#     [
+#         [
+#             sg.Button(
+#                 "Select settings folder",
+#                 key="button_select_settings_folder",
+#                 expand_x=True,
+#             )
+#         ],
+#         [
+#             sg.Text("Filter:"),
+#             sg.Input(
+#                 "",
+#                 size=(15, 1),
+#                 key="input_filter_name",
+#                 # enable_events=True,
+#                 expand_x=True,
+#             ),
+#         ],
+#         [
+#             sg.Listbox(
+#                 size=(10, 6),
+#                 key="listbox_settings",
+#                 expand_y=True,
+#                 expand_x=True,
+#                 values=settings_list,
+#                 enable_events=True,
+#             ),
+#         ],
+#         [
+#             sg.Button("Save settings", size=(10, 1), key="button_save_set"),
+#             sg.Input("sett_name", size=(15, 1), key="input_set_name"),
+#         ],
+#         [
+#             sg.Button("Load", size=(10, 1), key="button_load_set"),
+#             sg.Button("Delete", size=(10, 1), key="button_del_set"),
+#         ],
+#     ],
+#     expand_x=True,
+#     expand_y=True,
+#     vertical_alignment="t",
+#     visible=False,
+# )
 
 
 def save_settings(location, filename, settings):
@@ -557,8 +519,8 @@ def save_settings(location, filename, settings):
             "input_filename",
             "led_rec",
             "checkbox_rec_wo_stim",
-            "input_filter_name",
-            "listbox_settings",
+            # "input_filter_name",
+            # "listbox_settings",
             "input_set_name",
             "-CANVAS-",
             "mul_log",
@@ -581,8 +543,9 @@ def load_settings_folder(location):
 
 
 def update_settings_listbox(settings_folder_path):
-    settings_list = load_settings_folder(settings_folder_path)
-    window["listbox_settings"].update(settings_list)
+    # settings_list = load_settings_folder(settings_folder_path)
+    # window["listbox_settings"].update(settings_list)
+    pass
 
 
 # ------------------------------------------------------------------
@@ -842,17 +805,21 @@ col_settings = sg.Column(
     [
         [viperbox_control_frame],
         [viperbox_recording_settings_frame],
-        [stimulation_settings],
+        [recording_settings_frame],
+        # [stimulation_settings],
     ],
     k="col_settings",
     vertical_alignment="t",
+    expand_y=True,
 )
+
 col_el_frame = sg.Column(
     [[electrode_frame]],
     k="col_el_frame",
     expand_y=True,
     visible=visibility_swap,
 )
+
 col_params = sg.Column(
     [[pulse_shape_frame], [pulse_train_frame], [parameter_sweep]],
     k="col_params",
@@ -867,22 +834,27 @@ col_log = sg.Column(
 layout += [
     [
         col_settings,
-        sg.TabGroup(
-            [
-                [
-                    sg.Tab(
-                        "Log",
-                        [[col_log]],
-                    ),
-                    sg.Tab("Recording settings", [[recording_settings_frame]]),
-                    sg.Tab(
-                        "Stimulation settings",
-                        [[col_el_frame, col_params, col_plot]],
-                    ),
-                ]
-            ],
+        sg.Frame(
+            "Stimulation settings",
+            [[col_el_frame, col_params, col_plot]],
         ),
-    ]
+        # sg.TabGroup(
+        #     [
+        #         [
+        #             sg.Tab(
+        #                 "Log",
+        #                 [[col_log]],
+        #             ),
+        #             sg.Tab("Recording settings", [[recording_settings_frame]]),
+        #             sg.Tab(
+        #                 "Stimulation settings",
+        #                 [[col_el_frame, col_params, col_plot]],
+        #             ),
+        #         ]
+        #     ],
+        # ),
+    ],
+    [col_log],
 ]
 
 
@@ -1081,13 +1053,9 @@ if __name__ == "__main__":
                 logger.info("VirtualBox initialized in testing mode")
             else:
                 VB.connect_viperbox()
-                # SetLED(window, "led_connect_hardware", VB._connected_handle)
-                # SetLED(window, "led_connect_BS", VB._connected_BS)
                 SetLED(window, "led_connect_probe", VB._connected_probe)
         elif event == "button_disconnect":
             VB.disconnect_viperbox()
-            # SetLED(window, "led_connect_hardware", VB._connected_handle)
-            # SetLED(window, "led_connect_BS", VB._connected_BS)
             SetLED(window, "led_connect_probe", VB._connected_probe)
         elif event[:3] == "el_":
             window[event].update(
@@ -1117,25 +1085,25 @@ if __name__ == "__main__":
                 window["current_folder"].update(
                     f"Saving in {basename(recording_folder_path)}"
                 )
-        elif event == "button_select_settings_folder":
-            tmp_path = sg.popup_get_folder("Select settings folder")
-            if tmp_path is not None:
-                settings_folder_path = tmp_path
-                settings_list = load_settings_folder(settings_folder_path)
-                update_settings_listbox(settings_folder_path)
-        elif event == "button_toggle_stim":
-            window["button_toggle_stim"].metadata = not window[
-                "button_toggle_stim"
-            ].metadata
-            window["button_toggle_stim"].update(
-                image_data=toggle_btn_on
-                if window["button_toggle_stim"].metadata
-                else toggle_btn_off
-            )
-            manual_stim = not manual_stim
-            window["key_parameter_sweep"].update(visible=not manual_stim)
-            window["pulse_shape_col_el_frame"].update(visible=manual_stim)
-        elif event == "button_start":
+        # elif event == "button_select_settings_folder":
+        #     tmp_path = sg.popup_get_folder("Select settings folder")
+        #     if tmp_path is not None:
+        #         settings_folder_path = tmp_path
+        #         settings_list = load_settings_folder(settings_folder_path)
+        #         update_settings_listbox(settings_folder_path)
+        # elif event == "button_toggle_stim":
+        #     window["button_toggle_stim"].metadata = not window[
+        #         "button_toggle_stim"
+        #     ].metadata
+        #     window["button_toggle_stim"].update(
+        #         image_data=toggle_btn_on
+        #         if window["button_toggle_stim"].metadata
+        #         else toggle_btn_off
+        #     )
+        #     manual_stim = not manual_stim
+        #     window["key_parameter_sweep"].update(visible=not manual_stim)
+        #     window["pulse_shape_col_el_frame"].update(visible=manual_stim)
+        elif event == "button_rec":
             SetLED(window, "led_rec", None)
             VB.set_file_path(recording_folder_path, values["input_filename"])
             VB.control_rec_setup()
