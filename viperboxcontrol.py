@@ -72,7 +72,7 @@ class ViperBoxControl:
         self.emulated: bool = emulated
 
         self.reference_electrode = (256,)
-        self.gain = (3,)
+        self.gain = 0
 
         if no_box:
             self._handle = "no_box"
@@ -277,7 +277,6 @@ class ViperBoxControl:
             )
             NVP.setGain(self._handle, self._probe, channel, self.gain)
             NVP.setAZ(self._handle, self._probe, channel, True)
-
         NVP.writeChannelConfiguration(self._handle, self._probe, False)
         return True
 
@@ -285,7 +284,6 @@ class ViperBoxControl:
         self,
         reference_electrode: Optional[int] = 511,
         gain: Optional[int] = 3,
-        electrode_mapping: Optional[bytes] = None,
         metadata_stream: Optional[List[Any]] = None,
     ) -> bool:
         """

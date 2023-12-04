@@ -51,7 +51,7 @@ from typing import List, Tuple
 import logging
 
 # logging.basicConfig(level=logging.INFO)
-logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+# logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 

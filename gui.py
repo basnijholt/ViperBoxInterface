@@ -30,7 +30,7 @@ import time
 import socket
 import subprocess
 
-no_box, emulated = True, True
+no_box, emulated = False, False
 visibility_swap = True
 
 batch_script_path = os.getcwd() + "\\update.bat"
@@ -74,6 +74,7 @@ logging.getLogger("matplotlib.font_manager").setLevel(logging.CRITICAL)
 
 sg.theme("SystemDefaultForReal")
 
+
 def start_eo_acquire(start_oe=False):
     try:
         r = requests.get("http://localhost:37497/api/status")
@@ -108,12 +109,6 @@ def empty_socket():
         time.sleep(0.1)
         if stop_threads:
             break
-
-
-stop_threads = False
-threading.Thread(target=empty_socket).start()
-# threading.Thread(target=start_eo_acquire, args=(True,)).start()
-print("EO started")
 
 
 def LEDIndicator(key=None, radius=15):
@@ -230,12 +225,13 @@ viperbox_control_frame = sg.Frame(
     "Viperbox connection",
     [
         [
-            sg.Text("ASIC initialization", size=(15, 0)),
+            sg.Text("ASIC initialization", size=(10, 0)),
             LEDIndicator("led_connect_probe"),
             sg.Button("Reconnect", key="button_connect"),
             sg.Button("Disconnect", key="button_disconnect"),
         ],
     ],
+    expand_x=True
 )
 
 viperbox_recording_settings_frame = sg.Frame(
@@ -258,8 +254,7 @@ viperbox_recording_settings_frame = sg.Frame(
         #     sg.Text("Current amplitude sweep"),
         # ],
         [
-            sg.Button("Start", size=(10, 1), key="button_rec"),
-            sg.Button("Stimulate", size=(10, 1), key="button_stim"),
+            sg.Button("Start", size=(10, 1), key="button_rec", disabled=False),
             sg.Button("Stop", size=(10, 1), key="button_stop"),
             sg.Checkbox(
                 "Record without stimulation",
@@ -272,7 +267,16 @@ viperbox_recording_settings_frame = sg.Frame(
             sg.Text("Recording status:"),
             LEDIndicator("led_rec"),
         ],
+        [
+            sg.Button("Stimulate", size=(10, 1), key="button_stim", disabled=False),
+        ],
     ],
+    expand_x=True,
+)
+
+open_ephys_frame = sg.Frame(
+    "Open ephys data viewer",
+    [[sg.Button("Start Open Ephys", key="button_start_oe")]],
     expand_x=True,
 )
 
@@ -286,9 +290,10 @@ reference_button_matrix = [
     sg.Button(
         f"{i+1}",
         size=(2, 1),
-        key=(f"reference_{i+1}"),
+        key=(f"reference_{i}"),
         pad=(1, 1),
         button_color="light gray",
+        disabled=False,
     )
     for i in range(ref_MAX_COL)
 ]
@@ -296,9 +301,10 @@ reference_button_matrix.append(
     sg.Button(
         "B",
         size=(10, 1),
-        key=(f"reference_{9}"),
+        key=(f"reference_{8}"),
         pad=(1, 1),
         button_color="red",
+        disabled=False,
     )
 )
 reference_button_matrix = [reference_button_matrix]
@@ -306,6 +312,7 @@ reference_button_matrix = [reference_button_matrix]
 gain_MAX_COL = 4
 gain_switch_matrix = ["off" for _ in range(gain_MAX_COL)]
 gain_switch_matrix[0] = "on"
+gain = 0
 gain_dict = {
     "x60": 0,
     "x16": 1,
@@ -320,6 +327,7 @@ gain_button_matrix = [
             key=(f"gain_{j}"),
             pad=(1, 1),
             button_color="red" if i == "x60" else "light gray",
+            disabled=False,
         )
         for i, j in gain_dict.items()
     ]
@@ -335,24 +343,43 @@ gain_frame = sg.Frame(
     "Gain selection", gain_button_matrix, expand_x=True, vertical_alignment="bottom"
 )
 
-update_button = sg.Button("Update ViperBox", key="upload_recording_settings")
+upload_rec_button = sg.Button(
+    "Recording settings", key="upload_recording_settings", disabled=False
+)
+
+upload_stim_button = sg.Button(
+    "Stimulation settings", key="upload_stimulation_settings", disabled=False
+)
 
 recording_settings_frame = sg.Frame(
     "Recording settings",
-    [[reference_frame], [gain_frame], [update_button]],
+    [[reference_frame], [gain_frame],],
     expand_x=True,
     # expand_y=True,
 )
 
+upload_settings_frame = sg.Frame(
+    "Upload settings to ViperBox", [[upload_rec_button, upload_stim_button]], expand_x=True
+)
+
 
 def toggle_1d_color(event, reference_switch_matrix):
-    row = int(event[-1]) - 1
+    row = int(event[-1])
+    print(reference_switch_matrix)
 
     if reference_switch_matrix[row] == "off":
         reference_switch_matrix[row] = "on"
         return "red"
     else:
         reference_switch_matrix[row] = "off"
+        print(
+            "reference_switch_matrix.count('off') :",
+            reference_switch_matrix.count("off"),
+        )
+        if reference_switch_matrix.count("off") == 9:
+            logger.warning("At least one reference needs to be selected.")
+            reference_switch_matrix[row] = "on"
+            return "red"
         return "light gray"
 
 
@@ -368,7 +395,11 @@ def get_references(reference_switch_matrix):
     bin_input_list = "".join(
         ["1" if item == "on" else "0" for item in reference_switch_matrix]
     )
-    return int(bin_input_list, 2)
+    ref_integer = int(bin_input_list, 2)
+    # if ref_integer == 0:
+    #     logger.warning("At least one reference needs to be selected.")
+    #     asdfasdf
+    return ref_integer
 
 
 # ------------------------------------------------------------------
@@ -377,7 +408,7 @@ def get_references(reference_switch_matrix):
 MAX_ROWS = 15
 MAX_COL = 4
 
-electrode_switch_matrix = [["off" for i in range(MAX_COL)] for j in range(MAX_ROWS)]
+electrode_switch_matrix = [["on" for i in range(MAX_COL)] for j in range(MAX_ROWS)]
 electrode_button_matrix = [
     [
         sg.Button(
@@ -385,7 +416,7 @@ electrode_button_matrix = [
             size=(2, 1),
             key=(f"el_button_{i*MAX_ROWS+j+1}"),
             pad=(10, 1),
-            button_color="light gray",
+            button_color="red",
         )
         for i in range(MAX_COL)
     ]
@@ -807,8 +838,10 @@ layout = [[sg.Menu(menu_def, key="-MENU-", tearoff=False)]]
 col_settings = sg.Column(
     [
         [viperbox_control_frame],
+        [upload_settings_frame],
         [viperbox_recording_settings_frame],
         [recording_settings_frame],
+        [open_ephys_frame],
         # [stimulation_settings],
     ],
     k="col_settings",
@@ -829,7 +862,9 @@ col_params = sg.Column(
     vertical_alignment="t",
     visible=visibility_swap,
 )
-col_plot = sg.Column([[plot_frame]], k="col_plot", vertical_alignment="t")
+col_plot = sg.Column(
+    [[plot_frame],], k="col_plot", vertical_alignment="t"
+)
 col_log = sg.Column(
     [[log_frame]], k="col_log", vertical_alignment="t", expand_x=True, expand_y=True
 )
@@ -963,6 +998,14 @@ pulse_sum_list = [
     "discharge_time",
 ]
 
+disable_rec_elements = [
+    "button_rec",
+    "upload_recording_settings",
+    "upload_stimulation_settings",
+]
+# disable_rec_elements.extend([f"reference_{i}" for i in range(9)])
+# disable_rec_elements.extend([f"gain_{i}" for i in range(4)])
+
 
 def verify_duration(values):
     sum_pulses = (
@@ -1036,8 +1079,7 @@ for element in elements:
     element.bind("<FocusOut>", "+FOCUS OUT")
 
 window["mul_log"].update(read_log_file(LOG_FILENAME))
-last_event = ""
-gain = None
+# last_event = ""
 
 # ------------------------------------------------------------------
 # CF: MAIN
@@ -1057,9 +1099,25 @@ if __name__ == "__main__":
                 window["mul_log"].update(read_log_file(LOG_FILENAME))
                 VB.connect_viperbox()
                 SetLED(window, "led_connect_probe", VB._connected_probe)
+                # Upload recording settings
+                VB.control_rec_setup()
+                # Upload stimulation settings
+                pulse_shape, pulse_train, pulse_sweep = load_parameter_dicts(values)
+                electrode_list = get_electrodes(electrode_switch_matrix)
+                viperbox = ViperBoxConfiguration(0)
+                config = ConfigurationParameters(
+                    pulse_shape, pulse_train, viperbox, pulse_sweep, electrode_list
+                )
+            VB.update_config(config)
+            VB.control_send_parameters(electrode_list=electrode_list)
         elif event == "button_disconnect":
             VB.disconnect_viperbox()
             SetLED(window, "led_connect_probe", VB._connected_probe)
+        elif event == "button_start_oe":
+            logger.info("Starting Open Ephys")
+            stop_threads = False
+            threading.Thread(target=empty_socket).start()
+            threading.Thread(target=start_eo_acquire, args=(True,)).start()
         elif event[:3] == "el_":
             window[event].update(
                 button_color=toggle_2d_color(event, electrode_switch_matrix)
@@ -1085,13 +1143,34 @@ if __name__ == "__main__":
                     f"Saving in {basename(recording_folder_path)}"
                 )
         elif event == "button_rec":
+            for element in disable_rec_elements:
+                window[element].update(disabled=True)
+            start_eo_acquire()
             SetLED(window, "led_rec", None)
+            disable_rec_only = True
             VB.set_file_path(recording_folder_path, values["input_filename"])
             VB.control_rec_setup()
-            if values["checkbox_rec_wo_stim"]:
-                VB.control_rec_start()
-                start_eo_acquire()
+            VB.control_rec_start()
         elif event == "button_stim":
+            for element in disable_rec_elements:
+                window[element].update(disabled=True)
+            print("VB.control_rec_status() ", VB.control_rec_status())
+            if not VB.control_rec_status():
+                start_eo_acquire()
+                SetLED(window, "led_rec", None)
+                VB.set_file_path(recording_folder_path, values["input_filename"])
+                VB.control_rec_setup()
+                VB.control_rec_start()
+            VB.stimulation_trigger()
+        elif event == "button_stop":
+            for element in disable_rec_elements:
+                window[element].update(disabled=False)
+            SetLED(window, "led_rec", False)
+            VB.control_rec_stop()
+        elif event == "upload_recording_settings":
+            reference_electrode = get_references(reference_switch_matrix)
+            VB.update_channel_settings(reference_electrode, gain)
+        elif event == "upload_stimulation_settings":
             pulse_shape, pulse_train, pulse_sweep = load_parameter_dicts(values)
             electrode_list = get_electrodes(electrode_switch_matrix)
             viperbox = ViperBoxConfiguration(0)
@@ -1099,20 +1178,9 @@ if __name__ == "__main__":
                 pulse_shape, pulse_train, viperbox, pulse_sweep, electrode_list
             )
             VB.update_config(config)
-            if manual_stim:
-                VB.control_send_parameters(electrode_list=electrode_list)
-                VB.stimulation_trigger()
-                start_eo_acquire()
-            else:
-                VB.stim_sweep()
-                start_eo_acquire()
-        elif event == "button_stop":
-            SetLED(window, "led_rec", False)
-            VB.control_rec_stop()
-        elif event == "upload_recording_settings":
-            print("updating viperbox settings")
-            reference_electrode = get_references(reference_switch_matrix)
-            VB.update_channel_settings(reference_electrode, gain)
+            VB.control_send_parameters(electrode_list=electrode_list)
+
+
         # elif event == "button_select_settings_folder":
         #     tmp_path = sg.popup_get_folder("Select settings folder")
         #     if tmp_path is not None:
