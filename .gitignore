@@ -35,5 +35,6 @@ Dockerfile
 
 Recordings/
 Settings/
+plantuml/
 
 deploy_viperbox_user
