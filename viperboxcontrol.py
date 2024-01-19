@@ -1,22 +1,23 @@
-from typing import List, Optional, Type, Any, Tuple
-
-import NeuraviperPy as NVP
+import ctypes
+import logging
+import os
+import socket
 import threading
 import time
-import numpy as np
-import socket
-import logging
-import ctypes
-import os
 from pathlib import Path
+from typing import Any, List, Optional, Tuple, Type
+
+import numpy as np
+
+import NeuraviperPy as NVP
 from parameters import (
     ConfigurationParameters,
+    OS2chip,
     PulseShapeParameters,
     PulseTrainParameters,
-    ViperBoxConfiguration,
     StimulationSweepParameters,
+    ViperBoxConfiguration,
     nvpelectrode2OS,
-    OS2chip,
 )
 
 # import sys
@@ -71,7 +72,7 @@ class ViperBoxControl:
         self._emulation_set: bool = False
         self.emulated: bool = emulated
 
-        self.reference_electrode = (256,)
+        self.reference_electrodes = (256,)
         self.gain = 0
 
         if no_box:
@@ -148,9 +149,10 @@ class ViperBoxControl:
                     logger.info("Handle created successfully")
                     return True
             except Exception:
-                logger.error("Error while setting up handle.", exc_info=True)
+                # logger.error(f"Error while setting up handle: {e}", exc_info=True)
                 logger.warning(
-                    "Check if probe and ViperBox are connected and switched on."
+                    "Check if probe and ViperBox are connected and switched on. "
+                    + "ViperBox error: {e}"
                 )
                 return False
         return True
@@ -165,7 +167,14 @@ class ViperBoxControl:
             except Exception as e:
                 logger.error(f"Error while setting up BS: {e}")
                 return False
-        return True
+        else:
+            logger.warning(
+                "Handle created: {self._connected_handle}.\n",
+                "Base station connected: {self._connected_BS}.\n",
+                "Emulation set: {self._emulation_set}.\n",
+                "Probe connected: {self._connected_probe}.",
+            )
+            return False
 
     def _connect_probe(self):
         if (
@@ -208,7 +217,19 @@ class ViperBoxControl:
                 logger.info("Device emulation switched off.")
                 self._emulation_set = True
                 return True
-        logger.warning("No handle found while trying to set emulation type.")
+
+        elif (
+            self._connected_handle
+            and self._connected_BS
+            and not self._emulation_set
+            and not self._connected_probe
+        ):
+            logger.warning(
+                "Handle created: {self._connected_handle}.\n",
+                "Base station connected: {self._connected_BS}.\n",
+                "Emulation set: {self._emulation_set}.\n",
+                "Probe connected: {self._connected_probe}.",
+            )
         self._emulation_set = False
         return False
 
@@ -227,9 +248,9 @@ class ViperBoxControl:
         self._recording_file_folder = folder_path
         return True
 
-    def set_file_name(self, file_name):
-        self._recording_file_name = file_name
-        return True
+    # def set_file_name(self, file_name):
+    #     self._recording_file_name = file_name
+    #     return True
 
     def set_file_path(self, folder_path, file_name):
         self._recording_file_folder = folder_path
@@ -237,32 +258,43 @@ class ViperBoxControl:
             os.makedirs(folder_path)
             logger.info(f"Created folder: {folder_path}")
         self._recording_file_name = file_name + time.strftime("_%Y%m%d_%H%M%S") + ".bin"
+        self._stimulation_file_name = (
+            "Stimulation_" + file_name + time.strftime("_%Y%m%d_%H%M%S") + ".json"
+        )
         return True
 
     @property
-    def _recording_path(self) -> Optional[str]:
+    def _full_recording_path(self) -> Optional[str]:
         """Return the combined path of the recording file location and name."""
         if self._recording_file_name and self._recording_file_folder:
             return str(Path(self._recording_file_folder) / self._recording_file_name)
         return None
 
+    @property
+    def _full_stimulation_record_path(self) -> Optional[str]:
+        """Return the combined path of the recording file location and name."""
+        if self._stimulation_file_name and self._recording_file_folder:
+            return str(Path(self._recording_file_folder) / self._stimulation_file_name)
+        return None
+
     @staticmethod
     def _currentTime() -> float:
         """Return the current time in seconds since the epoch."""
-        return time.time_ns() / (10**9)
+        # return time.time_ns() / (10**9)
+        return time.perf_counter()
 
     def update_channel_settings(
         self,
-        new_reference_electrode: Optional[int] = None,
+        new_reference_electrodes: Optional[int] = None,
         new_gain: Optional[int] = None,
     ) -> bool:
         counter = 0
         if (
-            new_reference_electrode != self.reference_electrode
-            and new_reference_electrode is not None
+            new_reference_electrodes != self.reference_electrodes
+            and new_reference_electrodes is not None
         ):
             counter += 1
-            self.reference_electrode = new_reference_electrode
+            self.reference_electrodes = new_reference_electrodes
         if new_gain != self.gain and new_gain is not None:
             counter += 1
             self.gain = new_gain
@@ -273,30 +305,57 @@ class ViperBoxControl:
         for channel in range(64):
             NVP.selectElectrode(self._handle, self._probe, channel, 0)
             NVP.setReference(
-                self._handle, self._probe, channel, self.reference_electrode
+                self._handle, self._probe, channel, self.reference_electrodes
             )
             NVP.setGain(self._handle, self._probe, channel, self.gain)
             NVP.setAZ(self._handle, self._probe, channel, True)
         NVP.writeChannelConfiguration(self._handle, self._probe, False)
+        # TODO: SAVE RECORDING SETTINGS
+
         return True
+
+    def write_recording_settings_dict(
+        start_time,
+        handle,
+        probe,
+        channel,
+        electrode,
+        reference_electrode,
+        gain,
+        AZ,
+        filename,
+        formatting_version,
+    ):
+        return {
+            "timestamp": start_time,
+            "handle": handle,
+            "probe": probe,
+            "channel": channel,
+            "electrode": electrode,
+            "reference_electrode": reference_electrode,
+            "gain": gain,
+            "AZ": AZ,
+            "filename": filename,
+            "formatting_version": formatting_version,
+        }
 
     def control_rec_setup(
         self,
-        reference_electrode: Optional[int] = 511,
+        reference_electrodes: Optional[int] = 511,
         gain: Optional[int] = 3,
         metadata_stream: Optional[List[Any]] = None,
     ) -> bool:
         """
         Handles setting recording parameters.
 
-        :param reference_electrode: (Optional) Reference electrode number.
+        :param reference_electrodes: (Optional) Reference electrode number.
         :param electrode_mapping: (Optional) Electrode mapping as bytes.
         :param metadata_stream: (Optional) Metadata stream.
         :param emulated: (Optional) Flag to set the device up in emulation mode.
 
         :return: True if setup was successful, False otherwise.
         """
-        self.reference_electrode = reference_electrode
+        self.reference_electrodes = reference_electrodes
         self.gain = gain
 
         if self._handle == "no_box":
@@ -317,11 +376,12 @@ class ViperBoxControl:
 
         for channel in range(64):
             NVP.selectElectrode(self._handle, self._probe, channel, 0)
-            NVP.setReference(self._handle, self._probe, channel, reference_electrode)
+            NVP.setReference(self._handle, self._probe, channel, reference_electrodes)
             NVP.setGain(self._handle, self._probe, channel, gain)
             NVP.setAZ(self._handle, self._probe, channel, True)
 
         NVP.writeChannelConfiguration(self._handle, self._probe, False)
+        # TODO: SAVE RECORDING SETTINGS
 
         return True
 
@@ -355,7 +415,7 @@ class ViperBoxControl:
             socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL
         )
         time.sleep(0.1)
-        self._read_handle = NVP.streamOpenFile(self._recording_path, self._probe)
+        self._read_handle = NVP.streamOpenFile(self._full_recording_path, self._probe)
 
         # status = NVP.readDiagStats(self._handle)
         # skip_packages = status.session_mismatch
@@ -411,10 +471,9 @@ class ViperBoxControl:
         if self._handle == "no_box":
             return True
 
-        # self.set_file_path(self._recording_file_folder, recording_file_name)
-
-        NVP.setFileStream(self._handle, str(self._recording_path))
-        # NVP.setFileStream(self._handle, str(self._recording_file_name))
+        NVP.setFileStream(self._handle, str(self._full_recording_path))
+        with open(str(self._full_stimulation_record_path), "w", encoding="utf-8"):
+            pass
         NVP.enableFileStream(self._handle, True)
 
         NVP.arm(self._handle)
@@ -429,6 +488,9 @@ class ViperBoxControl:
             threading.Thread(target=self.combine, args=(self._metadata_stream,)).start()
 
         NVP.setSWTrigger(self._handle)
+        # TODO: SAVE RECORDING SETTINGS TO FILE WITH START TIME
+        # global start_time = time.perf_counter()
+        # write_to_recordings(start_time, recording_settings)
         self._recording = True
         logger.info(f"Started recording: {self._recording_file_name}")
         threading.Thread(target=self.send_data_to_socket).start()
@@ -447,6 +509,10 @@ class ViperBoxControl:
             # without it, Open Ephys might not be able to start.
             time.sleep(0.5)
         NVP.SUtrig1(self._handle, self._probe, SU)
+        # TODO: SAVE STIMULATION SETTINGS TO FILE
+        # intermediate_time = time.perf_counter()
+        # time_stamp = intermediate_time - start_time
+        # write_to_recordings(time_stamp, stimulation_settings)
 
     def control_rec_stop(self) -> bool:
         """Handles stopping of recording state."""
@@ -459,6 +525,7 @@ class ViperBoxControl:
             return True
 
         NVP.arm(self._handle)
+        # TODO: SAVE END TIME
         NVP.setFileStream(self._handle, "")
         self._recording = False
         logger.info(f"Stopped recording: {self._recording_file_name}")
@@ -502,47 +569,47 @@ class ViperBoxControl:
             NVP.setOSDischargeperm(self._handle, self._probe, OS, False)
             NVP.setOSStimblank(self._handle, self._probe, OS, True)
         NVP.writeOSConfiguration(self._handle, self._probe, False)
+        # TODO: write stimulaion mapping to disc.
 
-    def stim_sweep(
-        self,
-        # polarity: int = 0,
-        # config_params: ConfigurationParameters = None,
-    ) -> None:
-        # self.config_params = config_params
+    # def stim_sweep(
+    #     self,
+    #     # polarity: int = 0,
+    #     # config_params: ConfigurationParameters = None,
+    # ) -> None:
+    #     # self.config_params = config_params
 
-        self.config_params.pulse_shape_parameters.pulse_amplitude_equal = True
+    #     self.config_params.pulse_shape_parameters.pulse_amplitude_equal = True
 
-        self.control_send_parameters(electrode_list=(ctypes.c_byte * 128)())
-        # # prep and SU config
-        # self.write_SU()
-        # # prep and write OS config
-        # NVP.setOSimage(self._handle, self._probe, (ctypes.c_byte * 128)())
-        # NVP.writeOSConfiguration(self._handle, self._probe, False)
+    #     self.control_send_parameters(electrode_list=(ctypes.c_byte * 128)())
+    #     # # prep and SU config
+    #     # self.write_SU()
+    #     # # prep and write OS config
+    #     # NVP.setOSimage(self._handle, self._probe, (ctypes.c_byte * 128)())
+    #     # NVP.writeOSConfiguration(self._handle, self._probe, False)
 
-        if self._recording is False:
-            self.control_rec_start(recording_time=0)
-            time.sleep(0.5)
+    #     if self._recording is False:
+    #         self.control_rec_start(recording_time=0)
+    #         time.sleep(0.5)
 
-        last_stim = (None, None)
-        for stimpair in self.config_params.stim_configuration.stim_list:
-            if last_stim[0] is not None:
-                NVP.setOSEnable(self._handle, self._probe, last_stim[0], False)
-            NVP.setOSEnable(self._handle, self._probe, stimpair[0], True)
-            # TODO: potentially check if the values are written
-            NVP.writeOSConfiguration(self._handle, self._probe, False)
-            self.config_params.pulse_shape_parameters.pulse_amplitude_anode = stimpair[
-                1
-            ]
-            self.write_SU()
-            # wait until everything is written to ASIC
-            time.sleep(self.OS_WRITE_TIME)
-            NVP.SUtrig1(self._handle, self._probe, bytes([8]))
-            # wait until stimulation is done plus 1 second
-            time.sleep(self.config_params.stim_time + 1)
-            last_stim = stimpair
-        # wait 10 seconds after end of stimulation
-        time.sleep(10)
-        self.control_rec_stop()
+    #     last_stim = (None, None)
+    #     for stimpair in self.config_params.stim_configuration.stim_list:
+    #         if last_stim[0] is not None:
+    #             NVP.setOSEnable(self._handle, self._probe, last_stim[0], False)
+    #         NVP.setOSEnable(self._handle, self._probe, stimpair[0], True)
+    #         # TODO: potentially check if the values are written
+    #         NVP.writeOSConfiguration(self._handle, self._probe, False)
+    # self.config_params.pulse_shape_parameters.pulse_amplitude_anode = \
+    #     stimpair[1]
+    #         self.write_SU()
+    #         # wait until everything is written to ASIC
+    #         time.sleep(self.OS_WRITE_TIME)
+    #         NVP.SUtrig1(self._handle, self._probe, bytes([8]))
+    #         # wait until stimulation is done plus 1 second
+    #         time.sleep(self.config_params.stim_time + 1)
+    #         last_stim = stimpair
+    #     # wait 10 seconds after end of stimulation
+    #     time.sleep(10)
+    #     self.control_rec_stop()
 
     def write_SU(
         self,
@@ -557,6 +624,7 @@ class ViperBoxControl:
                 self._handle, self._probe, self._stim_unit, polarity
             )
         )
+        # TODO: write SU config to file under waveforms
         return True
 
 
