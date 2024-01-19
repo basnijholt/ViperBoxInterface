@@ -1,7 +1,7 @@
-from dataclasses import dataclass, asdict, field
-from typing import Any, List, Tuple
-import random
 import logging
+import random
+from dataclasses import asdict, dataclass, field
+from typing import Any, List, Tuple
 
 logger = logging.getLogger(__name__)
 
