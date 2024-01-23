@@ -1,10 +1,82 @@
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, List
 
 # handle contains 4 probes
 # each probe contains 64 channels, 8 SU's and 128 electrodes
 # recording goes through the 64 channels
 # stimulation goes through the 8 SU's
+
+
+@dataclass
+class ChannelSettings:
+    channel: int | None = None
+    references: str | None = None
+    gain: int | None = None
+    input: int | None = None
+
+
+@dataclass
+class ProbeRecordingSettings:
+    # The int in the Dict is the channel number
+    probe: int | None = None
+    channel_sett: Dict[int, ChannelSettings] | None = None
+
+
+@dataclass
+class StimulationUnitSettings:
+    stim_unit: int | None = None
+    polarity: bool | None = None
+    pulses: int | None = None
+    prephase: int | None = None
+    amplitude1: int | None = None
+    width1: int | None = None
+    interphase: int | None = None
+    amplitude2: int | None = None
+    width2: int | None = None
+    discharge: int | None = None
+    duration: int | None = None
+    aftertrain: int | None = None
+
+
+@dataclass
+class ElectrodeSet:
+    # electrodes can only occur once in any of the dicts.
+    stim_elec: Dict[int, List[int]] | None = None
+    stim_elec_map: bytes | None = None
+
+
+# # The other classes remain unchanged
+# @dataclass
+# class ProbeStimulationSettings:
+#     probe: int | None = None
+#     stim_unit_sett: Dict[int, StimulationUnitSettings] | None = None
+#     stim_elec: Dict[int, List[int]] | None = None
+#     stim_elec_map: bytes | None = None
+#     # stim_unit_electrodes: Dict[int, ElectrodeSet] | None = None
+
+
+@dataclass
+class ProbeStimulationSettings:
+    # The int in the Dict is the stimulation unit number
+    probe: int | None = None
+    stim_unit_sett: Dict[int, StimulationUnitSettings] | None = None
+    stim_unit_electrodes: Dict[int, ElectrodeSet] | None = None
+
+
+@dataclass
+class HandleSettings:
+    # The int in the Dict is the probe number
+    handle: str | None = None
+    probes_rec: Dict[int, ProbeRecordingSettings] | None = None
+    probes_stim: Dict[int, ProbeStimulationSettings] | None = None
+
+
+@dataclass
+class TTLSettings:
+    TTL_channel: int | None = None
+    probes: int | None = None
+    stim_unit_sett: StimulationUnitSettings | None = None
+    electrode_selection: ElectrodeSet | None = None
 
 
 @dataclass
@@ -23,66 +95,47 @@ class GeneralSettings:
     probe_id_2: str | None = None
     probe_id_3: str | None = None
     probe_id_4: str | None = None
+    handle_sett: HandleSettings | None = None
 
 
-@dataclass
-class StimulationUnitSettings:
-    stimulation_unit: int | None = None
-    polarity: bool | None = None
-    pulses: int | None = None
-    prephase: int | None = None
-    amplitude1: int | None = None
-    width1: int | None = None
-    interphase: int | None = None
-    amplitude2: int | None = None
-    width2: int | None = None
-    discharge: int | None = None
-    duration: int | None = None
-    aftertrain: int | None = None
+# from dataclasses import dataclass
+# from typing import Dict, List
 
+# @dataclass
+# class ElectrodeSet:
+#     stim_elec: Dict[int, List[int]] | None = None
+#     _os_data: bytes | None = None
 
-@dataclass
-class ElectrodeSet:
-    stimulation_unit: int | None = None
-    electrode_set: list | None = None
+#     def __post_init__(self):
+#         if self.stim_elec is not None:
+#             self.update_os_data()
 
+#     def update_stim_elec(self, new_stim_elec: Dict[int, List[int]]):
+#         self.stim_elec = new_stim_elec
+#         self.update_os_data()
 
-@dataclass
-class ChannelSettings:
-    channel: int | None = None
-    body_reference: bool | None = None
-    shank_references: str | None = None
-    gain: int | None = None
-    input: int | None = None
+#     def update_os_data(self):
+#         # Create a list of 128 elements, each set to 0
+#         electrode_data = [0] * 128
 
+#         # Update the list based on the stim_elec dictionary
+#         for unit, electrodes in self.stim_elec.items():
+#             for electrode in electrodes:
+#                 electrode_data[electrode] = unit
 
-@dataclass
-class ProbeRecordingSettings:
-    # The int in the Dict is the channel number
-    probe: int | None = None
-    channel_settings: Dict[int, ChannelSettings] | None = None
+#         # Convert to 4-bit representations and pack into bytes
+#         bytes_list = []
+#         for i in range(0, 128, 2):
+#             # Combine two 4-bit numbers into one byte
+#             byte = (electrode_data[i] << 4) | electrode_data[i+1]
+#             bytes_list.append(byte)
 
+#         self._os_data = bytes(bytes_list)
 
-@dataclass
-class ProbeStimulationSettings:
-    # The int in the Dict is the stimulation unit number
-    probe: int | None = None
-    stimulation_unit_settings: Dict[int, StimulationUnitSettings] | None = None
-    stimulation_unit_electrodes: Dict[int, ElectrodeSet] | None = None
+# # Example usage
+# es = ElectrodeSet({0: [0, 1], 1: [2, 3]})
+# print(es._os_data)  # This will print the bytes object
 
-
-@dataclass
-class HandleSettings:
-    # The int in the Dict is the probe number
-    general_settings: GeneralSettings | None = None
-    handle: str | None = None
-    probes_recording: Dict[int, ProbeRecordingSettings] | None = None
-    probes_stimulation: Dict[int, ProbeStimulationSettings] | None = None
-
-
-@dataclass
-class TTLSettings:
-    TTL_channel: int | None = None
-    probes: int | None = None
-    stimulation_unit_settings: StimulationUnitSettings | None = None
-    electrode_selection: ElectrodeSet | None = None
+# # Updating stim_elec
+# es.update_stim_elec({2: [4, 5], 3: [6, 7]})
+# print(es._os_data)  # Updated bytes object
