@@ -37,6 +37,22 @@ class StimulationUnitSettings:
     duration: int | None = None
     aftertrain: int | None = None
 
+    def SUConfig(self):
+        return (
+            self.stim_unit,
+            self.polarity,
+            self.pulses,
+            self.amplitude1,
+            self.amplitude2,
+            self.duration,
+            self.prephase,
+            self.width1,
+            self.interphase,
+            self.width2,
+            self.discharge,
+            self.aftertrain,
+        )
+
 
 @dataclass
 class ElectrodeSet:
