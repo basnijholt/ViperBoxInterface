@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Dict, List
 
+import numpy as np
+
 # handle contains 4 probes
 # each probe contains 64 channels, 8 SU's and 128 electrodes
 # recording goes through the 64 channels
@@ -20,6 +22,10 @@ class ProbeRecordingSettings:
     # The int in the Dict is the channel number
     probe: int | None = None
     channel_sett: Dict[int, ChannelSettings] | None = None
+
+    def get_gains(self):
+        np.zeros(64)
+        return self.gain_vec
 
 
 @dataclass

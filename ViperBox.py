@@ -153,6 +153,11 @@ class ViperBox:
         self._connected = False
         print("API channel closed")
 
+    def shutdown(self) -> None:
+        self.disconnect()
+        _ = requests.put("http://localhost:37497/api/window", json={"command": "quit"})
+        self._logger.info("ViperBox shutdown")
+
     def verify_xml(self, type: str, path: Path) -> Tuple[bool, str]:
         return False, "Not implemented yet"
 
@@ -288,23 +293,21 @@ class ViperBox:
         NVP.enableFileStream(self._handle, str(self._rec_path))
         NVP.arm(self._handle)
 
-        self._recording_datetime_start_time = time.perf_counter()
+        self._rec_start_time = self._time()
         NVP.setSWTrigger(self._handle)
-        delta_rec_start_time = time.perf_counter() - self._recording_datetime_start_time
+        dt_rec_start = self._time() - self._rec_start_time
 
         self.stim_file = self.create_file_folder(
             "Stimulations",
             "stimulation_record",
             "xml",
-            f"{self._recording_datetime_start_time, True}",
+            f"{self._rec_start_time, True}",
         )
         # TODO: replace following with function that writes start of recording with time
         # and deltatime to stim_file
-        with open(self.stim_file, "a") as file:
-            file.write(
-                f"""Recording started at {time.strftime('%Y%m%d_%H%M%S')} with a delta 
-                time of {delta_rec_start_time}"""
-            )
+        self._add_stimulation_record(
+            "recording_start", self._rec_start_time, dt_rec_start, None, None
+        )
 
         self._recording = True
 
@@ -312,6 +315,25 @@ class ViperBox:
 
         self._logger.info(f"Recording started: {recording_name}")
         return True, f"Recording started: {recording_name}"
+
+    def _time(self) -> float:
+        return time.time_ns() / 1e9
+
+    def _add_stimulation_record(
+        self,
+        type: str,
+        start_time: float,
+        delta_time: float,
+        message: str | None = None,
+    ) -> None:
+        if start_time is None:
+            start_time = time.strftime("%Y%m%d_%H%M%S")
+        with open(self.stim_file, "a") as file:
+            message = f"Furthermore: {message}."
+            file.write(
+                f"""{type} at {start_time} s with delta {delta_time} s. 
+                {message}"""
+            )
 
     def create_file_folder(
         self,
@@ -333,6 +355,7 @@ class ViperBox:
 
     def start_eo_acquire(self, start_oe=False):
         try:
+            # TODO: consider using http lib from standard library
             r = requests.get("http://localhost:37497/api/status")
             if r.json()["mode"] != "ACQUIRE":
                 r = requests.put(
@@ -368,6 +391,8 @@ class ViperBox:
         UDPClientSocket.setsockopt(
             socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL
         )
+
+        # TODO: check if this is necessary
         time.sleep(0.1)
 
         # TODO: How to handle data streams from multiple probes? align on timestamp?
@@ -386,7 +411,7 @@ class ViperBox:
         self._logger.info("Started sending data to Open Ephys")
         mtx = self.os2chip_mat()
         counter = 0
-        t0 = time.perf_counter()
+        t0 = self._time()
         while True:
             counter += 1
 
@@ -397,6 +422,7 @@ class ViperBox:
                 self._logger.warning("Out of packets")
                 break
 
+            # TODO: Rearrange data depening on selected gain
             databuffer = np.asarray(
                 [packets[i].data for i in range(self.BUFFER_SIZE)], dtype="uint16"
             )
@@ -404,9 +430,9 @@ class ViperBox:
             databuffer = databuffer.copy(order="C")
             UDPClientSocket.sendto(databuffer, serverAddressPort)
 
-            t2 = time.perf_counter()
+            t2 = self._time()
             while (t2 - t0) < counter * bufferInterval:
-                t2 = time.perf_counter()
+                t2 = self._time()
 
         NVP.streamClose(self._read_handle)
 
@@ -415,6 +441,95 @@ class ViperBox:
         for k, v in OS2chip.items():
             mtx[k - 1][v - 1] = 1
         return mtx
+
+    def stop_recording(self) -> Tuple[bool, str]:
+        if self._connected is False:
+            return False, "Not connected to ViperBox"
+
+        if self._recording is False:
+            return False, "Recording not started"
+
+        NVP.arm(self._handle)
+        # Close file
+        NVP.setFileStream(self._handle, "")
+
+        self._recording = False
+
+        self.convert_recording()
+        # TODO: combine stim history and recording into some file format
+
+        return True, "Recording stopped"
+
+    def convert_recording(self) -> None:
+        """Converts the raw recording into a numpy format."""
+
+        self._read_handle_conversion = NVP.streamOpenFile(self._rec_path, self._probe)
+
+        mtx = self.os2chip_mat()
+        while True:
+            # TODO: implement skipping of packages by checking:
+            # time = 0
+            # NAND
+            # session id is wrong
+
+            packets = NVP.streamReadData(self._read_handle, self.BUFFER_SIZE)
+            count = len(packets)
+
+            if count < self.BUFFER_SIZE:
+                self._logger.warning("Out of packets")
+                break
+
+            # TODO: Rearrange data depening on selected gain
+            databuffer = np.asarray(
+                [packets[i].data for i in range(self.BUFFER_SIZE)], dtype="uint16"
+            )
+            databuffer = (databuffer @ mtx).T
+            databuffer = np.multiply(databuffer, self._settings.gain_vec[:, None])
+            self._add_to_zarr(databuffer)
+
+    def _add_to_zarr(self, databuffer: np.ndarray) -> None:
+        """Adds the data to the zarr file."""
+        # TODO: not_implemented
+        pass
+
+    def start_stimulation(self, probe: int, SU_bit_mask: str) -> Tuple[bool, str]:
+        """Starts stimulation on the specified probe and SU's."""
+        try:
+            SU_bit_mask = bin(int(SU_bit_mask, 2))
+        except ValueError:
+            return (
+                False,
+                """Invalid SU bitmask, should be 8 bit 
+            string. Error: {e}""",
+            )
+
+        if self._connected is False:
+            return False, "Not connected to ViperBox"
+
+        if self._recording is True:
+            return False, "Recording in progress, cannot start stimulation"
+
+        # check if settings are uploaded for all the SU's
+
+        tmp_counter = self._time()
+        NVP.SUtrig1(self._handle, probe, (SU_bit_mask))
+        tmp_delta = self._time() - tmp_counter
+
+        self._add_stimulation_record(
+            "stim_start",
+            tmp_counter - self._rec_start_time,
+            tmp_delta,
+            f"probe: {probe}, SU: {SU_bit_mask}",
+        )
+
+        return True, f"Stimulation started on probe {probe} for SU's {SU_bit_mask}"
+
+    # TODO: not_implemented
+    # TODO: get session id from somewhere and store it as recording self parameter
+    # TODO: implement start stim
+    # TODO: when inputting XML file, probably electrode numbers will be targeted
+    # these should be converted to os numbers in stim and rec settings
+    # TODO: implement gain_vec in vb classes
 
 
 VB = ViperBox()
