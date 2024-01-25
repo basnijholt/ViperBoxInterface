@@ -306,7 +306,7 @@ class ViperBox:
         # TODO: replace following with function that writes start of recording with time
         # and deltatime to stim_file
         self._add_stimulation_record(
-            "recording_start", self._rec_start_time, dt_rec_start, None, None
+            "recording_start", self._rec_start_time, dt_rec_start, None
         )
 
         self._recording = True
@@ -524,7 +524,34 @@ class ViperBox:
 
         return True, f"Stimulation started on probe {probe} for SU's {SU_bit_mask}"
 
-    # TODO: not_implemented
+    def TTL_start(self, TTL_channel: int, SU_bit_mask: str) -> Tuple[bool, str]:
+        """Starts TTL on the specified channel."""
+        if self._connected is False:
+            return False, "Not connected to ViperBox"
+
+        if self._recording is True:
+            return False, "Recording in progress, cannot start TTL"
+
+        all_configured, not_configured = self._check_SUs_configured(SU_bit_mask)
+        if not all_configured:
+            return False, f"Can't trigger SUs {not_configured}"
+
+        # self._start_SU_tracker()
+
+        # self._active_TTLs[TTL_channel] = True
+
+        self._add_stimulation_record(
+            "TTL_start",
+            self._time() - self._rec_start_time,
+            0,
+            f"TTL channel: {TTL_channel}",
+        )
+
+        return True, f"TTL started on channel {TTL_channel} with SU's {SU_bit_mask}"
+
+    # TODO: _start_SU_tracker, stimulates if TTL is high long enough
+    # TODO: _check_SUs_configured, returns non configured SUs
+    # TODO: add to zarr
     # TODO: get session id from somewhere and store it as recording self parameter
     # TODO: implement start stim
     # TODO: when inputting XML file, probably electrode numbers will be targeted
