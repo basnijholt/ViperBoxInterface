@@ -2,6 +2,7 @@ import logging
 import os
 import socket
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Tuple
@@ -10,7 +11,7 @@ import numpy as np
 import requests
 
 import NeuraviperPy as NVP
-from custom_exceptions import ViperBoxError
+from custom_exceptions import ThreadingError, ViperBoxError
 from defaults.defaults import OS2chip
 from VB_classes import GeneralSettings
 
@@ -67,9 +68,8 @@ class ViperBox:
         self._SU_busy = "0" * 16
         self._test_mode = False
         self._BIST_number = None
-        self._TTL_1 = False
-        self._TTL_2 = False
         self._box_connected = False
+        self._active_TTLs = [False, False]
 
         try:
             os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
@@ -396,7 +396,7 @@ class ViperBox:
         time.sleep(0.1)
 
         # TODO: How to handle data streams from multiple probes? align on timestamp?
-        self._read_handle = NVP.streamOpenFile(self._rec_path, self._probe)
+        send_data_read_handle = NVP.streamOpenFile(self._rec_path, self._probe)
 
         # TODO: remove packages with wrong session
         # status = NVP.readDiagStats(self._handle)
@@ -415,7 +415,7 @@ class ViperBox:
         while True:
             counter += 1
 
-            packets = NVP.streamReadData(self._read_handle, self.BUFFER_SIZE)
+            packets = NVP.streamReadData(send_data_read_handle, self.BUFFER_SIZE)
             count = len(packets)
 
             if count < self.BUFFER_SIZE:
@@ -463,7 +463,7 @@ class ViperBox:
     def convert_recording(self) -> None:
         """Converts the raw recording into a numpy format."""
 
-        self._read_handle_conversion = NVP.streamOpenFile(self._rec_path, self._probe)
+        conver_recording_read_handle = NVP.streamOpenFile(self._rec_path, self._probe)
 
         mtx = self.os2chip_mat()
         while True:
@@ -472,7 +472,7 @@ class ViperBox:
             # NAND
             # session id is wrong
 
-            packets = NVP.streamReadData(self._read_handle, self.BUFFER_SIZE)
+            packets = NVP.streamReadData(conver_recording_read_handle, self.BUFFER_SIZE)
             count = len(packets)
 
             if count < self.BUFFER_SIZE:
@@ -524,21 +524,37 @@ class ViperBox:
 
         return True, f"Stimulation started on probe {probe} for SU's {SU_bit_mask}"
 
-    def TTL_start(self, TTL_channel: int, SU_bit_mask: str) -> Tuple[bool, str]:
+    def TTL_start(
+        self, probe: int, TTL_channel: int, SU_bit_mask: str
+    ) -> Tuple[bool, str]:
         """Starts TTL on the specified channel."""
+        if TTL_channel not in [1, 2]:
+            return False, "TTL channel should be 1 or 2"
+
+        try:
+            SU_bit_mask = bin(int(SU_bit_mask, 2))
+        except ValueError:
+            return (
+                False,
+                """Invalid SU bitmask, should be 8 bit 
+            string. Error: {e}""",
+            )
+
         if self._connected is False:
             return False, "Not connected to ViperBox"
 
         if self._recording is True:
-            return False, "Recording in progress, cannot start TTL"
+            return False, "Recording in progress, cannot start stimulation"
 
         all_configured, not_configured = self._check_SUs_configured(SU_bit_mask)
         if not all_configured:
             return False, f"Can't trigger SUs {not_configured}"
 
-        # self._start_SU_tracker()
-
-        # self._active_TTLs[TTL_channel] = True
+        threading.Thread(
+            target=self._start_TTL_tracker_thread,
+            args=(probe, TTL_channel, SU_bit_mask),
+        ).start()
+        # self._start_TTL_tracker_thread(probe, TTL_channel, SU_bit_mask)
 
         self._add_stimulation_record(
             "TTL_start",
@@ -547,8 +563,72 @@ class ViperBox:
             f"TTL channel: {TTL_channel}",
         )
 
-        return True, f"TTL started on channel {TTL_channel} with SU's {SU_bit_mask}"
+        return (
+            True,
+            f"""TTL tracking started on channel {TTL_channel} with SU's 
+            {SU_bit_mask} on probe {probe}""",
+        )
 
+    def _start_TTL_tracker_thread(
+        self, probe: int, TTL_channel: int, SU_bit_mask: str
+    ) -> None:
+        """Converts the raw recording into a numpy format."""
+        # TODO: this can be reduced to one function that listens to both TTL channels
+
+        # note this should be probe specific, not self._probe, that needs to
+        # be checked anyway
+        TTL_read_handle = NVP.streamOpenFile(self._rec_path, probe)
+
+        self._active_TTLs[TTL_channel] = True
+
+        # mtx = self.os2chip_mat()
+        while self._active_TTLs[TTL_channel] is True:
+            # TODO: implement skipping of packages by checking:
+            # time = 0
+            # NAND
+            # session id is wrong
+
+            packets = NVP.streamReadData(TTL_read_handle, self.BUFFER_SIZE)
+            count = len(packets)
+
+            if count < self.BUFFER_SIZE:
+                self._logger.warning("Out of packets")
+                break
+
+            # TODO: Rearrange data depending on selected gain
+            databuffer = np.asarray(
+                [
+                    [
+                        int(str(bin(packets[0].status))[3:-1][0]),
+                        int(str(bin(packets[0].status))[3:-1][1]),
+                    ]
+                    for i in range(self.BUFFER_SIZE)
+                ],
+                dtype="uint16",
+            )
+            if databuffer[:, TTL_channel].any():
+                ret_val, text = self.start_stimulation(probe, SU_bit_mask)
+
+            if ret_val is False:
+                # tell the user that the stimulation was not started
+                raise ThreadingError(ret_val, text)
+
+    def stop_TTL_tracker_thread(self, TTL_channel: int) -> None:
+        """Stops the TTL tracker thread."""
+        if self._active_TTLs[TTL_channel] is False:
+            return False, f"TTL {TTL_channel} not running."
+
+        self._active_TTLs[TTL_channel] = False
+
+        return True, f"Tracking of TTL {TTL_channel} stopped."
+
+    def _add_to_zarr(self, databuffer: np.ndarray) -> None:
+        """Adds the data to the zarr file."""
+        # TODO: not_implemented
+        pass
+
+    # TODO: Change self._probe everywhere because it doesn't make sense in a mulit
+    # probe setup
     # TODO: _start_SU_tracker, stimulates if TTL is high long enough
     # TODO: _check_SUs_configured, returns non configured SUs
     # TODO: add to zarr
