@@ -67,6 +67,24 @@ class ElectrodeSet:
     stim_elec_map: bytes | None = None
 
 
+@dataclass
+# see test_elecset.py and testarea.ipynb
+class ElectrodeSet2:
+    stim_elec: Dict[int, List[int]] | None = None
+    _os_data: bytes | None = None
+    sus: int = 6
+    elecs: int = 12
+
+    def __post_init__(self):
+        os_data_array = np.zeros((self.sus, self.elecs))
+        for su, elec_list in self.stim_elec.items():
+            for elec in elec_list:
+                os_data_array[su, elec] = 1
+        print(os_data_array)
+
+        # get sum over second axis of os_data_array
+
+
 # # The other classes remain unchanged
 # @dataclass
 # class ProbeStimulationSettings:
@@ -83,6 +101,10 @@ class ProbeStimulationSettings:
     probe: int | None = None
     stim_unit_sett: Dict[int, StimulationUnitSettings] | None = None
     stim_unit_electrodes: Dict[int, ElectrodeSet] | None = None
+
+    def SUs_connected(self):
+        # return binary string of SU's that have uploaded settings
+        pass
 
 
 @dataclass

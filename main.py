@@ -5,6 +5,8 @@ from pydantic import BaseModel, constr
 
 from ViperBox import ViperBox
 
+# TODO: all return values should be caught and logged
+
 
 class Bitmask(BaseModel):
     bitmask: constr(regex="^[01]{16}$")
