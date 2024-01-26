@@ -1,7 +1,6 @@
 import logging
 import os
 import socket
-import sys
 import threading
 import time
 from pathlib import Path
@@ -26,10 +25,10 @@ class ViperBox:
     FREQ = 20000
     OS_WRITE_TIME = 1
 
-    def __init__(self) -> None:
+    def __init__(self, _session_datetime: str, headless=False) -> None:
         """Initialize the ViperBox class."""
         self._working_directory = os.getcwd()
-        self._session_datetime = time.strftime("%Y%m%d_%H%M%S")
+        self._session_datetime = _session_datetime
 
         log_folder = Path.cwd() / "logs"
         log_file = f"log_{self._session_datetime}.log"
@@ -41,20 +40,12 @@ class ViperBox:
 
         self._rec_path: Path | None = None
 
-        for handler in logging.root.handlers[:]:
-            logging.root.removeHandler(handler)
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(levelname)-8s - %(asctime)s - %(name)s - %(message)s",
-            datefmt="%H:%M:%S",
-            handlers=[
-                logging.FileHandler(self._log),
-                logging.StreamHandler(sys.stdout),
-            ],
-        )
-        self._logger = logging.getLogger(__name__)
-        handler = logging.StreamHandler(sys.stdout)
-        self._logger.addHandler(handler)
+        # for handler in logging.root.handlers[:]:
+        #     logging.root.removeHandler(handler)
+
+        self.logger = logging.getLogger(__name__)
+        # handler = logging.StreamHandler(sys.stdout)
+        # self.logger.addHandler(handler)
 
         self._connected = False
         # self._settings = Dict()
@@ -71,19 +62,24 @@ class ViperBox:
         self._box_connected = False
         self._active_TTLs = [False, False]
 
-        try:
-            os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
-        except Exception as e:
-            self._logger.warning(
-                f"Can't start Open Ephys, please start it manually. Error: {e}"
-            )
+        if not headless:
+            try:
+                os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
+            except Exception as e:
+                self.logger.warning(
+                    f"Can't start Open Ephys, please start it manually. Error: {e}"
+                )
 
+        self.logger.info("ViperBox initialized")
         return None
 
-    def connect(self, emulation=False) -> Tuple[bool, str]:
-        self._logger.info("Connecting to ViperBox...")
+    def connect(self, emulation=False, boxless=False) -> Tuple[bool, str]:
+        self.logger.info("Connecting to ViperBox...")
         if self._connected is True:
             self.disconnect()
+
+        if boxless is True:
+            return True, "Boxless mode, no connection to ViperBox"
 
         NVP.scanBS()
         devices = NVP.getDeviceList(16)
@@ -91,12 +87,12 @@ class ViperBox:
         number_of_devices = len(devices)
         if number_of_devices == 0:
             err_msg = "No device found, please check if the ViperBox is connected"
-            self._logger.error(err_msg)
+            self.logger.error(err_msg)
             return False, err_msg
         elif number_of_devices > 1:
             err_msg = """More than one device found, currently this software can only 
                 handle one device"""
-            self._logger.error(err_msg)
+            self.logger.error(err_msg)
             return False, err_msg
         elif number_of_devices == 1:
             logging.info(f"Device found: {devices[0]}")
@@ -156,39 +152,45 @@ class ViperBox:
     def shutdown(self) -> None:
         self.disconnect()
         _ = requests.put("http://localhost:37497/api/window", json={"command": "quit"})
-        self._logger.info("ViperBox shutdown")
+        self.logger.info("ViperBox shutdown")
 
     def verify_xml(self, type: str, path: Path) -> Tuple[bool, str]:
         return False, "Not implemented yet"
 
-    def xml2dataclass(self, xml_data: Path, reinitiate=False) -> None:
+    def set_settings(self, xml_data: Path, reset=False) -> None:
         """
         Not implemented yet.
         re-initiate means that the settings will be re-initiated instead of updated.
         """
-        # TODO implement xml_data and reinitiate
+        # TODO implement xml_data and reset
         self._settings = GeneralSettings(xml_data)
         # re-initiate means that the settings will be re-initiated instead of updated
         # return None
 
-    def rec_sett(
-        self, XML_file: Path, reinitiate: bool = False, default_values: bool = False
+    def recording_settings(
+        self, XML_file_path: str, reset: bool = False, default_values: bool = False
     ) -> Tuple[bool, str]:
+        """Loads the recording settings from an XML file."""
+
+        if default_values is True:
+            xml_data = self._default_XML / "default_rec_sett.xml"
+            self.logger.debug("Default recording settings loaded")
+        else:
+            try:
+                xml_data = Path(XML_file_path)
+            except TypeError:
+                return (
+                    False,
+                    """Invalid XML file, should be a Path object. Error: {e}""",
+                )
+
         if self._connected is False:
             return False, "Not connected to ViperBox"
 
         if self._recording is True:
             return False, "Recording in progress, cannot change settings"
 
-        if default_values is True:
-            xml_data = self._default_XML / "default_rec_sett.xml"
-            self._logger.debug("Default recording settings loaded")
-        else:
-            # TODO: fix xml standard file
-            # xml_data = "XML_file"
-            self._logger.debug(f"Recording settings loaded from input file {XML_file}")
-
-        self.xml2dataclass(xml_data, reinitiate=reinitiate)
+        self.set_settings(xml_data, reset=reset)
 
         # Always set settings for entire probe at once.
         for probe in self._settings.handle_sett.probe_rec.keys():
@@ -212,24 +214,31 @@ class ViperBox:
 
             NVP.writeChannelConfiguration(self._handle, self._probe, False)
 
-        return True, f"Recording settings loaded from {XML_file}"
+        return True, f"Recording settings loaded from {XML_file_path}"
 
-    def stim_sett(
-        self, XML_file: str, reinitiate: bool = False, default_values: bool = False
+    def stimulation_settings(
+        self, XML_file_path: str, reset: bool = False, default_values: bool = False
     ) -> Tuple[bool, str]:
+        """Loads the stimulation settings from an XML file."""
+
+        if default_values is True:
+            xml_data = self._default_XML / "default_stimulation_settings.xml"
+            self.logger.debug("Default stimulation settings loaded")
+        else:
+            try:
+                xml_data = Path(XML_file_path)
+            except TypeError:
+                return (
+                    False,
+                    """Invalid XML file, should be a Path object. Error: {e}""",
+                )
+
         if self._connected is False:
             return False, "Not connected to ViperBox"
 
-        if default_values is True:
-            self._default_XML / "default_stim_sett.xml"
-            self._logger.debug("Default stimulation settings loaded")
-        else:
-            self._logger.debug(
-                f"Stimulation settings loaded from input file {XML_file}"
-            )
-
-        self._settings_backup = self._settings
-        # self._settings = self.xml2dataclass(xml_data, reinitiate=reinitiate)
+        if self._settings:
+            self._settings_backup = self._settings
+        self._settings = self.set_settings(xml_data, reset=reset)
 
         try:
             # Always set settings for entire probe at once.
@@ -261,7 +270,7 @@ class ViperBox:
                 reverted to previous settings""",
             )
 
-        return True, f"Stimulation settings loaded from {XML_file}"
+        return True, f"Stimulation settings loaded from {XML_file_path}"
 
     def start_recording(self, recording_name: str | None = None) -> Tuple[bool, str]:
         if self._connected is False:
@@ -313,7 +322,7 @@ class ViperBox:
 
         # TODO: Start thread that sends data to open ephys
 
-        self._logger.info(f"Recording started: {recording_name}")
+        self.logger.info(f"Recording started: {recording_name}")
         return True, f"Recording started: {recording_name}"
 
     def _time(self) -> float:
@@ -366,11 +375,11 @@ class ViperBox:
                 try:
                     os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
                 except Exception as e2:
-                    self._logger.warning(
+                    self.logger.warning(
                         f"Can't start Open Ephys, please start it manually. Error: {e2}"
                     )
             else:
-                self._logger.warning(
+                self.logger.warning(
                     """Open Ephys not detected, please start it manually if it is 
                     not running"""
                 )
@@ -408,7 +417,7 @@ class ViperBox:
         #     dump_count += self.SKIP_SIZE
         # print('dump_count: ', dump_count)
 
-        self._logger.info("Started sending data to Open Ephys")
+        self.logger.info("Started sending data to Open Ephys")
         mtx = self.os2chip_mat()
         counter = 0
         t0 = self._time()
@@ -419,7 +428,7 @@ class ViperBox:
             count = len(packets)
 
             if count < self.BUFFER_SIZE:
-                self._logger.warning("Out of packets")
+                self.logger.warning("Out of packets")
                 break
 
             # TODO: Rearrange data depening on selected gain
@@ -476,7 +485,7 @@ class ViperBox:
             count = len(packets)
 
             if count < self.BUFFER_SIZE:
-                self._logger.warning("Out of packets")
+                self.logger.warning("Out of packets")
                 break
 
             # TODO: Rearrange data depening on selected gain
@@ -592,7 +601,7 @@ class ViperBox:
             count = len(packets)
 
             if count < self.BUFFER_SIZE:
-                self._logger.warning("Out of packets")
+                self.logger.warning("Out of packets")
                 break
 
             # TODO: Rearrange data depending on selected gain
@@ -639,5 +648,7 @@ class ViperBox:
     # TODO: implement gain_vec in vb classes
 
 
-VB = ViperBox()
-VB.connect()
+if __name__ == "__main__":
+    VB = ViperBox(headless=True)
+    VB.connect()
+    VB.shutdown()
