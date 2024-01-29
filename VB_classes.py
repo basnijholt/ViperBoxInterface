@@ -1,7 +1,9 @@
-from dataclasses import dataclass
+# from dataclasses import dataclass
 from typing import Dict, List
 
 import numpy as np
+from pydantic import BaseModel
+from pydantic.dataclasses import dataclass
 
 # handle contains 4 probes
 # each probe contains 64 channels, 8 SU's and 128 electrodes
@@ -10,7 +12,14 @@ import numpy as np
 
 
 @dataclass
-class ChannelSettings:
+class Connect(BaseModel):
+    probe_list: None | List[int] = None
+    emulation: bool = False
+    boxless: bool = False
+
+
+@dataclass
+class ChannelSettings(BaseModel):
     channel: int | None = None
     references: str | None = None
     gain: int | None = None
@@ -18,7 +27,7 @@ class ChannelSettings:
 
 
 @dataclass
-class ProbeRecordingSettings:
+class ProbeRecordingSettings(BaseModel):
     # The int in the Dict is the channel number
     probe: int | None = None
     channel_sett: Dict[int, ChannelSettings] | None = None
@@ -29,7 +38,7 @@ class ProbeRecordingSettings:
 
 
 @dataclass
-class StimulationUnitSettings:
+class StimulationUnitSettings(BaseModel):
     stim_unit: int | None = None
     polarity: bool | None = None
     pulses: int | None = None
@@ -61,7 +70,7 @@ class StimulationUnitSettings:
 
 
 @dataclass
-class ElectrodeSet:
+class ElectrodeSet(BaseModel):
     # electrodes can only occur once in any of the dicts.
     stim_elec: Dict[int, List[int]] | None = None
     stim_elec_map: bytes | None = None
@@ -69,7 +78,7 @@ class ElectrodeSet:
 
 @dataclass
 # see test_elecset.py and testarea.ipynb
-class ElectrodeSet2:
+class ElectrodeSet2(BaseModel):
     stim_elec: Dict[int, List[int]] | None = None
     _os_data: bytes | None = None
     sus: int = 6
@@ -87,7 +96,7 @@ class ElectrodeSet2:
 
 # # The other classes remain unchanged
 # @dataclass
-# class ProbeStimulationSettings:
+# class ProbeStimulationSettings(BaseModel):
 #     probe: int | None = None
 #     stim_unit_sett: Dict[int, StimulationUnitSettings] | None = None
 #     stim_elec: Dict[int, List[int]] | None = None
@@ -96,7 +105,7 @@ class ElectrodeSet2:
 
 
 @dataclass
-class ProbeStimulationSettings:
+class ProbeStimulationSettings(BaseModel):
     # The int in the Dict is the stimulation unit number
     probe: int | None = None
     stim_unit_sett: Dict[int, StimulationUnitSettings] | None = None
@@ -108,7 +117,7 @@ class ProbeStimulationSettings:
 
 
 @dataclass
-class HandleSettings:
+class HandleSettings(BaseModel):
     # The int in the Dict is the probe number
     handle: str | None = None
     probes_rec: Dict[int, ProbeRecordingSettings] | None = None
@@ -116,7 +125,7 @@ class HandleSettings:
 
 
 @dataclass
-class TTLSettings:
+class TTLSettings(BaseModel):
     TTL_channel: int | None = None
     probes: int | None = None
     stim_unit_sett: StimulationUnitSettings | None = None
@@ -124,7 +133,7 @@ class TTLSettings:
 
 
 @dataclass
-class GeneralSettings:
+class GeneralSettings(BaseModel):
     viperbox_software_id: str | None = None
     session_starting_datetime: str | None = None
     api_version: str | None = None
@@ -146,7 +155,7 @@ class GeneralSettings:
 # from typing import Dict, List
 
 # @dataclass
-# class ElectrodeSet:
+# class ElectrodeSet(BaseModel):
 #     stim_elec: Dict[int, List[int]] | None = None
 #     _os_data: bytes | None = None
 
