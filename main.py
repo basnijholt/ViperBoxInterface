@@ -1,13 +1,17 @@
 import logging
 import time
-from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 
-from VB_classes import (
+from api_classes import (
     Connect,
-    ProbeRecordingSettings,
+    apiRecSettings,
+    apiStartRec,
+    apiStartStim,
+    apiStimSettings,
+    apiTTLStart,
+    apiVerifyXML,
 )
 from VB_logger import _init_logging
 from ViperBox import ViperBox
@@ -35,7 +39,6 @@ async def test():
 
 @app.post("/connect")
 async def init(connect: Connect):
-    # async def init(emulation: bool = False, boxless: bool = False):
     result, feedback = VB.connect(
         probe_list=connect.probe_list,
         emulation=connect.emulation,
@@ -57,48 +60,54 @@ async def shutdown():
 
 
 @app.post("/verify_xml/")
-async def verify_xml(type: str, path: Path):
-    result, feedback = VB.verify_xml(type, path)
+async def verify_xml(api_verify_xml: apiVerifyXML):
+    result, feedback = VB.verify_xml(api_verify_xml.XML)
     return {"result": result, "feedback": feedback}
 
 
 @app.post("/recording_settings/")
-async def recording_settings(
-    recording_settings: ProbeRecordingSettings,
-    reset: bool = False,
-    default_values: bool = False,
-):
+async def recording_settings(api_rec_settings: apiRecSettings):
     result, feedback = VB.recording_settings(
-        XML_file_path=recording_settings, reset=reset, default_values=default_values
+        recording_settings=api_rec_settings.recording_XML,
+        reset=api_rec_settings.reset,
+        default_values=api_rec_settings.default_values,
     )
     return {"result": result, "feedback": feedback}
 
 
 @app.post("/stimulation_settings/")
-async def stimulation_settings(XML_file_path: str, default_values: bool = False):
-    result, feedback = VB.stimulation_settings(XML_file_path, default_values)
+async def stimulation_settings(api_stim_settings: apiStimSettings):
+    result, feedback = VB.stimulation_settings(
+        recording_settings=api_stim_settings.recording_XML,
+        reset=api_stim_settings.reset,
+        default_values=api_stim_settings.default_values,
+    )
     return {"result": result, "feedback": feedback}
 
 
-@app.post("/start_recording/")
-async def start_recording(recording_name: str | None = None):
-    result, feedback = VB.start_recording(recording_name=recording_name)
+@app.post("/start_recording")
+async def start_recording(api_start_rec: apiStartRec):
+    result, feedback = VB.start_recording(recording_name=api_start_rec.recording_name)
     return {"result": result, "feedback": feedback}
 
 
-@app.post("/stop_recording/")
+@app.post("/stop_recording")
 async def stop_recording():
     result, feedback = VB.stop_recording()
     return {"result": result, "feedback": feedback}
 
 
 @app.post("/start_stimulation/")
-async def start_stimulation():
-    result, feedback = VB.start_stimulation()
+async def start_stimulation(api_start_stim: apiStartStim):
+    result, feedback = VB.start_stimulation(api_start_stim.SU_bit_mask)
     return {"result": result, "feedback": feedback}
 
 
 @app.post("/TTL_start/")
-async def TTL_start():
-    result, feedback = VB.TTL_start()
+async def TTL_start(api_TTL_start: apiTTLStart):
+    result, feedback = VB.TTL_start(
+        api_TTL_start.TTL_channel,
+        api_TTL_start.TTL_XML,
+        api_TTL_start.SU_bit_mask,
+    )
     return {"result": result, "feedback": feedback}
