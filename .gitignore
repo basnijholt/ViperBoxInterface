@@ -3,7 +3,6 @@
 *.h
 *.lib
 *.cfg
-*.xml
 *_old.py
 
 __pycache__/*
