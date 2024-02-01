@@ -9,95 +9,11 @@ import numpy as np
 # stimulation goes through the 8 SU's
 
 
-def dataclass_to_dict(obj: Any) -> Any:
-    """
-    Recursively convert dataclass instances to dictionaries.
-    """
-    if is_dataclass(obj):
-        return {k: dataclass_to_dict(v) for k, v in asdict(obj).items()}
-    elif isinstance(obj, list):
-        return [dataclass_to_dict(item) for item in obj]
-    elif isinstance(obj, dict):
-        return {k: dataclass_to_dict(v) for k, v in obj.items()}
-    elif isinstance(obj, tuple):
-        return tuple(dataclass_to_dict(item) for item in obj)
-    else:
-        return obj
-
-
-def dict_to_dataclass(cls: Any, dict_obj: Any) -> Any:
-    """
-    Recursively convert dictionaries to dataclass instances.
-    """
-    if hasattr(cls, "__annotations__"):
-        field_types = cls.__annotations__
-        return cls(
-            **{
-                k: dict_to_dataclass(field_types[k], v)
-                for k, v in dict_obj.items()
-                if k in field_types
-            }
-        )
-    else:
-        return dict_obj
-
-
 @dataclass
 class ChanSettings:
     references: str = ""
     gain: int = 0
     input: int = 0
-
-
-@dataclass
-class SUSettings:
-    polarity: str = ""
-    pulses: int = 0
-    prephase: int = 0
-
-
-@dataclass
-class ProbeRecordingSettings:
-    channel_sett: Dict[str, ChanSettings] = field(default_factory=dict)
-
-    # def get_gains(self):
-    #     np.zeros(64)
-    #     return self.gain_vec
-
-
-@dataclass
-class ProbeStimulationSettings:
-    stim_unit_sett: Dict[str, SUSettings] = field(default_factory=dict)
-    stim_unit_elec: Dict[str, List[int]] = field(default_factory=dict)
-    _sus: int = 8
-    _elecs: int = 128
-
-    def SUs_connected(self):
-        # return binary string of SU's that have uploaded settings
-        pass
-
-    @property
-    def os_data(self):
-        os_data_array = np.zeros((self._sus, self._elecs))
-        if self.stim_unit_elec:
-            for su, elec_list in self.stim_unit_elec.items():
-                for elec in elec_list:
-                    os_data_array[su, elec] = 1
-            return os_data_array
-        # get sum over second axis of os_data_array
-
-
-@dataclass
-class HandleSettings:
-    probes_rec: Dict[str, ProbeRecordingSettings] = field(default_factory=dict)
-    probes_stim: Dict[str, ProbeStimulationSettings] = field(default_factory=dict)
-
-
-@dataclass
-class Connect:
-    probe_list: List[int] = field(default_factory=list)
-    emulation: bool = False
-    boxless: bool = False
 
 
 @dataclass
@@ -133,6 +49,43 @@ class SUSettings:
 
 
 @dataclass
+class ProbeSettings:
+    channel_sett: Dict[str, ChanSettings] = field(
+        default_factory=Dict[str, ChanSettings]
+    )
+    stim_unit_sett: Dict[str, SUSettings] = field(default_factory=Dict[str, SUSettings])
+    stim_unit_elec: Dict[str, List[int]] = field(default_factory=Dict[str, List[int]])
+    _sus: int = 8
+    _elecs: int = 128
+
+    def SUs_connected(self):
+        # return binary string of SU's that have uploaded settings
+        pass
+
+    @property
+    def os_data(self):
+        os_data_array = np.zeros((self._sus, self._elecs))
+        if self.stim_unit_elec:
+            for su, elec_list in self.stim_unit_elec.items():
+                for elec in elec_list:
+                    os_data_array[su, elec] = 1
+            return os_data_array
+        # get sum over second axis of os_data_array
+
+    # def get_gains(self):
+    #     np.zeros(64)
+    #     return self.gain_vec
+
+
+@dataclass
+class HandleSettings:
+    handle: str = ""
+    all_probes: Dict[str, ProbeSettings] = field(
+        default_factory=Dict[str, ProbeSettings]
+    )
+
+
+@dataclass
 class TTLSettings:
     TTL_channel: int = 0
     electrode_selection: HandleSettings = field(default_factory=HandleSettings)
@@ -156,3 +109,36 @@ class GeneralSettings:
     probe_id_3: str = ""
     probe_id_4: str = ""
     handle_sett: HandleSettings = field(default_factory=HandleSettings)
+
+
+def dataclass_to_dict(obj: Any) -> Any:
+    """
+    Recursively convert dataclass instances to dictionaries.
+    """
+    if is_dataclass(obj):
+        return {k: dataclass_to_dict(v) for k, v in asdict(obj).items()}
+    elif isinstance(obj, list):
+        return [dataclass_to_dict(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {k: dataclass_to_dict(v) for k, v in obj.items()}
+    elif isinstance(obj, tuple):
+        return tuple(dataclass_to_dict(item) for item in obj)
+    else:
+        return obj
+
+
+def dict_to_dataclass(cls: Any, dict_obj: Any) -> Any:
+    """
+    Recursively convert dictionaries to dataclass instances.
+    """
+    if hasattr(cls, "__annotations__"):
+        field_types = cls.__annotations__
+        return cls(
+            **{
+                k: dict_to_dataclass(field_types[k], v)
+                for k, v in dict_obj.items()
+                if k in field_types
+            }
+        )
+    else:
+        return dict_obj

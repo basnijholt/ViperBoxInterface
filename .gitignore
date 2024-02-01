@@ -23,6 +23,7 @@ docs/source/_templates
 
 testarea.ipynb
 
+VB_classes_pydantic.py
 multiwin.json
 multiwin.py
 testgui.py
