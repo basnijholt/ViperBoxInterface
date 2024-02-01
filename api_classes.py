@@ -13,13 +13,13 @@ class Connect(BaseModel):
 
     @field_validator("probe_list")
     @classmethod
-    def check_probe_list(cls, v):
-        if len(v) != 4:
+    def check_probe_list(cls, probe_list: List[int]) -> List[int]:
+        if len(probe_list) != 4:
             raise ValueError("probe_list must contain exactly 4 integers")
-        for i in v:
+        for i in probe_list:
             if i not in [0, 1]:
                 raise ValueError("probe_list can only contain 0 or 1")
-        return v
+        return probe_list
 
 
 @dataclass
@@ -30,7 +30,7 @@ class apiRecSettings(BaseModel):
 
     @field_validator("recording_XML")
     @classmethod
-    def check_xml(recording_XML):
+    def check_xml(cls, recording_XML: str) -> str:
         try:
             ET.fromstring(recording_XML)
         except ET.ParseError as e:
@@ -44,9 +44,9 @@ class apiStimSettings(BaseModel):
     reset: bool = False
     default_values: bool = False
 
-    @field_validator("recording_XML")
+    @field_validator("stimulation_XML")
     @classmethod
-    def check_xml(stimulation_XML):
+    def check_xml(cls, stimulation_XML: str) -> str:
         try:
             ET.fromstring(stimulation_XML)
         except ET.ParseError as e:
@@ -58,9 +58,9 @@ class apiStimSettings(BaseModel):
 class apiStartRec(BaseModel):
     recording_name: str = ""
 
-    @field_validator("recording_unicode")
+    @field_validator("recording_name")
     @classmethod
-    def check_unicode(recording_name):
+    def check_unicode(cls, recording_name: str) -> str:
         try:
             recording_name.encode("ascii")
         except UnicodeEncodeError as e:
@@ -74,7 +74,7 @@ class apiStartStim(BaseModel):
 
     @field_validator("SU_bit_mask")
     @classmethod
-    def check_SU_bit_mask(SU_bit_mask):
+    def check_SU_bit_mask(cls, SU_bit_mask: List[int]) -> List[int]:
         if len(SU_bit_mask) != 8:
             raise ValueError("SU_bit_mask must contain exactly 8 integers")
         for i in SU_bit_mask:
@@ -91,14 +91,14 @@ class apiTTLStart(BaseModel):
 
     @field_validator("TTL_channel")
     @classmethod
-    def check_TTL_channel(TTL_channel):
+    def check_TTL_channel(cls, TTL_channel: int) -> int:
         if TTL_channel not in [0, 1]:
             raise ValueError("TTL_channel must be 1 or 2")
         return TTL_channel
 
     @field_validator("TTL_XML")
     @classmethod
-    def check_xml(TTL_XML):
+    def check_xml(cls, TTL_XML: str) -> str:
         try:
             ET.fromstring(TTL_XML)
         except ET.ParseError as e:
@@ -107,7 +107,7 @@ class apiTTLStart(BaseModel):
 
     @field_validator("SU_bit_mask")
     @classmethod
-    def check_SU_bit_mask(SU_bit_mask):
+    def check_SU_bit_mask(cls, SU_bit_mask: List[int]) -> List[int]:
         if len(SU_bit_mask) != 8:
             raise ValueError("SU_bit_mask must contain exactly 8 integers")
         for i in SU_bit_mask:
@@ -120,9 +120,9 @@ class apiTTLStart(BaseModel):
 class apiVerifyXML(BaseModel):
     XML: str = ""
 
-    @field_validator("verify_XML")
+    @field_validator("XML")
     @classmethod
-    def check_xml(verify_XML):
+    def check_xml(cls, verify_XML: str) -> str:
         try:
             ET.fromstring(verify_XML)
         except ET.ParseError as e:
