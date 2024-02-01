@@ -1,0 +1,73 @@
+{
+    "general": {
+        "viperbox_software_id": "",
+        "session_starting_datetime": "",
+        "api_version_minor": "",
+        "api_version_major": ""
+    },
+    "handles": {
+        "1": {},
+        "2": {
+            "hardware_id_base_station": {
+                "serial_number": "",
+                "version_major": "",
+                "version_minor": "",
+                "headstage_id": ""
+            },
+            "hardware_id_head_stage": {
+                "serial_number": "",
+                "version_major": "",
+                "version_minor": "",
+                "headstage_id": ""
+            },
+            "probes": {
+                "1": {},
+                "2": {
+                    "hardware_id_probe": {
+                        "serial_number": "",
+                        "version_major": "",
+                        "version_minor": "",
+                        "headstage_id": ""
+                    },
+                    "channel_sett": {
+                        "1": {},
+                        "2": {
+                            "references": "100000000",
+                            "gain": 0,
+                            "input": 0
+                        }
+                    },
+                    "stim_unit_sett": {
+                        "1": {},
+                        "2": {
+                            "stim_unit": 0,
+                            "polarity": false,
+                            "pulses": 0,
+                            "prephase": 0,
+                            "amplitude1": 0,
+                            "width1": 0,
+                            "interphase": 0,
+                            "amplitude2": 0,
+                            "width2": 0,
+                            "discharge": 0,
+                            "duration": 0,
+                            "aftertrain": 0
+                        }
+                    },
+                    "stim_unit_elec": {
+                        "1": [1, 2],
+                        "2": [3, 4]
+                    }
+                }
+            },
+            "TTL_sett": {
+                "1": {},
+                "2": {
+                    "functionality": "start_recording",
+                    "probe_list": 20,
+                    "SU_list": []
+                }
+            }
+        }
+    }
+}
