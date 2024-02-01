@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Program>
+    <StimulationSettings>
+        <Waveforms>
+            <Configuration handle="-" probe="-" stimunit="0" polarity="0" pulses="20" prephase="0" amplitude1="5" width1="170" interphase="60" amplitude2="5" width2="170" discharge="200" duration="600" aftertrain="1000"/>
+        </Waveforms>
+        <StimulationMapping>
+            <Mapping handle="-" probe="-" stimunit="0" electrodes="-"/>
+        </StimulationMapping>
+</Program>
