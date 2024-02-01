@@ -77,37 +77,45 @@ class ProbeSettings:
     #     return self.gain_vec
 
 
-@dataclass
-class HandleSettings:
-    handle: str = ""
-    all_probes: Dict[str, ProbeSettings] = field(
-        default_factory=Dict[str, ProbeSettings]
-    )
+class IDInformation:
+    serial_number: int = 0
+    version_major: int = 0
+    version_minor: int = 0
+    headstage_id: str = ""
 
 
 @dataclass
 class TTLSettings:
-    TTL_channel: int = 0
-    electrode_selection: HandleSettings = field(default_factory=HandleSettings)
-    TTL_trigger_function: str = ""
+    trigger_function: str = ""
+    target_handle: str = ""
+    target_probe: str = ""
+    target_SU: str = ""
+
+
+@dataclass
+class TTL_probes:
+    TTL_probes: Dict[int, TTLSettings] = field(default_factory=Dict[int, TTLSettings])
+
+
+@dataclass
+class TTL_handels:
+    TTL_handels: Dict[int, TTLSettings] = field(default_factory=Dict[int, TTLSettings])
+
+
+@dataclass
+class HandleSettings:
+    handle: str = ""
+    hardware_id_base_station: IDInformation = field(default_factory=IDInformation)
+    hardware_id_head_stage: IDInformation = field(default_factory=IDInformation)
+    probes: Dict[int, ProbeSettings] = field(default_factory=Dict[int, ProbeSettings])
 
 
 @dataclass
 class GeneralSettings:
     viperbox_software_id: str = ""
     session_starting_datetime: str = ""
-    api_version: str = ""
-    basestation_id: str = ""
-    boot_code_version: str = ""
-    head_stage_id: str = ""
-    mezzanine_id_1: str = ""
-    mezzanine_id_2: str = ""
-    mezzanine_id_3: str = ""
-    mezzanine_id_4: str = ""
-    probe_id_1: str = ""
-    probe_id_2: str = ""
-    probe_id_3: str = ""
-    probe_id_4: str = ""
+    api_version_minor: str = ""
+    api_version_major: str = ""
     handle_sett: HandleSettings = field(default_factory=HandleSettings)
 
 
@@ -130,6 +138,10 @@ def dataclass_to_dict(obj: Any) -> Any:
 def dict_to_dataclass(cls: Any, dict_obj: Any) -> Any:
     """
     Recursively convert dictionaries to dataclass instances.
+
+    Arguments:
+    - cls: The given dataclass type to convert to.
+    - dict_obj: The dictionary to convert.
     """
     if hasattr(cls, "__annotations__"):
         field_types = cls.__annotations__
