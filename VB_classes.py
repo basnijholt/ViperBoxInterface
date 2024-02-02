@@ -1,3 +1,4 @@
+import inspect
 from dataclasses import asdict, dataclass, field, is_dataclass
 from typing import Any, Dict, List
 
@@ -14,6 +15,12 @@ class ChanSettings:
     references: str = ""
     gain: int = 0
     input: int = 0
+
+    @classmethod
+    def from_dict(cls, env):
+        return cls(
+            **{k: v for k, v in env.items() if k in inspect.signature(cls).parameters}
+        )
 
 
 @dataclass
@@ -51,10 +58,10 @@ class SUSettings:
 @dataclass
 class ProbeSettings:
     channel_sett: Dict[str, ChanSettings] = field(
-        default_factory=Dict[str, ChanSettings]
+        default_factory=dict(str, ChanSettings)
     )
-    stim_unit_sett: Dict[str, SUSettings] = field(default_factory=Dict[str, SUSettings])
-    stim_unit_elec: Dict[str, List[int]] = field(default_factory=Dict[str, List[int]])
+    stim_unit_sett: Dict[str, SUSettings] = field(default_factory=dict(str, SUSettings))
+    stim_unit_elec: Dict[str, List[int]] = field(default_factory=dict(str, list[int]))
     _sus: int = 8
     _elecs: int = 128
 
@@ -94,12 +101,12 @@ class TTLSettings:
 
 @dataclass
 class TTL_probes:
-    TTL_probes: Dict[int, TTLSettings] = field(default_factory=Dict[int, TTLSettings])
+    TTL_probes: Dict[int, TTLSettings] = field(default_factory=dict(int, TTLSettings))
 
 
 @dataclass
 class TTL_handels:
-    TTL_handels: Dict[int, TTLSettings] = field(default_factory=Dict[int, TTLSettings])
+    TTL_handels: Dict[int, TTLSettings] = field(default_factory=dict(int, TTLSettings))
 
 
 @dataclass
@@ -107,7 +114,7 @@ class HandleSettings:
     handle: str = ""
     hardware_id_base_station: IDInformation = field(default_factory=IDInformation)
     hardware_id_head_stage: IDInformation = field(default_factory=IDInformation)
-    probes: Dict[int, ProbeSettings] = field(default_factory=Dict[int, ProbeSettings])
+    probes: Dict[int, ProbeSettings] = field(default_factory=dict(int, ProbeSettings))
 
 
 @dataclass
