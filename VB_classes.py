@@ -1,4 +1,4 @@
-import inspect
+import json
 from dataclasses import asdict, dataclass, field, is_dataclass
 from typing import Any, Dict, List
 
@@ -13,19 +13,23 @@ import numpy as np
 @dataclass
 class ChanSettings:
     references: str = ""
-    gain: int = 0
+    gain: int = 1
     input: int = 0
 
     @classmethod
     def from_dict(cls, env):
-        return cls(
-            **{k: v for k, v in env.items() if k in inspect.signature(cls).parameters}
-        )
+        tmp_dct = {}
+        for k, v in cls.__annotations__.items():
+            if not isinstance(env[k], v):
+                tmp_dct[k] = int(env[k])
+            else:
+                tmp_dct[k] = str(env[k])
+        return cls(**tmp_dct)
 
 
 @dataclass
 class SUSettings:
-    stim_unit: int = 0
+    # stim_unit: int = 0
     polarity: bool = False
     pulses: int = 0
     prephase: int = 0
@@ -38,9 +42,22 @@ class SUSettings:
     duration: int = 0
     aftertrain: int = 0
 
+    @classmethod
+    def from_dict(cls, env):
+        tmp_dct = {}
+        for k, v in cls.__annotations__.items():
+            if not isinstance(env[k], v):
+                tmp_dct[k] = int(env[k])
+            # if not isinstance(env[k], v):
+            else:
+                tmp_dct[k] = str(env[k])
+            # else:
+            #     tmp_dct[k] = bool(env[k])
+        return cls(**tmp_dct)
+
     def SUConfig(self):
         return (
-            self.stim_unit,
+            # self.stim_unit,
             self.polarity,
             self.pulses,
             self.amplitude1,
@@ -55,13 +72,22 @@ class SUSettings:
         )
 
 
+# @dataclass
+# class ProbeSettings:
+#     channel_sett: Dict[str, ChanSettings] = field(
+#         default_factory=dict(str, ChanSettings)
+#     )
+#     stim_unit_sett: Dict[str, SUSettings] = field(default_factory=dict())
+#     stim_unit_elec: Dict[str, List[int]] = field(default_factory=dict())
+#     _sus: int = 8
+#     _elecs: int = 128
+
+
 @dataclass
 class ProbeSettings:
-    channel_sett: Dict[str, ChanSettings] = field(
-        default_factory=dict(str, ChanSettings)
-    )
-    stim_unit_sett: Dict[str, SUSettings] = field(default_factory=dict(str, SUSettings))
-    stim_unit_elec: Dict[str, List[int]] = field(default_factory=dict(str, list[int]))
+    channel: Dict[str, ChanSettings] = field(default_factory=dict)
+    stim_unit_sett: Dict[str, SUSettings] = field(default_factory=dict)
+    stim_unit_elec: Dict[str, List[int]] = field(default_factory=dict)
     _sus: int = 8
     _elecs: int = 128
 
@@ -101,20 +127,28 @@ class TTLSettings:
 
 @dataclass
 class TTL_probes:
-    TTL_probes: Dict[int, TTLSettings] = field(default_factory=dict(int, TTLSettings))
+    TTL_probes: Dict[int, TTLSettings] = field(default_factory=dict)
 
 
 @dataclass
 class TTL_handels:
-    TTL_handels: Dict[int, TTLSettings] = field(default_factory=dict(int, TTLSettings))
+    TTL_handels: Dict[int, TTLSettings] = field(default_factory=dict)
+
+
+# @dataclass
+# class HandleSettings:
+#     handle: str = ""
+#     hardware_id_base_station: IDInformation = field(default_factory=IDInformation)
+#     hardware_id_head_stage: IDInformation = field(default_factory=IDInformation)
+#     probes: Dict[int, ProbeSettings] = field(default_factory=dict())
 
 
 @dataclass
 class HandleSettings:
     handle: str = ""
-    hardware_id_base_station: IDInformation = field(default_factory=IDInformation)
-    hardware_id_head_stage: IDInformation = field(default_factory=IDInformation)
-    probes: Dict[int, ProbeSettings] = field(default_factory=dict(int, ProbeSettings))
+    hardware_id_base_station: IDInformation | None = None
+    hardware_id_head_stage: IDInformation | None = None
+    probes: Dict[int, ProbeSettings] = field(default_factory=dict)
 
 
 @dataclass
@@ -123,7 +157,16 @@ class GeneralSettings:
     session_starting_datetime: str = ""
     api_version_minor: str = ""
     api_version_major: str = ""
-    handle_sett: HandleSettings = field(default_factory=HandleSettings)
+    # handle_sett: HandleSettings = field(default_factory=HandleSettings)
+    handles: Dict[int, HandleSettings] = field(default_factory=dict)
+
+
+def printable_dtd(obj: Any) -> None:
+    """
+    Recursively convert dataclass instances to dictionaries.
+    """
+
+    print(json.dumps(dataclass_to_dict(obj), indent=4, sort_keys=True))
 
 
 def dataclass_to_dict(obj: Any) -> Any:
