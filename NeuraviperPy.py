@@ -24,21 +24,34 @@
 * v1.0      23/02/2023  PHE       Release:
 *                                 API update: nvrAPIv1.0-MSVC-x64.zip
 *                                 Added comments with DLL loading
+* v1.3      05/07/2023  PHE       API update: nvrAPIv1.3-MSVC-x64.zip
+* v1.5      20/10/2023  PHE       API update: nvrAPIv1.6-MSVC-x64.zip
+*                                 Add setGain()
+*                                 Add writeChannelConfiguration()
+*                                 Add setOsImage()
+*                                 Add writeOsConfiguration()
+*******************************************************************************
+* IMPORTANT reminder:
+*
+* All function parameters: zero-indexed !!!
+*
 ****************************************************************************"""
 
 import ctypes
+import logging
 import os
 import re
 import sys
-
 from ctypes import (
-    c_int,
     POINTER,
     c_bool,
     c_char,
     c_char_p,
+    c_double,
+    c_int,
     c_int16,
     c_size_t,
+    c_uint,
     c_uint8,
     c_void_p,
     sizeof,
@@ -48,10 +61,7 @@ from inspect import signature
 from sys import platform as _platform
 from types import FunctionType
 from typing import List, Tuple
-import logging
 
-# logging.basicConfig(level=logging.INFO)
-# logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 
@@ -68,7 +78,7 @@ for path in sys.path:
 
     try:
         _files = [f for f in os.listdir(_this_dir) if re.search(_pattern, f)]
-    except Exception:
+    except FileNotFoundError:
         continue
 
     if _files:
@@ -120,6 +130,9 @@ def _c_function(function_name, res_type, arg_types):
     c_fn = getattr(_nvplib, function_name)
     c_fn.restype = res_type
     c_fn.argtypes = arg_types
+    logging.debug(
+        f"NVP API function {function_name} called with argument types {arg_types}"
+    )
     return c_fn
 
 
@@ -185,6 +198,16 @@ class DeviceEmulatorMode(IntEnum):
 class DeviceEmulatorType(IntEnum):
     OFF = 0
     EMULATED_PROBE = 1
+
+
+class SyncMode(IntEnum):
+    MASTER = 0
+    SLAVE = 1
+
+
+class TriggerMode(IntEnum):
+    MASTER = 0
+    SLAVE = 1
 
 
 #
@@ -278,54 +301,59 @@ class DiagStats(Struct):
 
 
 error_dct = {
-    0: "The function returned sucessfully",
-    1: "Unspecified failure",
-    2: "A board was already open",
-    3: "The function cannot execute, because the board or port is not open",
-    4: "An error occurred while accessing devices on the BS i2c bus",
-    5: "FPGA firmware version mismatch",
-    6: "A parameter had an illegal value or out of range",
-    7: "uart communication on the serdes link failed to receive an acknowledgement",
-    8: "the function did not complete within a restricted period of time",
-    9: "illegal channel or channel group number",
-    10: "illegal electrode bank number",
-    11: "a reference number outside the valid range was specified",
-    12: "an internal reference number outside the valid range was specified",
-    13: "a parsing error occurred while reading a malformed CSV file.",
-    14: "a BIST operation has failed",
-    15: "The file could not be opened",
-    16: "the specified timestamp could not be found in the stream",
-    17: "a file IO operation failed",
-    18: "the operation could not complete due to insufficient process memory",
-    19: "missing serializer clock. Probably bad cable or connection",
-    20: "AP gain number out of range",
-    21: "LFP gain number out of range",
-    22: "a data stream IO error occurred.",
-    23: "no NeuraViPeR board found at the specified slot number",
-    24: "the specified slot is out of bound",
-    25: "the specified port is out of bound",
-    26: "The stream is at the end of the file, but more data was expected",
-    27: "The packet header is corrupt and cannot be decoded",
-    28: "The packet headers crc is invalid",
-    29: "The probe serial number does not match the calibration data",
-    30: "the flash programming was aborted",
-    31: "the specified probe id is out of bound",
-    32: "no head stage was detected",
-    33: "no mezzanine board was detected",
-    34: "no probe was detected",
-    35: "Output stage number is out of bounds",
-    36: "Stimulation unit number is out of bounds",
-    37: "Validation of channel configuration SR chain data upload failed",
-    38: "Validation of output stage SR chain data upload failed",
-    39: "Validation of stimulation unit SR chain data upload failed",
-    40: "Validation of general configuration SR chain data upload failed",
-    41: "Basestation with given serial number not found",
-    42: "Invalid device handle",
-    43: "the value of the ‘handle’ parameter is not valid.",
-    44: "the object type is not of the expected class",
-    45: "a BIST readback verification failed",
-    46: "the function is not supported",
-    47: "the function is not implemented",
+    0: "SUCCESS, The function returned sucessfully",
+    1: "FAILED, Unspecified failure",
+    2: "ALREADY_OPEN, A board was already open",
+    3: "NOT_OPEN, The function cannot execute, because the board or port is not open",
+    4: "IIC_ERROR, An error occurred while accessing devices on the BS i2c bus",
+    5: "VERSION_MISMATCH, FPGA firmware version mismatch",
+    6: "PARAMETER_INVALID, A parameter had an illegal value or out of range",
+    7: "UART_ACK_ERROR, uart communication on the serdes link failed to receive an "
+    "acknowledgement",
+    8: "TIMEOUT, the function did not complete within a restricted period of time",
+    9: "WRONG_CHANNEL, illegal channel or channel group number",
+    10: "WRONG_BANK, illegal electrode bank number",
+    11: "WRONG_REF, a reference number outside the valid range was specified",
+    12: "WRONG_INTREF, an internal reference number outside the valid range was "
+    "specified",
+    13: "CSV_READ_ERROR, an parsing error occurred while reading a malformed CSV file.",
+    14: "BIST_ERROR, a BIST operation has failed",
+    15: "FILE_OPEN_ERROR, The file could not be opened",
+    16: "TIMESTAMPNOTFOUND, the specified timestamp could not be found in the stream",
+    17: "FILE_IO_ERR, a file IO operation failed",
+    18: "OUTOFMEMORY, the operation could not complete due to insufficient process "
+    "memory",
+    19: "NO_LOCK, missing serializer clock. Probably bad cable or connection",
+    20: "WRONG_AP, AP gain number out of range",
+    21: "WRONG_LFP, LFP gain number out of range",
+    22: "IO_ERROR, a data stream IO error occurred.",
+    23: "NO_SLOT, no NeuraViPeR board found at the specified slot number",
+    24: "WRONG_SLOT, the specified slot is out of bound",
+    25: "WRONG_PORT, the specified port is out of bound",
+    26: "STREAM_EOF, The stream is at the end of the file, but more data was expected",
+    27: "HDRERR_MAGIC, The packet header is corrupt and cannot be decoded",
+    28: "HDRERR_CRC, The packet header’s crc is invalid",
+    29: "WRONG_PROBESN, The probe serial number does not match the calibration data",
+    30: "PROGRAMMINGABORTED, the flash programming was aborted",
+    31: "WRONG_DOCK_ID, the specified probe id is out of bound",
+    32: "NO_LINK, no head stage was detected",
+    33: "NO_MEZZANINE, no mezzanine board was detected",
+    34: "NO_PROBE, no probe was detected",
+    35: "WRONG_OUTPUT_STAGE, Output stage number is out of bounds",
+    36: "WRONG_STIM_UNIT, Stimulation unit number is out of bounds",
+    37: "ERROR_SR_CHAIN_CH, Validation of channel configuration SR chain data upload "
+    "failed",
+    38: "ERROR_SR_CHAIN_OS, Validation of output stage SR chain data upload failed",
+    39: "ERROR_SR_CHAIN_SU, Validation of stimulation unit SR chain data upload failed",
+    40: "ERROR_SR_CHAIN_GEN, Validation of general configuration SR chain data upload "
+    "failed",
+    41: "DEVICE_NOT_FOUND, Basestation with given serial number not found",
+    42: "INVALID_DEVICE_HANDLE, Invalid device handle",
+    43: "ILLEGAL_HANDLE, the value of the ‘handle’ parameter is not valid.",
+    44: "OBJECT_MISMATCH, the object type is not of the expected class",
+    45: "READBACK_ERROR, a BIST readback verification failed",
+    46: "NOTSUPPORTED, the function is not supported",
+    47: "NOTIMPLEMENTED, the function is not implemented",
 }
 
 #
@@ -354,9 +382,11 @@ class NeuraviperAPIError(Exception):
 
 def __assertnvperror(nvperror):
     if nvperror != 0:
-        print(error_dct[nvperror])
-        logger.error(error_dct[nvperror])
+        logger.warning(error_dct[nvperror])
+        print(f"custom print by me: {error_dct[nvperror]}")
         raise NeuraviperAPIError(nvperror)
+    else:
+        logging.debug("Previous NVP API call successful")
 
 
 @_wrap_function("getLogLevel", c_int, [])
@@ -474,6 +504,84 @@ def writeSPI(handle: DeviceHandle, probe: int, buffer: bytes):
     __assertnvperror(_c_fn(handle, probe, output, size))
 
 
+@_wrap_function(
+    "writeI2C",
+    NVP_ErrorCode,
+    [DeviceHandle, c_uint8, c_uint8, POINTER(c_uint8), c_size_t],
+)
+def writeI2C(
+    handle: DeviceHandle, device: int, address: int, bytearr: bytearray
+) -> None:
+    data = (c_char * len(bytearr)).from_buffer(bytearr)
+    __assertnvperror(_c_fn(handle, device, address, data, len(bytearr)))
+
+
+@_wrap_function(
+    "readI2C",
+    NVP_ErrorCode,
+    [DeviceHandle, c_uint8, c_uint8, POINTER(c_uint8), c_size_t],
+)
+def readI2C(handle: DeviceHandle, device: int, address: int, length: int) -> bytearray:
+    b = bytearray(length)
+    ptr = (c_char * length).from_buffer(b)
+    __assertnvperror(_c_fn(handle, device, address, ptr, length))
+    return b
+
+
+@_wrap_function(
+    "writeI2Cctrl",
+    NVP_ErrorCode,
+    [DeviceHandle, c_int, c_uint8, c_uint8, POINTER(c_uint8), c_size_t],
+)
+def writeI2Cctrl(
+    handle: DeviceHandle, device: int, address: int, bytearr: bytearray
+) -> None:
+    data = (c_char * len(bytearr)).from_buffer(bytearr)
+    __assertnvperror(_c_fn(handle, device, address, data, len(bytearr)))
+
+
+@_wrap_function(
+    "readI2Cctrl",
+    NVP_ErrorCode,
+    [DeviceHandle, c_int, c_uint8, c_uint8, POINTER(c_uint8), c_size_t],
+)
+def readI2Cctrl(
+    handle: DeviceHandle, device: int, address: int, length: int
+) -> bytearray:
+    b = bytearray(length)
+    ptr = (c_char * length).from_buffer(b)
+    __assertnvperror(_c_fn(handle, device, address, ptr, length))
+    return b
+
+
+@_wrap_function("setGain", NVP_ErrorCode, [DeviceHandle, c_uint8, c_int, c_int])
+def setGain(handle: DeviceHandle, probe: int, channel: int, gain: int):
+    __assertnvperror(_c_fn(handle, probe, channel, gain))
+
+
+@_wrap_function(
+    "writeChannelConfiguration", NVP_ErrorCode, [DeviceHandle, c_uint8, c_bool]
+)
+def writeChannelConfiguration(handle: DeviceHandle, probe: int, readCheck: bool):
+    __assertnvperror(_c_fn(handle, probe, readCheck))
+
+
+@_wrap_function("setOSimage", NVP_ErrorCode, [DeviceHandle, c_uint8, POINTER(c_uint8)])
+def setOSimage(handle: DeviceHandle, probe: int, buffer: bytes):
+    size = len(buffer)
+    output = (c_uint8 * size).from_buffer_copy(buffer)
+    __assertnvperror(_c_fn(handle, probe, output))
+
+
+@_wrap_function(
+    "writeOSConfiguration", NVP_ErrorCode, [DeviceHandle, c_uint8, c_bool, c_bool]
+)
+def writeOsConfiguration(
+    handle: DeviceHandle, probe: int, readCheck: bool, skip_sync_check: bool
+):
+    __assertnvperror(_c_fn(handle, probe, readCheck, skip_sync_check))
+
+
 @_wrap_function("arm", NVP_ErrorCode, [DeviceHandle])
 def arm(handle: DeviceHandle) -> None:
     __assertnvperror(_c_fn(handle))
@@ -482,6 +590,56 @@ def arm(handle: DeviceHandle) -> None:
 @_wrap_function("setSWTrigger", NVP_ErrorCode, [DeviceHandle])
 def setSWTrigger(handle: DeviceHandle) -> None:
     __assertnvperror(_c_fn(handle))
+
+
+@_wrap_function("setSyncClockFrequency", NVP_ErrorCode, [DeviceHandle, c_double])
+def setSyncClockFrequency(handle: DeviceHandle, frequency: float) -> None:
+    __assertnvperror(_c_fn(handle, frequency))
+
+
+@_wrap_function(
+    "getSyncClockFrequency", NVP_ErrorCode, [DeviceHandle, POINTER(c_double)]
+)
+def getSyncClockFrequency(handle: DeviceHandle) -> float:
+    freq = c_double(0)
+    __assertnvperror(_c_fn(handle, freq))
+    return freq.value
+
+
+@_wrap_function("setSyncClockPeriod", NVP_ErrorCode, [DeviceHandle, c_uint])
+def setSyncClockPeriod(handle: DeviceHandle, period: int) -> None:
+    __assertnvperror(_c_fn(handle, period))
+
+
+@_wrap_function("getSyncClockPeriod", NVP_ErrorCode, [DeviceHandle, POINTER(c_uint)])
+def getSyncClockPeriod(handle: DeviceHandle) -> int:
+    period = c_uint(0)
+    __assertnvperror(_c_fn(handle, period))
+    return period.value
+
+
+@_wrap_function("setSyncMode", NVP_ErrorCode, [DeviceHandle, c_int])
+def setSyncMode(handle: DeviceHandle, mode: SyncMode) -> None:
+    __assertnvperror(_c_fn(handle, mode.value))
+
+
+@_wrap_function("getSyncMode", NVP_ErrorCode, [DeviceHandle, POINTER(c_int)])
+def getSyncMode(handle: DeviceHandle) -> SyncMode:
+    mode = c_int(0)
+    __assertnvperror(_c_fn(handle, mode))
+    return SyncMode(mode.value)
+
+
+@_wrap_function("setTriggerMode", NVP_ErrorCode, [DeviceHandle, c_int])
+def setTriggerMode(handle: DeviceHandle, mode: TriggerMode) -> None:
+    __assertnvperror(_c_fn(handle, mode.value))
+
+
+@_wrap_function("getTriggerMode", NVP_ErrorCode, [DeviceHandle, POINTER(c_int)])
+def getTriggerMode(handle: DeviceHandle) -> TriggerMode:
+    mode = c_int(0)
+    __assertnvperror(_c_fn(handle, mode))
+    return TriggerMode(mode.value)
 
 
 @_wrap_function(
@@ -590,7 +748,6 @@ def enableFileStream(handle: DeviceHandle, enable: bool) -> None:
 )
 def streamOpenFile(filename: str, probe: int) -> StreamHandle:
     ptr = c_void_p()
-    print("nvp streamopenfile: ", filename, probe)
     __assertnvperror(_c_fn(filename.encode("ASCII"), ctypes.byref(ptr), probe))
     return ptr
 
@@ -695,25 +852,6 @@ def bistSR(handle: DeviceHandle, probe: int):
 #######################################################################################
 #######################################################################################
 #######################################################################################
-#######################################################################################
-#######################################################################################
-#######################################################################################
-#######################################################################################
-# Self written, might have errors
-@_wrap_function("setOSimage", NVP_ErrorCode, [DeviceHandle, c_uint8, POINTER(c_uint8)])
-def setOSimage(handle: DeviceHandle, probe: int, osdata: bytes) -> None:
-    """Sets the value of the output stage pixels.
-    To set the value of a pixel, only 2 parameters from the OS SR need to be changed,
-    the enable (1 bit) and the SU selection (3 bits).
-
-    :param handle: Device handle of the basestation
-    :param probe: Index of the probe/mezzanine board (valid range 0 to 3)
-    :param osdata: Array of 128*4 bits (= 64 bytes) which contain the core configuration
-      of the 128 output stages.
-    """
-    __assertnvperror(_c_fn(handle, probe, osdata))
-
-
 @_wrap_function(
     "selectElectrode", NVP_ErrorCode, [DeviceHandle, c_uint8, c_int, ElectrodeInput]
 )
@@ -730,25 +868,11 @@ def setReference(
     __assertnvperror(_c_fn(handle, probe, channel, reference))
 
 
-@_wrap_function(
-    "writeChannelConfiguration", NVP_ErrorCode, [DeviceHandle, c_uint8, c_bool]
-)
-def writeChannelConfiguration(
-    handle: DeviceHandle, probe: int, readCheck: bool
-) -> None:
-    __assertnvperror(_c_fn(handle, probe, readCheck))
-
-
 @_wrap_function("setOSEnable", NVP_ErrorCode, [DeviceHandle, c_uint8, c_int, c_bool])
 def setOSEnable(
     handle: DeviceHandle, probe: int, output_stage: int, enable: bool
 ) -> None:
     __assertnvperror(_c_fn(handle, probe, output_stage, enable))
-
-
-@_wrap_function("writeOSConfiguration", NVP_ErrorCode, [DeviceHandle, c_uint8, c_bool])
-def writeOSConfiguration(handle: DeviceHandle, probe: int, readCheck: bool) -> None:
-    __assertnvperror(_c_fn(handle, probe, readCheck))
 
 
 @_wrap_function(
@@ -819,11 +943,6 @@ def setOSInputSU(
     handle: DeviceHandle, probe: int, output_stage: int, stim_unit: int
 ) -> None:
     __assertnvperror(_c_fn(handle, probe, output_stage, stim_unit))
-
-
-@_wrap_function("setGain", NVP_ErrorCode, [DeviceHandle, c_uint8, c_uint8, c_uint8])
-def setGain(handle: DeviceHandle, probe: int, channel: int, gain: int) -> None:
-    __assertnvperror(_c_fn(handle, probe, channel, gain))
 
 
 @_wrap_function("setAZ", NVP_ErrorCode, [DeviceHandle, c_uint8, c_uint8, c_bool])

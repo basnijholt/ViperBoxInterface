@@ -4,6 +4,10 @@ from typing import List
 from pydantic import BaseModel, field_validator
 from pydantic.dataclasses import dataclass
 
+"""
+The following classes are used to validate the input from the API.
+"""
+
 
 @dataclass
 class Connect(BaseModel):

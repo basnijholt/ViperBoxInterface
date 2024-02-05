@@ -14,16 +14,17 @@
 * -buffer for systems with lower memory
 ****************************************************************************"""
 
+import os.path
+from datetime import datetime
+from uuid import uuid4
+
 import numpy as np
 import PySimpleGUI as sg
-import os.path
-
-from datetime import datetime
 from dateutil.tz import tzlocal
-from uuid import uuid4
-from NeuraviperPy import streamOpenFile, streamReadData
 from pynwb import NWBHDF5IO, NWBFile
 from pynwb.ecephys import ElectricalSeries
+
+from NeuraviperPy import streamOpenFile, streamReadData
 
 # init defaults
 

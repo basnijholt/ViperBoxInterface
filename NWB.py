@@ -1,10 +1,9 @@
-from uuid import uuid4
 from time import strftime
+from uuid import uuid4
 
 import numpy as np
-
-from pynwb import NWBHDF5IO, NWBFile, TimeSeries
 from hdmf.data_utils import DataChunkIterator
+from pynwb import NWBHDF5IO, NWBFile, TimeSeries
 
 import NeuraviperPy as NVP
 
