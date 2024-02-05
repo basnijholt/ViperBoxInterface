@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Program>
-    <RecordingSettings>
-        <Channel 
-            handle="-" probe="-" amplifier="-" references="100000000" gain="1" input="0" autoreset="0"/>
-    </RecordingSettings>
+    <Settings>
+        <RecordingSettings>
+            <Channel
+                handle="-" probe="-" channel="-" references="100000000" gain="1" input="0"
+            />
+        </RecordingSettings>
+    </Settings>
 </Program>

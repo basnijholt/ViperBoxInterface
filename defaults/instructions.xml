@@ -5,30 +5,34 @@
             <RecordingName>Mouse22</RecordingName>
         </MetaData>
         <TTLSettings>
-            <Setting handle="1" probe="1" TTL="1" trigger_function="start_recording" target_handle="1" target_probe="1" target_SU="-"/>
+            <Setting handle="1" probe="1" TTL="1" trigger_function="start_recording"
+                target_handle="1" target_probe="1" target_SU="-" />
         </TTLSettings>
         <RecordingSettings>
-            <Channel handle="-" probe="-" amplifier="0-12" bodyref="1" references="00101000" gain="1" input="0"/>
-            <Channel handle="1" probe="3" amplifier="63" bodyref="1" references="00000000" gain="1" input="0"/>
+            <Channel handle="-" probe="-" channel="1-3" references="100101000" gain="1" input="0" />
+            <Channel handle="1" probe="3" channel="63" references="100000000" gain="1" input="0" />
         </RecordingSettings>
         <StimulationWaveformsSettings>
-            <Configuration handle="0" probe="0,1,2,3" stimunit="0" polarity="0" pulses="20" prephase="0" amplitude1="5" width1="170" interphase="60" amplitude2="5" width2="170" discharge="200" frequency="50" aftertrain="1000"/>
-            <Configuration handle="1" probe="0" stimunit="1" polarity="0" pulses="20" prephase="0" amplitude1="5" width1="170" interphase="60" amplitude2="5" width2="170" frequency="50" aftertrain="1000"/>
+            <Configuration handle="1" probe="1,2,3,4" stimunit="5-8,2,1" polarity="0" pulses="20"
+                prephase="0" amplitude1="5" width1="170" interphase="60" amplitude2="5" width2="170"
+                discharge="200" duration="600" aftertrain="1000" />
+            <Configuration handle="2" probe="1" stimunit="1" polarity="0" pulses="20" prephase="0"
+                amplitude1="5" width1="170" interphase="60" amplitude2="5" width2="170"
+                discharge="200" duration="600" aftertrain="1000" />
         </StimulationWaveformsSettings>
         <StimulationMappingSettings>
-            <Mapping handle="0" probe="0" stimunit="0" electrodes="1,2,5,21"/>
-            <Mapping handle="0" probe="1" stimunit="0" electrodes="1,5,22"/>
-            <Mapping handle="0" probe="2" stimunit="0" electrodes="25"/>
-            <Mapping handle="0" probe="3" stimunit="0" electrodes="11,12,13"/>
-            <Mapping handle="0" probe="0" stimunit="1" />
+            <Mapping handle="1,2" probe="1" stimunit="1" electrodes="1,2,5,21" />
+            <Mapping handle="1" probe="1" stimunit="1" electrodes="1,5,22" />
+            <Mapping handle="1" probe="2" stimunit="1" electrodes="25" />
+            <Mapping handle="1" probe="3" stimunit="1" electrodes="11,12,13" />
         </StimulationMappingSettings>
     </Settings>
     <StimulationSequence>
-        <Instruction type="trigger_recording" data_address="1.0.0.127"/>
+        <Instruction type="trigger_recording" data_address="1.0.0.127" />
         <StimulationSequence>
-            <Instruction type="stimulus" handle="0" probe="0,1,2,3" stimunit="0"/>
-            <Instruction type="wait" time="20"/>
-            <Instruction type="stimulus" handle="0" probe="0" stimunit="1"/>
+            <Instruction type="stimulus" handle="1" probe="1,2,3,4" stimunit="1" />
+            <Instruction type="wait" time="20" />
+            <Instruction type="stimulus" handle="1" probe="1" stimunit="1" />
             <Instruction type="wait" time="5" />
         </StimulationSequence>
     </StimulationSequence>
