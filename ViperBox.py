@@ -220,23 +220,23 @@ class ViperBox:
         self,
         xml_string: str | None = None,
         reset: bool = False,
+        default_values: bool = False,
     ) -> Tuple[bool, str]:
         """Loads the recording settings from an XML string or default file."""
-
-        if xml_string == "default":
-            # if default_values is True:
-            XML_data = etree.parse("defaults/default_recording_settings.xml")
-        else:
-            try:
-                XML_data = etree.fromstring(xml_string)
-            except TypeError:
-                return (False, "Invalid xml string. Error: {e}")
 
         if self.tracking.box_connected is False:
             return False, "Not connected to ViperBox"
 
         if self.tracking.recording is True:
             return False, "Recording in progress, cannot change settings"
+
+        if default_values is True:
+            XML_data = etree.parse("defaults/default_recording_settings.xml")
+        else:
+            try:
+                XML_data = etree.fromstring(xml_string)
+            except TypeError:
+                return (False, "Invalid xml string. Error: {e}")
 
         result, feedback = self.verify_xml(XML_data)
         if result is False:
@@ -249,95 +249,108 @@ class ViperBox:
             XML_data, tmp_settings, "recording"
         )
 
-        # Always set settings for entire probe at once.
-        for handle in updated_tmp_settings.handles.keys():
-            for probe in update_checked_settings.handles[handle].probes.keys():
-                for channel in (
-                    update_checked_settings.handles[handle].probes[probe].channel.keys()
-                ):
-                    NVP.selectElectrode(self._handle, probe, channel, 0)
-                    NVP.setReference(
-                        self._handle,
-                        probe,
-                        channel,
-                        updated_tmp_settings.handles[handle]
+        try:
+            # Always set settings for entire probe at once.
+            for handle in updated_tmp_settings.handles.keys():
+                for probe in update_checked_settings.handles[handle].probes.keys():
+                    for channel in (
+                        update_checked_settings.handles[handle]
                         .probes[probe]
-                        .channel[channel]
-                        .get_refs,
-                    )
-                    NVP.setGain(
-                        self._handle,
-                        probe,
-                        channel,
-                        updated_tmp_settings.handles[handle]
-                        .probes[probe]
-                        .channel[channel]
-                        .gain,
-                    )
-                    NVP.setAZ(
-                        self._handle, probe, channel, False
-                    )  # see email Patrick 08/01/2024
+                        .channel.keys()
+                    ):
+                        NVP.selectElectrode(self._handle, probe, channel, 0)
+                        NVP.setReference(
+                            self._handle,
+                            probe,
+                            channel,
+                            updated_tmp_settings.handles[handle]
+                            .probes[probe]
+                            .channel[channel]
+                            .get_refs,
+                        )
+                        NVP.setGain(
+                            self._handle,
+                            probe,
+                            channel,
+                            updated_tmp_settings.handles[handle]
+                            .probes[probe]
+                            .channel[channel]
+                            .gain,
+                        )
+                        NVP.setAZ(
+                            self._handle, probe, channel, False
+                        )  # see email Patrick 08/01/2024
 
-                NVP.writeChannelConfiguration(self._handle, probe, False)
+                    NVP.writeChannelConfiguration(self._handle, probe, False)
+        except Exception:
+            return (
+                False,
+                """Error in uploading recording settings, settings not applied and 
+                reverted to previous settings""",
+            )
 
         self.local_settings = updated_tmp_settings
         return True, "Recording settings loaded"
 
     def stimulation_settings(
-        self, XML_file_path: str, reset: bool = False, default_values: bool = False
+        self, xml_string: str, reset: bool = False, default_values: bool = False
     ) -> Tuple[bool, str]:
         """Loads the stimulation settings from an XML file."""
-
-        if default_values is True:
-            XML_file_path = self._default_XML / "default_stimulation_settings.xml"
-            self.logger.debug("Default stimulation settings loaded")
-        else:
-            try:
-                XML_file_path = Path(XML_file_path)
-            except TypeError:
-                return (
-                    False,
-                    """Invalid XML file, should be a Path object. Error: {e}""",
-                )
 
         if self.tracking.box_connected is False:
             return False, "Not connected to ViperBox"
 
-        if self._settings:
-            self._settings_backup = self._settings
-        self._settings = self._set_settings(XML_file_path, reset=reset)
+        if default_values is True:
+            XML_data = etree.parse("defaults/default_stimulation_settings.xml")
+        else:
+            try:
+                XML_data = etree.fromstring(xml_string)
+            except TypeError:
+                return (False, "Invalid xml string. Error: {e}")
+
+        result, feedback = self.verify_xml(XML_data)
+        if result is False:
+            return result, feedback
+
+        tmp_settings = copy.deepcopy(self.local_settings)
+        if reset:
+            tmp_settings.reset_stimulation_settings()
+        updated_tmp_settings = update_checked_settings(
+            XML_data, tmp_settings, "stimulation"
+        )
 
         try:
-            # Always set settings for entire probe at once.
-            for probe in self._settings.handle_sett.probe_stim.keys():
-                NVP.setOSimage(
-                    self._handle,
-                    probe,
-                    self._settings.handle_sett.probe_stim[probe].os_data,
-                )
-                for OS in range(128):
-                    NVP.setOSDischargeperm(self._handle, probe, OS, False)
-                    NVP.setOSStimblank(self._handle, probe, OS, True)
+            for handle in updated_tmp_settings.handles.keys():
+                for probe in updated_tmp_settings.handles[handle].probes.keys():
+                    # Always set settings for entire probe at once.
+                    NVP.setOSimage(
+                        self._handle,
+                        probe - 1,
+                        updated_tmp_settings.handles[handle].probes[probe].os_data,
+                    )
+                    for OS in range(128):
+                        NVP.setOSDischargeperm(self._handle, probe, OS, False)
+                        NVP.setOSStimblank(self._handle, probe, OS, True)
 
-            for SU in range(8):
-                NVP.writeSUConfiguration(
-                    self._handle,
-                    self._probe,
-                    self._settings.handle_sett.stim_unit_sett[SU].SUConfig(),
-                )
+                for SU in range(8):
+                    NVP.writeSUConfiguration(
+                        self._handle,
+                        probe - 1,
+                        updated_tmp_settings.handles[handle]
+                        .probes[probe]
+                        .stim_unit_sett[SU],
+                    )
 
-            self._stimulation_settings = True
-        except Exception as e:
-            # TODO:
-            print(e)
-            self._settings = self._settings_backup
+                self._stimulation_settings = True
+        except Exception:
             return (
                 False,
-                """Error in stimulation settings, settings not applied and 
+                """Error in uploading stimulation settings, settings not applied and 
                 reverted to previous settings""",
             )
+        self.local_settings = updated_tmp_settings
 
-        return True, f"Stimulation settings loaded from {XML_file_path}"
+        return True, "Stimulation settings loaded"
 
     def start_recording(self, recording_name: str | None = None) -> Tuple[bool, str]:
         if self.tracking.box_connected is False:
