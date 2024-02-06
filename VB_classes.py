@@ -14,10 +14,27 @@ from lxml import etree
 
 
 @dataclass
+class StatusTracking:
+    recording: bool = False
+    recording_settings_uploaded: bool = False
+    stimulation_settings_uploaded: bool = False
+    test_mode: bool = False
+    BIST_number: int | None = None
+    box_connected: bool = False
+    probe_connected: bool = False
+    active_TTLs: List[bool] = field(default_factory=list)
+    _SU_busy = "0" * 16
+
+
+@dataclass
 class ChanSettings:
-    references: str = ""
-    gain: int = 1
+    references: str = "100000000"
+    gain: int = 0
     input: int = 0
+
+    @property
+    def get_refs(self):
+        return int(int(self.references, 2))
 
     @classmethod
     def from_dict(cls, env):
@@ -34,15 +51,15 @@ class ChanSettings:
 class SUSettings:
     # stim_unit: int = 0
     polarity: bool = False
-    pulses: int = 0
+    pulses: int = 20
     prephase: int = 0
-    amplitude1: int = 0
+    amplitude1: int = 1
     width1: int = 170
-    interphase: int = 0
-    amplitude2: int = 0
-    width2: int = 0
-    discharge: int = 0
-    duration: int = 0
+    interphase: int = 60
+    amplitude2: int = 1
+    width2: int = 170
+    discharge: int = 200
+    duration: int = 600
     aftertrain: int = 0
 
     @classmethod
@@ -175,6 +192,27 @@ class GeneralSettings:
             return connected_hp
         else:
             return connected_hp
+
+    def reset_recording_settings(self):
+        connected_hp = self.connected
+        for handle, probes in connected_hp.items():
+            for probe in probes:
+                self.handles[handle].probes[probe].channel = {}
+
+    def reset_stimulation_settings(self):
+        connected_hp = self.connected
+        for handle, probes in connected_hp.items():
+            for probe in probes:
+                self.handles[handle].probes[probe].stim_unit_sett = {}
+                self.handles[handle].probes[probe].stim_unit_elec = {}
+
+    def reset_probe_settings(self):
+        connected_hp = self.connected
+        for handle, probes in connected_hp.items():
+            for probe in probes:
+                self.handles[handle].probes[probe].channel = {}
+                self.handles[handle].probes[probe].stim_unit_sett = {}
+                self.handles[handle].probes[probe].stim_unit_elec = {}
 
 
 def printable_dtd(obj: Any) -> None:

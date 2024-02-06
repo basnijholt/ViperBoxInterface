@@ -1,5 +1,5 @@
 import json
-from typing import Any
+from typing import Any, Tuple
 
 from lxml import etree
 
@@ -94,23 +94,32 @@ def verify_step_min_max(name: str, step: int, min_val: int, max_val: int, value:
     return True
 
 
-def overwrite_settings(data: Any, local_settings: GeneralSettings):
+def overwrite_settings(
+    data: Any, local_settings: GeneralSettings, check_topic: str = "all"
+):
     """Write xml data to local settings
 
     Arguments:
     - data: xml data of type lxml.etree._ElementTree
     - local_settings: local settings of type GeneralSettings
+    - check_topic: string, either "all", "recording" or "stimulation"
 
     """
     # TODO deal with overwriting all settings.
-
-    for element in data.iter():
-        # goes through all elements
-        if element.tag in [
+    if check_topic == "all":
+        tags = [
             "RecordingSettings",
             "StimulationWaveformsSettings",
             "StimulationMappingSettings",
-        ]:
+        ]
+    elif check_topic == "recording":
+        tags = ["RecordingSettings"]
+    else:
+        tags = ["StimulationWaveformsSettings", "StimulationMappingSettings"]
+
+    for element in data.iter():
+        # goes through all elements
+        if element.tag in tags:
             # if element contains recording settings, add these settings
             for settings in element:
                 handles = parse_numbers(
@@ -160,15 +169,32 @@ def overwrite_settings(data: Any, local_settings: GeneralSettings):
     return local_settings
 
 
-def add_xml_to_local_settings(xml: str, local_settings: GeneralSettings) -> dict:
+def update_checked_settings(
+    data: Any, settings: GeneralSettings, check_topic: str
+) -> GeneralSettings:
     """
-    Adds the xml to the local_settings dictionary.
+    Adds the xml to the settings dictionary.
     """
-    data = etree.fromstring(xml)
-    check_handles_exist(data, list(local_settings.connected.keys()))
-    local_settings = overwrite_settings(data, local_settings)
 
-    return local_settings
+    settings = overwrite_settings(data, settings, check_topic)
+    return settings
+
+
+def check_xml_with_settings(
+    data: Any, settings: GeneralSettings, check_topic: str
+) -> Tuple[bool, str]:
+    """
+    Checks if settings are valid with existing local_settings.
+    """
+    try:
+        check_handles_exist(data, list(settings.connected.keys()))
+    except ValueError as e:
+        return False, f"{e}"
+    try:
+        _ = overwrite_settings(data, settings, check_topic)
+    except ValueError as e:
+        return False, f"{e}"
+    return True, "XML is valid."
 
 
 # Testing code:
@@ -242,5 +268,6 @@ if __name__ == "__main__":
         for probe in connected_handles_probes[key]:
             local_settings.handles[key].probes[probe] = ProbeSettings()
 
-    add_xml_to_local_settings(strixml, local_settings)
+    check_xml_with_settings(data, local_settings)
+    local_settings = update_checked_settings(data, local_settings)
     printable_dtd(local_settings)

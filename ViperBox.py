@@ -1,18 +1,24 @@
+import copy
 import logging
 import os
 import socket
 import threading
 import time
 from pathlib import Path
-from typing import List, Tuple
+from typing import Any, List, Tuple
 
 import numpy as np
 import requests
+from lxml import etree
 
 import NeuraviperPy as NVP
 from custom_exceptions import ThreadingError, ViperBoxError
 from defaults.defaults import OS2chip
-from VB_classes import GeneralSettings, HandleSettings, ProbeSettings
+from VB_classes import GeneralSettings, HandleSettings, ProbeSettings, StatusTracking
+from XML_handler import (
+    check_xml_with_settings,
+    update_checked_settings,
+)
 
 # TODO: implement rotation of logs to not hog up memory
 
@@ -28,6 +34,12 @@ class ViperBox:
     def __init__(self, _session_datetime: str, headless=True) -> None:
         """Initialize the ViperBox class."""
         self._working_directory = os.getcwd()
+
+        # ASDFASDF
+        self.local_settings = GeneralSettings()
+        self.uploaded_settings = GeneralSettings()
+        self.tracking = StatusTracking()
+
         self._session_datetime = _session_datetime
 
         log_folder = Path.cwd() / "logs"
@@ -47,20 +59,8 @@ class ViperBox:
         # handler = logging.StreamHandler(sys.stdout)
         # self.logger.addHandler(handler)
 
-        self._connected = False
-        # self._settings = Dict()
-        self._probe = 0
-        self._probe_recognized = [0, 0, 0, 0]
-
-        self._recording = False
-        self._recording_settings = False
-        self._stimulation_settings = False
-
-        self._SU_busy = "0" * 16
-        self._test_mode = False
-        self._BIST_number = None
-        self._box_connected = False
-        self._active_TTLs = [False, False]
+        # self._probe = 0
+        # self._probe_recognized = [0, 0, 0, 0]
 
         if not headless:
             try:
@@ -75,7 +75,7 @@ class ViperBox:
 
     def connect(
         self,
-        probe_list: None | List[int] = None,
+        probe_list_1: None | List[int] | int = None,
         emulation: bool = False,
         boxless: bool = False,
     ) -> Tuple[bool, str]:
@@ -87,7 +87,7 @@ class ViperBox:
 
         # Checks if the ViperBox is connected and connects if not.
         self.logger.info("Connecting to ViperBox...")
-        if self._connected is True:
+        if self.tracking.box_connected is True:
             self.disconnect()
 
         # check if boxless mode is enabled
@@ -95,17 +95,22 @@ class ViperBox:
             return True, "Boxless mode, no connection to ViperBox"
 
         # check if probes is a list of 4 elements and only containing ints 1 or 0
-        if probe_list is not None:
-            if (
-                (len(probe_list) != 4)
-                | (not all(isinstance(x, int) for x in probe_list))
-                | (not all(x in [0, 1] for x in probe_list))
+        if probe_list_1 is not None:
+            if isinstance(probe_list_1, int):
+                probe_list_1 = [probe_list_1]
+            elif (
+                (not all(isinstance(x, int) for x in probe_list_1))
+                | (not all(x in [1, 2, 3, 4] for x in probe_list_1))
+                | (len(set(probe_list_1)) != len(probe_list_1))
             ):
-                err_msg = "Probes should be a list of 4 integers that are either 0 or 1"
+                err_msg = "Probes should be a list of max 4 integers that are either "
+                "1, 2, 3 or 4. No double numbers are allowed."
                 self.logger.error(err_msg)
                 return False, err_msg
             else:
                 pass
+        else:
+            probe_list_1 = [1]
 
         # Scan for devices
         NVP.scanBS()
@@ -122,15 +127,17 @@ class ViperBox:
             return False, err_msg
         elif number_of_devices == 1:
             logging.info(f"Device found: {devices[0]}")
-            self.local_settings = GeneralSettings()
             # TODO add handle settings and info and stuffff
             self.local_settings.handles = {1: HandleSettings()}
             pass
         else:
             raise ViperBoxError(f"Error in device list; devices list: {devices}")
+        self.tracking.box_connected = True
 
         # Connect and set up viperbox
+        # TODO handlefix: also loop over handles
         self._handle = NVP.createHandle(devices[0].ID)
+        self.local_settings.handles[1].handle_id = self._handle
         logging.info(f"Handle created: {self._handle}")
         NVP.openBS(self._handle)
         logging.info(f"BS opened: {self._handle}")
@@ -151,28 +158,21 @@ class ViperBox:
 
         # Connect and set up probes
         # TODO handlefix: also loop over handles
-        if probe_list is None:
-            probe_list = [0, 1, 2, 3]
-        else:
-            probe_list = [i for i, x in enumerate(probe_list) if x == 1]
-        for i in probe_list:
-            self._probe_recognized[i] = 1
+        for probe_1 in probe_list_1:
             try:
-                NVP.init(self._handle, i)  # Initialize all probes
-                logging.info(f"Probe {i} initialized: {self._handle}")
+                NVP.init(self._handle, probe_1 - 1)  # Initialize all probes
+                logging.info(f"Probe {probe_1} initialized: {self._handle}")
+                self.local_settings.handles[1].probes[probe_1] = ProbeSettings()
             except Exception as error:
-                logging.warning(f"!! Init() exception error, probe {i}: {error}")
-                self._probe_recognized[i] = 0
+                logging.warning(f"!! Init() exception error, probe {probe_1}: {error}")
+                # self._probe_recognized[probe_1-1] = 0
         logging.info(f"API channel opened: {devices[0]}")
         self._deviceId = devices[0].ID
-        self._connected = True
-        # TODO handlefix: also loop over handles
-        for probe in self._probe_recognized:
-            self.local_settings.handles[1].probes[probe] = ProbeSettings()
+        self.tracking.probe_connected = True
 
-        continue_statement = (
-            f"ViperBox initialized successfully with probes {self._probe_recognized}"
-        )
+        # TODO handlefix: also loop over handles ASDFASDF
+        continue_statement = "ViperBox initialized successfully with probes "
+        "{self.local_settings.handles[1].probes.keys()}"
         logging.info(continue_statement)
         return True, continue_statement
 
@@ -181,7 +181,8 @@ class ViperBox:
         NVP.closeBS(self._handle)
         NVP.destroyHandle(self._handle)
         self._deviceId = 0
-        self._connected = False
+        self.tracking.box_connected = False
+        self.tracking.probe_connected = False
         print("API channel closed")
 
     def shutdown(self) -> None:
@@ -189,70 +190,98 @@ class ViperBox:
         _ = requests.put("http://localhost:37497/api/window", json={"command": "quit"})
         self.logger.info("ViperBox shutdown")
 
-    def _set_settings(self, XML_file_path: Path, reset=False) -> None:
-        """
-        Not implemented yet.
-        reset means that the settings will be reset instead of updated.
-        """
+    def verify_xml(self, XML_data: Any, check_topic: str = "all") -> Tuple[bool, str]:
+        """Verifies the XML string."""
 
-        # TODO implement XML_file_path and reset
-        # settings = xml_interpreter(XML_file_path)
-        settings = [1]
-        self._settings = settings
-        # reset means that the settings will be reset instead of updated
-        # return None
+        tmp_data = copy.deepcopy(self.local_settings)
+
+        result, feedback = check_xml_with_settings(XML_data, tmp_data, check_topic)
+
+        return result, feedback
+
+    # def _set_settings(self, XML_data: Any, reset: bool = False) -> None:
+    #     """
+    #     Not implemented yet.
+    #     reset means that the settings will be reset instead of updated.
+    #     """
+
+    #     result, feedback = check_xml_with_settings(XML_data, self.local_settings)
+    #     settings_copy = self.local_settings.copy()
+    #     add_xml_to_local_settings(XML_data, settings_copy)
+
+    #     # TODO implement XML_file_path and reset
+    #     # settings = xml_interpreter(XML_file_path)
+    #     settings = [1]
+    #     self._settings = settings
+    #     # reset means that the settings will be reset instead of updated
+    #     # return None
 
     def recording_settings(
         self,
-        XML_file_path: ProbeSettings | None = None,
+        xml_string: str | None = None,
         reset: bool = False,
-        default_values: bool = False,
     ) -> Tuple[bool, str]:
-        """Loads the recording settings from an XML file."""
+        """Loads the recording settings from an XML string or default file."""
 
-        if default_values is True:
-            # TODO: implement default values
-            pass
+        if xml_string == "default":
+            # if default_values is True:
+            XML_data = etree.parse("defaults/default_recording_settings.xml")
         else:
             try:
-                XML_file_path = Path(XML_file_path)
+                XML_data = etree.fromstring(xml_string)
             except TypeError:
-                return (
-                    False,
-                    """Invalid XML file, should be a Path object. Error: {e}""",
-                )
+                return (False, "Invalid xml string. Error: {e}")
 
-        if self._connected is False:
+        if self.tracking.box_connected is False:
             return False, "Not connected to ViperBox"
 
-        if self._recording is True:
+        if self.tracking.recording is True:
             return False, "Recording in progress, cannot change settings"
 
-        self._set_settings(XML_file_path, reset=reset)
+        result, feedback = self.verify_xml(XML_data)
+        if result is False:
+            return result, feedback
+
+        tmp_settings = copy.deepcopy(self.local_settings)
+        if reset:
+            tmp_settings.reset_recording_settings()
+        updated_tmp_settings = update_checked_settings(
+            XML_data, tmp_settings, "recording"
+        )
 
         # Always set settings for entire probe at once.
-        for probe in self._settings.handle_sett.probe_rec.keys():
-            for channel in range(64):
-                NVP.selectElectrode(self._handle, probe, channel, 0)
-                NVP.setReference(
-                    self._handle,
-                    probe,
-                    channel,
-                    self._settings.handle_sett.probe_rec[probe][channel].references,
-                )
-                NVP.setGain(
-                    self._handle,
-                    probe,
-                    channel,
-                    self._settings.handle_sett.probe_rec[probe][channel].gain,
-                )
-                NVP.setAZ(
-                    self._handle, probe, channel, False
-                )  # see email Patrick 08/01/2024
+        for handle in updated_tmp_settings.handles.keys():
+            for probe in update_checked_settings.handles[handle].probes.keys():
+                for channel in (
+                    update_checked_settings.handles[handle].probes[probe].channel.keys()
+                ):
+                    NVP.selectElectrode(self._handle, probe, channel, 0)
+                    NVP.setReference(
+                        self._handle,
+                        probe,
+                        channel,
+                        updated_tmp_settings.handles[handle]
+                        .probes[probe]
+                        .channel[channel]
+                        .get_refs,
+                    )
+                    NVP.setGain(
+                        self._handle,
+                        probe,
+                        channel,
+                        updated_tmp_settings.handles[handle]
+                        .probes[probe]
+                        .channel[channel]
+                        .gain,
+                    )
+                    NVP.setAZ(
+                        self._handle, probe, channel, False
+                    )  # see email Patrick 08/01/2024
 
-            NVP.writeChannelConfiguration(self._handle, self._probe, False)
+                NVP.writeChannelConfiguration(self._handle, probe, False)
 
-        return True, f"Recording settings loaded from {XML_file_path}"
+        self.local_settings = updated_tmp_settings
+        return True, "Recording settings loaded"
 
     def stimulation_settings(
         self, XML_file_path: str, reset: bool = False, default_values: bool = False
@@ -271,7 +300,7 @@ class ViperBox:
                     """Invalid XML file, should be a Path object. Error: {e}""",
                 )
 
-        if self._connected is False:
+        if self.tracking.box_connected is False:
             return False, "Not connected to ViperBox"
 
         if self._settings:
@@ -311,10 +340,10 @@ class ViperBox:
         return True, f"Stimulation settings loaded from {XML_file_path}"
 
     def start_recording(self, recording_name: str | None = None) -> Tuple[bool, str]:
-        if self._connected is False:
+        if self.tracking.box_connected is False:
             return False, "Not connected to ViperBox"
 
-        if self._recording is True:
+        if self.tracking.recording is True:
             return (
                 False,
                 """Already recording, first stop recording to start a new 
@@ -360,7 +389,7 @@ class ViperBox:
             "recording_start", self._rec_start_time, dt_rec_start, None
         )
 
-        self._recording = True
+        self.tracking.recording = True
 
         # TODO: Start thread that sends data to open ephys
 
@@ -494,17 +523,17 @@ class ViperBox:
         return mtx
 
     def stop_recording(self) -> Tuple[bool, str]:
-        if self._connected is False:
+        if self.tracking.box_connected is False:
             return False, "Not connected to ViperBox"
 
-        if self._recording is False:
+        if self.tracking.recording is False:
             return False, "Recording not started"
 
         NVP.arm(self._handle)
         # Close file
         NVP.setFileStream(self._handle, "")
 
-        self._recording = False
+        self.tracking.recording = False
 
         self._convert_recording()
         # TODO: combine stim history and recording into some file format
@@ -554,10 +583,10 @@ class ViperBox:
             string. Error: {e}""",
             )
 
-        if self._connected is False:
+        if self.tracking.box_connected is False:
             return False, "Not connected to ViperBox"
 
-        if self._recording is True:
+        if self.tracking.recording is True:
             return False, "Recording in progress, cannot start stimulation"
 
         # check if settings are uploaded for all the SU's
@@ -591,10 +620,10 @@ class ViperBox:
             string. Error: {e}""",
             )
 
-        if self._connected is False:
+        if self.tracking.box_connected is False:
             return False, "Not connected to ViperBox"
 
-        if self._recording is True:
+        if self.tracking.recording is True:
             return False, "Recording in progress, cannot start stimulation"
 
         all_configured, not_configured = self._check_SUs_configured(SU_bit_mask)
@@ -672,13 +701,6 @@ class ViperBox:
         self._active_TTLs[TTL_channel] = False
 
         return True, f"Tracking of TTL {TTL_channel} stopped."
-
-    def verify_xml(
-        self,
-        XML_string: str,
-    ) -> Tuple[bool, str]:
-        """Verifies the XML string."""
-        return False, "Not implemented yet"
 
     # TODO: implement xml_interpreter
     # TODO: Change self._probe everywhere because it doesn't make sense in a mulit
