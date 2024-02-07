@@ -10,7 +10,6 @@ from api_classes import (
     apiStartRec,
     apiStartStim,
     apiStimSettings,
-    apiTTLStart,
     apiVerifyXML,
 )
 from VB_logger import _init_logging
@@ -68,7 +67,7 @@ async def test():
 @app.post("/connect", tags=["connect"])
 async def init(connect: Connect):
     result, feedback = VB.connect(
-        probe_list=connect.probe_list,
+        probe_list_1=connect.probe_list,
         emulation=connect.emulation,
         boxless=connect.boxless,
     )
@@ -89,14 +88,16 @@ async def shutdown():
 
 @app.post("/verify_xml/", tags=["verify_xml"])
 async def verify_xml(api_verify_xml: apiVerifyXML):
-    result, feedback = VB.verify_xml(api_verify_xml.XML)
+    result, feedback = VB.verify_xml_with_local_settings(
+        api_verify_xml.XML, api_verify_xml.check_topic
+    )
     return {"result": result, "feedback": feedback}
 
 
 @app.post("/recording_settings/", tags=["recording_settings"])
 async def recording_settings(api_rec_settings: apiRecSettings):
     result, feedback = VB.recording_settings(
-        recording_settings=api_rec_settings.recording_XML,
+        xml_string=api_rec_settings.recording_XML,
         reset=api_rec_settings.reset,
         default_values=api_rec_settings.default_values,
     )
@@ -106,7 +107,7 @@ async def recording_settings(api_rec_settings: apiRecSettings):
 @app.post("/stimulation_settings/", tags=["stimulation_settings"])
 async def stimulation_settings(api_stim_settings: apiStimSettings):
     result, feedback = VB.stimulation_settings(
-        recording_settings=api_stim_settings.recording_XML,
+        xml_string=api_stim_settings.stimulation_XML,
         reset=api_stim_settings.reset,
         default_values=api_stim_settings.default_values,
     )
@@ -131,11 +132,17 @@ async def start_stimulation(api_start_stim: apiStartStim):
     return {"result": result, "feedback": feedback}
 
 
-@app.post("/TTL_start/", tags=["TTL_start"])
-async def TTL_start(api_TTL_start: apiTTLStart):
-    result, feedback = VB.TTL_start(
-        api_TTL_start.TTL_channel,
-        api_TTL_start.TTL_XML,
-        api_TTL_start.SU_bit_mask,
-    )
-    return {"result": result, "feedback": feedback}
+# @app.post("/TTL_start/", tags=["TTL_start"])
+# async def TTL_start(api_TTL_start: apiTTLStart):
+#     result, feedback = VB.TTL_start(
+#         api_TTL_start.TTL_channel,
+#         api_TTL_start.TTL_XML,
+#         api_TTL_start.SU_bit_mask,
+#     )
+#     return {"result": result, "feedback": feedback}
+
+
+# @app.post("/TTL_stop/", tags=["TTL_stop"])
+# async def TTL_stop(api_TTL_stop: apiTTLStop):
+#     result, feedback = VB.TTL_stop(apiTTLStop.TTL_channel)
+#     return {"result": result, "feedback": feedback}

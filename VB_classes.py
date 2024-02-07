@@ -155,14 +155,6 @@ class TTL_handels:
     TTL_handels: Dict[int, TTLSettings] = field(default_factory=dict)
 
 
-# @dataclass
-# class HandleSettings:
-#     handle: str = ""
-#     hardware_id_base_station: IDInformation = field(default_factory=IDInformation)
-#     hardware_id_head_stage: IDInformation = field(default_factory=IDInformation)
-#     probes: Dict[int, ProbeSettings] = field(default_factory=dict())
-
-
 @dataclass
 class HandleSettings:
     handle_id: str = ""
@@ -223,7 +215,7 @@ def printable_dtd(obj: Any) -> None:
     print(json.dumps(dataclass_to_dict(obj), indent=4, sort_keys=True))
 
 
-def readable_dtd(obj: Any) -> None:
+def readable_dtd(obj: Any) -> json:
     """
     Recursively convert dataclass instances to dictionaries.
     """
@@ -276,15 +268,16 @@ def dict_to_dataclass(cls: Any, dict_obj: Any) -> Any:
 
 
 def parse_numbers(numstr: str, all_values: list[int]):
-    """Parse a string of numbers into a numpy array of integers. These are inputs like:
-    '1,2,3,4-6,8' or '-' for all possible values.
+    """Parse a string of numbers and compare to an available list.
+    If the format is wrong or if the numbers are not in the list, raise an error.
+    These are inputs like: '1,2,3,4-6,8' or '-' for all possible values.
 
     Arguments:
     - numstr {str} -- string of numbers to parse
     - all_values {list[int]} -- list of all possible values for the numbers
 
     Returns:
-    - result {numpy.ndarray} -- numpy array of parsed integers
+    - result {numpy.ndarray} -- numpy array of parsed integers in sequential order
 
     Test cases:
     - wrong ranges: '1-2-3', '1-', '1,,2', '1--2', '-1'
@@ -292,9 +285,9 @@ def parse_numbers(numstr: str, all_values: list[int]):
     """
 
     if ",," in numstr:
-        raise ValueError("Invalid input, can't put double commas")
+        raise ValueError("Invalid input, can't have double commas")
     if "--" in numstr:
-        raise ValueError("Invalid input, can't put double dashes")
+        raise ValueError("Invalid input, can't have double dashes")
     result = np.array([], dtype=int)
     if numstr == "-":
         if all_values is None:
@@ -328,8 +321,8 @@ def parse_numbers(numstr: str, all_values: list[int]):
         result = np.unique(result)
     if not set(result).issubset(set(all_values)):
         raise ValueError(
-            "Invalid values; following are not connected"
-            ":{set(result) - set(all_values)}."
+            "Invalid values; following instances are not connected"
+            f":{set(result) - set(all_values)}."
         )
     return result.tolist()
 

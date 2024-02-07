@@ -2,19 +2,24 @@ import copy
 import logging
 import os
 import socket
-import threading
 import time
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import Any, List, Mapping, Tuple
 
 import numpy as np
 import requests
 from lxml import etree
 
 import NeuraviperPy as NVP
-from custom_exceptions import ThreadingError, ViperBoxError
+from custom_exceptions import ViperBoxError
 from defaults.defaults import OS2chip
-from VB_classes import GeneralSettings, HandleSettings, ProbeSettings, StatusTracking
+from VB_classes import (
+    GeneralSettings,
+    HandleSettings,
+    ProbeSettings,
+    StatusTracking,
+    parse_numbers,
+)
 from XML_handler import (
     check_xml_with_settings,
     update_checked_settings,
@@ -35,7 +40,6 @@ class ViperBox:
         """Initialize the ViperBox class."""
         self._working_directory = os.getcwd()
 
-        # ASDFASDF
         self.local_settings = GeneralSettings()
         self.uploaded_settings = GeneralSettings()
         self.tracking = StatusTracking()
@@ -75,7 +79,7 @@ class ViperBox:
 
     def connect(
         self,
-        probe_list_1: None | List[int] | int = None,
+        probe_list_1: str = "1,2,3,4",
         emulation: bool = False,
         boxless: bool = False,
     ) -> Tuple[bool, str]:
@@ -95,22 +99,10 @@ class ViperBox:
             return True, "Boxless mode, no connection to ViperBox"
 
         # check if probes is a list of 4 elements and only containing ints 1 or 0
-        if probe_list_1 is not None:
-            if isinstance(probe_list_1, int):
-                probe_list_1 = [probe_list_1]
-            elif (
-                (not all(isinstance(x, int) for x in probe_list_1))
-                | (not all(x in [1, 2, 3, 4] for x in probe_list_1))
-                | (len(set(probe_list_1)) != len(probe_list_1))
-            ):
-                err_msg = "Probes should be a list of max 4 integers that are either "
-                "1, 2, 3 or 4. No double numbers are allowed."
-                self.logger.error(err_msg)
-                return False, err_msg
-            else:
-                pass
-        else:
-            probe_list_1 = [1]
+        try:
+            probe_list_1 = parse_numbers(probe_list_1, [1, 2, 3, 4])
+        except ValueError as e:
+            return False, f"Invalid probe list: {e}"
 
         # Scan for devices
         NVP.scanBS()
@@ -169,8 +161,9 @@ class ViperBox:
         logging.info(f"API channel opened: {devices[0]}")
         self._deviceId = devices[0].ID
         self.tracking.probe_connected = True
+        self.uploaded_settings = copy.deepcopy(self.local_settings)
 
-        # TODO handlefix: also loop over handles ASDFASDF
+        # TODO handlefix: also loop over handles
         continue_statement = "ViperBox initialized successfully with probes "
         "{self.local_settings.handles[1].probes.keys()}"
         logging.info(continue_statement)
@@ -183,6 +176,7 @@ class ViperBox:
         self._deviceId = 0
         self.tracking.box_connected = False
         self.tracking.probe_connected = False
+        self.uploaded_settings = GeneralSettings()
         print("API channel closed")
 
     def shutdown(self) -> None:
@@ -190,31 +184,58 @@ class ViperBox:
         _ = requests.put("http://localhost:37497/api/window", json={"command": "quit"})
         self.logger.info("ViperBox shutdown")
 
-    def verify_xml(self, XML_data: Any, check_topic: str = "all") -> Tuple[bool, str]:
-        """Verifies the XML string."""
+    def _write_recording_settings(self, updated_tmp_settings):
+        for handle in updated_tmp_settings.handles.keys():
+            for probe in updated_tmp_settings.handles[handle].probes.keys():
+                for channel in (
+                    updated_tmp_settings.handles[handle].probes[probe].channel.keys()
+                ):
+                    NVP.selectElectrode(self._handle, probe, channel, 0)
+                    NVP.setReference(
+                        self._handle,
+                        probe,
+                        channel,
+                        updated_tmp_settings.handles[handle]
+                        .probes[probe]
+                        .channel[channel]
+                        .get_refs,
+                    )
+                    NVP.setGain(
+                        self._handle,
+                        probe,
+                        channel,
+                        updated_tmp_settings.handles[handle]
+                        .probes[probe]
+                        .channel[channel]
+                        .gain,
+                    )
+                    NVP.setAZ(
+                        self._handle, probe, channel, False
+                    )  # see email Patrick 08/01/2024
 
-        tmp_data = copy.deepcopy(self.local_settings)
+                NVP.writeChannelConfiguration(self._handle, probe, False)
 
-        result, feedback = check_xml_with_settings(XML_data, tmp_data, check_topic)
+    def _write_stimulation_settings(self, updated_tmp_settings):
+        for handle in updated_tmp_settings.handles.keys():
+            for probe in updated_tmp_settings.handles[handle].probes.keys():
+                # Always set settings for entire probe at once.
+                NVP.setOSimage(
+                    self._handle,
+                    probe - 1,
+                    updated_tmp_settings.handles[handle].probes[probe].os_data,
+                )
+                for OS in range(128):
+                    NVP.setOSDischargeperm(self._handle, probe, OS, False)
+                    NVP.setOSStimblank(self._handle, probe, OS, True)
 
-        return result, feedback
-
-    # def _set_settings(self, XML_data: Any, reset: bool = False) -> None:
-    #     """
-    #     Not implemented yet.
-    #     reset means that the settings will be reset instead of updated.
-    #     """
-
-    #     result, feedback = check_xml_with_settings(XML_data, self.local_settings)
-    #     settings_copy = self.local_settings.copy()
-    #     add_xml_to_local_settings(XML_data, settings_copy)
-
-    #     # TODO implement XML_file_path and reset
-    #     # settings = xml_interpreter(XML_file_path)
-    #     settings = [1]
-    #     self._settings = settings
-    #     # reset means that the settings will be reset instead of updated
-    #     # return None
+            for SU in range(8):
+                NVP.writeSUConfiguration(
+                    self._handle,
+                    probe - 1,
+                    updated_tmp_settings.handles[handle]
+                    .probes[probe]
+                    .stim_unit_sett[SU],
+                )
 
     def recording_settings(
         self,
@@ -238,58 +259,34 @@ class ViperBox:
             except TypeError:
                 return (False, "Invalid xml string. Error: {e}")
 
-        result, feedback = self.verify_xml(XML_data)
+        # make temporary copy of settings
+        tmp_local_settings = copy.deepcopy(self.local_settings)
+
+        result, feedback = check_xml_with_settings(
+            XML_data, tmp_local_settings, "recording"
+        )
         if result is False:
             return result, feedback
 
-        tmp_settings = copy.deepcopy(self.local_settings)
         if reset:
-            tmp_settings.reset_recording_settings()
+            tmp_local_settings.reset_recording_settings()
         updated_tmp_settings = update_checked_settings(
-            XML_data, tmp_settings, "recording"
+            XML_data, tmp_local_settings, "recording"
         )
 
         try:
             # Always set settings for entire probe at once.
-            for handle in updated_tmp_settings.handles.keys():
-                for probe in update_checked_settings.handles[handle].probes.keys():
-                    for channel in (
-                        update_checked_settings.handles[handle]
-                        .probes[probe]
-                        .channel.keys()
-                    ):
-                        NVP.selectElectrode(self._handle, probe, channel, 0)
-                        NVP.setReference(
-                            self._handle,
-                            probe,
-                            channel,
-                            updated_tmp_settings.handles[handle]
-                            .probes[probe]
-                            .channel[channel]
-                            .get_refs,
-                        )
-                        NVP.setGain(
-                            self._handle,
-                            probe,
-                            channel,
-                            updated_tmp_settings.handles[handle]
-                            .probes[probe]
-                            .channel[channel]
-                            .gain,
-                        )
-                        NVP.setAZ(
-                            self._handle, probe, channel, False
-                        )  # see email Patrick 08/01/2024
-
-                    NVP.writeChannelConfiguration(self._handle, probe, False)
+            # TODO handlefix
+            self._write_recording_settings(updated_tmp_settings)
         except Exception:
             return (
                 False,
                 """Error in uploading recording settings, settings not applied and 
                 reverted to previous settings""",
             )
-
+        self.tracking.recording_settings_uploaded = True
         self.local_settings = updated_tmp_settings
+        self.uploaded_settings = copy.deepcopy(self.local_settings)
         return True, "Recording settings loaded"
 
     def stimulation_settings(
@@ -301,54 +298,95 @@ class ViperBox:
             return False, "Not connected to ViperBox"
 
         if default_values is True:
-            XML_data = etree.parse("defaults/default_stimulation_settings.xml")
+            XML_data = etree.parse("defaults/default_settings.xml")
         else:
             try:
                 XML_data = etree.fromstring(xml_string)
             except TypeError:
                 return (False, "Invalid xml string. Error: {e}")
 
-        result, feedback = self.verify_xml(XML_data)
+        tmp_local_settings = copy.deepcopy(self.local_settings)
+
+        result, feedback = check_xml_with_settings(
+            XML_data, tmp_local_settings, "stimulation"
+        )
         if result is False:
             return result, feedback
 
-        tmp_settings = copy.deepcopy(self.local_settings)
         if reset:
-            tmp_settings.reset_stimulation_settings()
+            tmp_local_settings.reset_stimulation_settings()
         updated_tmp_settings = update_checked_settings(
-            XML_data, tmp_settings, "stimulation"
+            XML_data, tmp_local_settings, "stimulation"
         )
 
+        # TODO handlefix
         try:
-            for handle in updated_tmp_settings.handles.keys():
-                for probe in updated_tmp_settings.handles[handle].probes.keys():
-                    # Always set settings for entire probe at once.
-                    NVP.setOSimage(
-                        self._handle,
-                        probe - 1,
-                        updated_tmp_settings.handles[handle].probes[probe].os_data,
-                    )
-                    for OS in range(128):
-                        NVP.setOSDischargeperm(self._handle, probe, OS, False)
-                        NVP.setOSStimblank(self._handle, probe, OS, True)
-
-                for SU in range(8):
-                    NVP.writeSUConfiguration(
-                        self._handle,
-                        probe - 1,
-                        updated_tmp_settings.handles[handle]
-                        .probes[probe]
-                        .stim_unit_sett[SU],
-                    )
-
-                self._stimulation_settings = True
+            self._write_stimulation_settings(updated_tmp_settings)
         except Exception:
             return (
                 False,
                 """Error in uploading stimulation settings, settings not applied and 
                 reverted to previous settings""",
             )
+        self.tracking.stimulation_settings_uploaded = True
         self.local_settings = updated_tmp_settings
+        self.uploaded_settings = copy.deepcopy(self.local_settings)
+        return True, "Stimulation settings loaded"
+
+    def verify_xml_with_local_settings(
+        self, XML_data: Any, check_topic: str = "all"
+    ) -> Tuple[bool, str]:
+        """API Verifies the XML string."""
+
+        tmp_data = copy.deepcopy(self.local_settings)
+
+        result, feedback = check_xml_with_settings(XML_data, tmp_data, check_topic)
+
+        return result, feedback
+
+    def default_settings(self) -> Tuple[bool, str]:
+        """Loads the stimulation settings from an XML file."""
+
+        if self.tracking.box_connected is False:
+            return False, "Not connected to ViperBox"
+
+        XML_data = etree.parse("defaults/default_stimulation_settings.xml")
+
+        tmp_local_settings = copy.deepcopy(self.local_settings)
+        result, feedback = check_xml_with_settings(XML_data, tmp_local_settings, "all")
+        if result is False:
+            return result, feedback
+
+        tmp_local_settings.reset_stimulation_settings()
+
+        updated_tmp_settings = update_checked_settings(
+            XML_data, tmp_local_settings, "recording"
+        )
+        updated_tmp_settings = update_checked_settings(
+            XML_data, updated_tmp_settings, "stimulation"
+        )
+
+        # TODO handlefix
+        try:
+            self._write_recording_settings(updated_tmp_settings)
+        except Exception:
+            return (
+                False,
+                """Error in uploading recording settings, settings not applied and 
+                reverted to previous settings""",
+            )
+        try:
+            self._write_stimulation_settings(updated_tmp_settings)
+        except Exception:
+            return (
+                False,
+                """Error in uploading stimulation settings, settings not applied and 
+                reverted to previous settings""",
+            )
+        self.tracking.recording_settings_uploaded = True
+        self.tracking.stimulation_settings_uploaded = True
+        self.local_settings = updated_tmp_settings
+        self.uploaded_settings = copy.deepcopy(self.local_settings)
 
         return True, "Stimulation settings loaded"
 
@@ -363,8 +401,21 @@ class ViperBox:
             recording""",
             )
 
-        if self._recording_settings is False:
-            return False, "Recording settings not available"
+        # TODO this should check if recording settings are available for all
+        # connected handles
+        for handle in self.uploaded_settings.handles.keys():
+            for probe in self.uploaded_settings.handles[handle].probes.keys():
+                if (
+                    len(self.uploaded_settings.handles[handle].probes[probe].channel)
+                    != 64
+                ):
+                    return (
+                        False,
+                        "Recording settings not available for all channels on "
+                        "handle {handle}, probe {probe}. Consider first uploading "
+                        "default settings for all channels, then upload your custom "
+                        "settings and then try again.",
+                    )
 
         # TODO: Start open ephys in separate thread
         self._recording_datetime = time.strftime("%Y%m%d_%H%M%S")
@@ -396,15 +447,16 @@ class ViperBox:
             "xml",
             f"{self._rec_start_time, True}",
         )
-        # TODO: replace following with function that writes start of recording with time
-        # and deltatime to stim_file
+        # TODO record: replace following with function that writes start
+        # of recording with time and deltatime to stim_file
         self._add_stimulation_record(
             "recording_start", self._rec_start_time, dt_rec_start, None
         )
 
         self.tracking.recording = True
 
-        # TODO: Start thread that sends data to open ephys
+        # TODO: Check if this works.
+        self._start_eo_acquire(True)
 
         self.logger.info(f"Recording started: {recording_name}")
         return True, f"Recording started: {recording_name}"
@@ -458,6 +510,12 @@ class ViperBox:
             if start_oe:
                 try:
                     os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
+                    r = requests.get("http://localhost:37497/api/status")
+                    if r.json()["mode"] != "ACQUIRE":
+                        r = requests.put(
+                            "http://localhost:37497/api/status",
+                            json={"mode": "ACQUIRE"},
+                        )
                 except Exception as e2:
                     self.logger.warning(
                         f"Can't start Open Ephys, please start it manually. Error: {e2}"
@@ -548,13 +606,18 @@ class ViperBox:
 
         self.tracking.recording = False
 
-        self._convert_recording()
+        # self._convert_recording()
         # TODO: combine stim history and recording into some file format
 
         return True, "Recording stopped"
 
-    def _convert_recording(self) -> None:
-        """Converts the raw recording into a numpy format."""
+    def _convert_recording(
+        self,
+    ) -> None:
+        """
+        Converts the raw recording into a numpy format.
+        """
+        # TODO: not implemented
 
         conver_recording_read_handle = NVP.streamOpenFile(self._rec_path, self._probe)
 
@@ -582,138 +645,188 @@ class ViperBox:
 
     def _add_to_zarr(self, databuffer: np.ndarray) -> None:
         """Adds the data to the zarr file."""
-        # TODO: not_implemented
+        # TODO: not implemented
         pass
 
-    def start_stimulation(self, probe: int, SU_bit_mask: str) -> Tuple[bool, str]:
-        """Starts stimulation on the specified probe and SU's."""
-        try:
-            SU_bit_mask = bin(int(SU_bit_mask, 2))
-        except ValueError:
-            return (
-                False,
-                """Invalid SU bitmask, should be 8 bit 
-            string. Error: {e}""",
-            )
+    def _convert_SU_list(SU_list):
+        # convert SUs to NVP format
+        SU_string = "".join(["1" if i in SU_list else "0" for i in range(1, 9)])
+        return int(SU_string, 2)
 
-        if self.tracking.box_connected is False:
-            return False, "Not connected to ViperBox"
-
-        if self.tracking.recording is True:
-            return False, "Recording in progress, cannot start stimulation"
-
-        # check if settings are uploaded for all the SU's
-
-        tmp_counter = self._time()
-        NVP.SUtrig1(self._handle, probe, (SU_bit_mask))
-        tmp_delta = self._time() - tmp_counter
-
-        self._add_stimulation_record(
-            "stim_start",
-            tmp_counter - self._rec_start_time,
-            tmp_delta,
-            f"probe: {probe}, SU: {SU_bit_mask}",
-        )
-
-        return True, f"Stimulation started on probe {probe} for SU's {SU_bit_mask}"
-
-    def TTL_start(
-        self, probe: int, TTL_channel: int, SU_bit_mask: str
+    def start_stimulation(
+        self, handles: str, probes: str, SU_input: str
     ) -> Tuple[bool, str]:
-        """Starts TTL on the specified channel."""
-        if TTL_channel not in [1, 2]:
-            return False, "TTL channel should be 1 or 2"
+        """Starts stimulation on the specified handle(s), probe(s) and SU(s).
+        First checks if the SUs are configured for their respective handles and probes.
 
-        try:
-            SU_bit_mask = bin(int(SU_bit_mask, 2))
-        except ValueError:
-            return (
-                False,
-                """Invalid SU bitmask, should be 8 bit 
-            string. Error: {e}""",
-            )
+        Arguments:
+        - handles: str - all handles to start stimulation in
+        - probes: str - all probes to start stimulation in
+        - SU_input: str - the SUs to start stimulation in
+        """
 
         if self.tracking.box_connected is False:
             return False, "Not connected to ViperBox"
 
-        if self.tracking.recording is True:
-            return False, "Recording in progress, cannot start stimulation"
-
-        all_configured, not_configured = self._check_SUs_configured(SU_bit_mask)
-        if not all_configured:
-            return False, f"Can't trigger SUs {not_configured}"
-
-        threading.Thread(
-            target=self._start_TTL_tracker_thread,
-            args=(probe, TTL_channel, SU_bit_mask),
-        ).start()
-        # self._start_TTL_tracker_thread(probe, TTL_channel, SU_bit_mask)
-
-        self._add_stimulation_record(
-            "TTL_start",
-            self._time() - self._rec_start_time,
-            0,
-            f"TTL channel: {TTL_channel}",
-        )
-
-        return (
-            True,
-            f"""TTL tracking started on channel {TTL_channel} with SU's 
-            {SU_bit_mask} on probe {probe}""",
-        )
-
-    def _start_TTL_tracker_thread(
-        self, probe: int, TTL_channel: int, SU_bit_mask: str
-    ) -> None:
-        """Converts the raw recording into a numpy format."""
-        # TODO: this can be reduced to one function that listens to both TTL channels
-
-        # note this should be probe specific, not self._probe, that needs to
-        # be checked anyway
-        TTL_read_handle = NVP.streamOpenFile(self._rec_path, probe)
-
-        self._active_TTLs[TTL_channel] = True
-
-        # mtx = self._os2chip_mat()
-        while self._active_TTLs[TTL_channel] is True:
-            # TODO: implement skipping of packages by checking:
-            # time = 0
-            # NAND
-            # session id is wrong
-
-            packets = NVP.streamReadData(TTL_read_handle, self.BUFFER_SIZE)
-            count = len(packets)
-
-            if count < self.BUFFER_SIZE:
-                self.logger.warning("Out of packets")
-                break
-
-            # TODO: Rearrange data depending on selected gain
-            databuffer = np.asarray(
-                [
-                    [
-                        int(str(bin(packets[0].status))[3:-1][0]),
-                        int(str(bin(packets[0].status))[3:-1][1]),
-                    ]
-                    for i in range(self.BUFFER_SIZE)
-                ],
-                dtype="uint16",
+        if self.tracking.recording is False:
+            return (
+                False,
+                """No recording in progress, cannot start stimulation, please 
+                start recording first""",
             )
-            if databuffer[:, TTL_channel].any():
-                ret_val, text = self.start_stimulation(probe, SU_bit_mask)
 
-            if ret_val is False:
-                # tell the user that the stimulation was not started
-                raise ThreadingError(ret_val, text)
+        SU_dict: Mapping[int, Mapping[int, List[int]]] = {}
+        # Check if handles, probes and SUs are in right format and properly configured
+        try:
+            for handle in parse_numbers(
+                handles, list(self.uploaded_settings.handles.keys())
+            ):
+                SU_dict[handle] = {}
+                try:
+                    for probe in parse_numbers(
+                        probes,
+                        list(self.uploaded_settings.handles[handle].probes.keys()),
+                    ):
+                        try:
+                            SU_dict[handle][probe] = parse_numbers(
+                                SU_input,
+                                list(
+                                    self.uploaded_settings.handles[handles]
+                                    .probes[probes]
+                                    .stim_unit_sett.keys()
+                                ),
+                            )
+                        except ValueError as e:
+                            return_statement = "SU settings not available on probe "
+                            f"{probe}, on handle {handle} are not available: {e}"
+                            return False, return_statement
+                except ValueError as e:
+                    return_statement
+                    return (
+                        False,
+                        f"""Probe {probe} on handle {handle} doesn't seem to be 
+                        connected: {e}""",
+                    )
+        except ValueError as e:
+            return False, f"Handle {handle} doesn't seem to be connected: {e}"
 
-    def TTL_stop(self, TTL_channel: int) -> Tuple[bool, str]:
-        """Stops the TTL tracker thread."""
-        if self._active_TTLs[TTL_channel] is False:
-            return False, f"TTL {TTL_channel} not running."
+        # Trigger SUs
+        for handle in SU_dict.keys():
+            for probe in SU_dict[handle].keys():
+                tmp_counter = self._time()
+                # TODO could be faster by not having to do this converstion here
+                NVP.SUtrig1(
+                    self._handle,
+                    probe - 1,
+                    self._convert_SU_list(SU_dict[handle][probe]),
+                )
+                tmp_delta = self._time() - tmp_counter
 
-        self._active_TTLs[TTL_channel] = False
+                self._add_stimulation_record(
+                    "stim_start",
+                    tmp_counter - self._rec_start_time,
+                    tmp_delta,
+                    f"handle: {handle} probe: {probe}, SU: {SU_dict[handle][probe]}",
+                )
+        return_statement = f"Stimulation started on handles {handles} probe "
+        f"{probes} for SU's {SU_dict[handle][probe]}"
+        return True, return_statement
 
-        return True, f"Tracking of TTL {TTL_channel} stopped."
+    # def TTL_start(
+    #     self, probe: str, TTL_channel: str, SU_input: str
+    # ) -> Tuple[bool, str]:
+    #     """Starts TTL on the specified channel."""
+    #     if TTL_channel not in [1, 2]:
+    #         return False, "TTL channel should be 1 or 2"
+
+    #     # Check SU_input format
+    #     SU_list = parse_numbers(SU_input, [1, 2, 3, 4, 5, 6, 7, 8])
+
+    #     # convert SUs to NVP format
+    #     SU_string = "".join(["1" if i in SU_list else "0" for i in range(1, 9)])
+    #     SU_bit_mask = int(SU_string, 2)
+
+    #     if self.tracking.box_connected is False:
+    #         return False, "Not connected to ViperBox"
+
+    #     if self.tracking.recording is True:
+    #         return False, "Recording in progress, cannot start stimulation"
+
+    #     all_configured, not_configured = self._check_SUs_configured(SU_bit_mask)
+    #     if not all_configured:
+    #         return False, f"Can't trigger SUs {not_configured}"
+
+    #     threading.Thread(
+    #         target=self._start_TTL_tracker_thread,
+    #         args=(probe, TTL_channel, SU_bit_mask),
+    #     ).start()
+    #     # self._start_TTL_tracker_thread(probe, TTL_channel, SU_bit_mask)
+
+    #     self._add_stimulation_record(
+    #         "TTL_start",
+    #         self._time() - self._rec_start_time,
+    #         0,
+    #         f"TTL channel: {TTL_channel}",
+    #     )
+
+    #     return (
+    #         True,
+    #         f"""TTL tracking started on channel {TTL_channel} with SU's
+    #         {SU_bit_mask} on probe {probe}""",
+    #     )
+
+    # def _start_TTL_tracker_thread(
+    #     self, probe: int, TTL_channel: int, SU_bit_mask: str
+    # ) -> None:
+    #     """Converts the raw recording into a numpy format."""
+    #     # TODO: this can be reduced to one function that listens to both TTL channels
+
+    #     # note this should be probe specific, not self._probe, that needs to
+    #     # be checked anyway
+    #     TTL_read_handle = NVP.streamOpenFile(self._rec_path, probe)
+
+    #     self._active_TTLs[TTL_channel] = True
+
+    #     # mtx = self._os2chip_mat()
+    #     while self._active_TTLs[TTL_channel] is True:
+    #         # TODO: implement skipping of packages by checking:
+    #         # time = 0
+    #         # NAND
+    #         # session id is wrong
+
+    #         packets = NVP.streamReadData(TTL_read_handle, self.BUFFER_SIZE)
+    #         count = len(packets)
+
+    #         if count < self.BUFFER_SIZE:
+    #             self.logger.warning("Out of packets")
+    #             break
+
+    #         # TODO: Rearrange data depending on selected gain
+    #         databuffer = np.asarray(
+    #             [
+    #                 [
+    #                     int(str(bin(packets[0].status))[3:-1][0]),
+    #                     int(str(bin(packets[0].status))[3:-1][1]),
+    #                 ]
+    #                 for i in range(self.BUFFER_SIZE)
+    #             ],
+    #             dtype="uint16",
+    #         )
+    #         if databuffer[:, TTL_channel].any():
+    #             ret_val, text = self.start_stimulation(probe, SU_bit_mask)
+
+    #         if ret_val is False:
+    #             # tell the user that the stimulation was not started
+    #             raise ThreadingError(ret_val, text)
+
+    # def TTL_stop(self, TTL_channel: int) -> Tuple[bool, str]:
+    #     """Stops the TTL tracker thread."""
+    #     if self._active_TTLs[TTL_channel] is False:
+    #         return False, f"TTL {TTL_channel} not running."
+
+    #     self._active_TTLs[TTL_channel] = False
+
+    #     return True, f"Tracking of TTL {TTL_channel} stopped."
 
     # TODO: implement xml_interpreter
     # TODO: Change self._probe everywhere because it doesn't make sense in a mulit

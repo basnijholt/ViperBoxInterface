@@ -11,7 +11,7 @@ The following classes are used to validate the input from the API.
 
 @dataclass
 class Connect(BaseModel):
-    probe_list: List[int] = [1, 0, 0, 0]
+    probe_list: str = "1,2,3,4"
     emulation: bool = False
     boxless: bool = False
 
@@ -121,8 +121,21 @@ class apiTTLStart(BaseModel):
 
 
 @dataclass
+class apiTTLStop(BaseModel):
+    TTL_channel: int = 0
+
+    @field_validator("TTL_channel")
+    @classmethod
+    def check_TTL_channel(cls, TTL_channel: int) -> int:
+        if TTL_channel not in [0, 1]:
+            raise ValueError("TTL_channel must be 1 or 2")
+        return TTL_channel
+
+
+@dataclass
 class apiVerifyXML(BaseModel):
     XML: str = ""
+    check_topic: str = "all"
 
     @field_validator("XML")
     @classmethod
@@ -132,3 +145,10 @@ class apiVerifyXML(BaseModel):
         except ET.ParseError as e:
             raise ValueError(f"verify_XML is not valid XML. Error: {e}") from e
         return verify_XML
+
+    @field_validator("check_topic")
+    @classmethod
+    def check_topic_value(cls, check_topic: str) -> str:
+        if check_topic not in ["all", "recording", "stimulation"]:
+            raise ValueError("check_topic must be 'all', 'recording' or 'stimulation'")
+        return check_topic
