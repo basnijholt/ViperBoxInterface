@@ -197,6 +197,124 @@ def check_xml_with_settings(
     return True, "XML is valid."
 
 
+def create_empty_xml(path: str):
+    """Create an empty xml file with the root element Recording and a child element
+        Settings
+
+    It is assumed that the first line that is written to the stim record is always a
+        settings line.
+
+    Arguments:
+    - path: path to the xml file
+
+    Test cases:
+    - path is not a string
+    - first line is not a settings line
+    """
+    program = etree.Element("Recording")
+    _ = etree.SubElement(program, "Settings")
+    xml_bytes = etree.tostring(
+        program, pretty_print=True, xml_declaration=True, encoding="UTF-8"
+    )
+    with open(path, "wb") as xml_file:
+        xml_file.write(xml_bytes)
+    return program
+
+
+def add_to_stimrec(path: str, main_type: str, sub_type: str, settings_dict: dict):
+    """
+    Add setting or instruction to the stimrec xml file.
+
+    Arguments:
+    - path: path to the xml file
+    - main_type: type of the setting, should be 'Settings' or 'Instructions'
+    - sub_type: sub_type of the setting, should be 'Channel', 'Configuration' or
+        'Mapping' only in case of settings
+    - settings_dict: dictionary with the settings to be added. This is currently not
+        checked
+
+    Test cases:
+    - path is not a string
+    - main_type is not 'Settings' or 'Instructions'
+    - sub_type is not 'Channel', 'Configuration' or 'Mapping'
+    - settings_dict is not a dictionary
+    - keys/values in settings_dict are not strings
+    - keys/values in settings_dict are not valid
+
+
+    """
+    sub_type_map = {
+        "Channel": "RecordingSettings",
+        "Configuration": "StimulationWaveformsSettings",
+        "Mapping": "StimulationMappingSettings",
+        "Instruction": "Instructions",
+    }
+    if main_type not in ["Settings", "Instructions"]:
+        raise ValueError(
+            f"""{main_type} is not a valid type, should be 'Settings' or 
+                        'Instructions'"""
+        )
+    if sub_type not in sub_type_map.keys():
+        raise ValueError(
+            f"""{sub_type} is not a valid sub_type, should be 'Channel', 
+                        'Configuration' or 'Mapping'"""
+        )
+
+    program = etree.parse(path)
+    recording = program.getroot()
+    recording_list = list(recording)
+    if main_type == "Settings":
+        # recording list == [settings]
+        if len(recording_list) == 1:
+            settings = recording.find(".//Settings")
+        # recording list == [settings, ..., instructions]
+        elif recording_list[-1].tag == "Instructions":
+            settings = etree.SubElement(recording, "Settings")
+        # recording list == [settings, ..., settings]
+        else:
+            settings = recording[-1]
+
+        # Create sub_type parent ["RecordingSettings",
+        # "StimulationWaveformsSettings". "StimulationMappingSettings"] if it does not
+        # exist
+        if settings.find(f".//{sub_type_map[sub_type]}") is None:
+            parent_settings = etree.SubElement(settings, f"{sub_type_map[sub_type]}")
+        else:
+            parent_settings = settings.find(f".//{sub_type_map[sub_type]}")
+
+        # create subelement for sub_type if it didn't exist
+        if parent_settings.find(f".//{sub_type}") is None:
+            etree.SubElement(parent_settings, f"{sub_type}", attrib=settings_dict)
+        # create sibling for previous sub_type
+        else:
+            sub_settings = parent_settings.find(f".//{sub_type}")
+            sub_settings.addnext(etree.Element(f"{sub_type}", attrib=settings_dict))
+    else:
+        # if [..., instructions]
+        if recording_list[-1].tag == "Instructions":
+            print(recording_list[-1])
+            instructions = recording[-1]
+        # if [..., settings]
+        else:
+            instructions = etree.SubElement(recording, "Instructions")
+
+        # create subelement for sub_type if it didn't exist
+        if instructions.find(".//instruction") is None:
+            etree.SubElement(instructions, f"{sub_type}", attrib=settings_dict)
+        # create sibling for previous sub_type
+        else:
+            instruction = instructions.find(".//instruction")
+            instruction.addnext(etree.Element(f"{sub_type}", attrib=settings_dict))
+
+    etree.indent(program, space="    ", level=0)
+    xml_bytes = etree.tostring(
+        program, pretty_print=True, xml_declaration=True, encoding="UTF-8"
+    )
+    with open(path, "wb") as xml_file:
+        xml_file.write(xml_bytes)
+    return program
+
+
 # Testing code:
 if __name__ == "__main__":
     strixml = """<Program>
