@@ -27,13 +27,13 @@
             <Mapping handle="1" probe="3" stimunit="1" electrodes="11,12,13" />
         </StimulationMappingSettings>
     </Settings>
-    <StimulationSequence>
-        <Instruction type="trigger_recording" data_address="1.0.0.127" />
+    <Instructions>
+        <Instruction instruction_type="start_recording" data_address="1.0.0.127" />
         <StimulationSequence>
-            <Instruction type="stimulus" handle="1" probe="1,2,3,4" stimunit="1" />
-            <Instruction type="wait" time="20" />
-            <Instruction type="stimulus" handle="1" probe="1" stimunit="1" />
-            <Instruction type="wait" time="5" />
+            <Instruction instruction_type="stimulus" handle="1" probe="1,2,3,4" stimunit="1" />
+            <Instruction instruction_type="wait" time="20" />
+            <Instruction instruction_type="stimulus" handle="1" probe="1" stimunit="1" />
+            <Instruction instruction_type="wait" time="5" />
         </StimulationSequence>
-    </StimulationSequence>
+    </Instructions>
 </Program>

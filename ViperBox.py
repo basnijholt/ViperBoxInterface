@@ -21,7 +21,9 @@ from VB_classes import (
     parse_numbers,
 )
 from XML_handler import (
+    add_to_stimrec,
     check_xml_with_settings,
+    create_empty_xml,
     update_checked_settings,
 )
 
@@ -45,6 +47,7 @@ class ViperBox:
         self.tracking = StatusTracking()
 
         self._session_datetime = _session_datetime
+        self._rec_start_time: float | None = None
 
         log_folder = Path.cwd() / "logs"
         log_file = f"log_{self._session_datetime}.log"
@@ -411,26 +414,26 @@ class ViperBox:
                 ):
                     return (
                         False,
-                        "Recording settings not available for all channels on "
-                        "handle {handle}, probe {probe}. Consider first uploading "
-                        "default settings for all channels, then upload your custom "
-                        "settings and then try again.",
+                        """Recording settings not available for all channels on 
+                        handle {handle}, probe {probe}. Consider first uploading 
+                        default settings for all channels, then upload your custom 
+                        settings and then try again.""",
                     )
 
         # TODO: Start open ephys in separate thread
         self._recording_datetime = time.strftime("%Y%m%d_%H%M%S")
 
         rec_folder = Path.cwd() / "Recordings"
-        recording_name = f"unnamed_recording_{self._recording_datetime}.bin"
         rec_folder.mkdir(parents=True, exist_ok=True)
+        self.recording_name = recording_name
 
-        if recording_name is None:
+        if self.recording_name is None:
             self._rec_path = rec_folder.joinpath(
                 f"unnamed_recording_{self._recording_datetime}.bin"
             )
         else:
             self._rec_path = rec_folder.joinpath(
-                f"{recording_name}_{self._recording_datetime}.bin"
+                f"{self.recording_name}_{self._recording_datetime}.bin"
             )
 
         NVP.setFileStream(self._handle, str(self._rec_path))
@@ -439,9 +442,9 @@ class ViperBox:
 
         self._rec_start_time = self._time()
         NVP.setSWTrigger(self._handle)
-        dt_rec_start = self._time() - self._rec_start_time
+        dt_rec_start = self._time()  # - self._rec_start_time
 
-        self.stim_file = self._create_file_folder(
+        self.stim_file_path = self._create_file_folder(
             "Stimulations",
             "stimulation_record",
             "xml",
@@ -449,8 +452,32 @@ class ViperBox:
         )
         # TODO record: replace following with function that writes start
         # of recording with time and deltatime to stim_file
-        self._add_stimulation_record(
-            "recording_start", self._rec_start_time, dt_rec_start, None
+
+        # Create stimulation record
+        create_empty_xml(self.stim_file_path)
+        for handle in self.uploaded_settings.handles.keys():
+            for probe in self.uploaded_settings.handles[handle].probes.keys():
+                for channel in (
+                    self.uploaded_settings.handles[handle].probes[probe].channel.keys()
+                ):
+                    add_to_stimrec(
+                        self.stim_file_path,
+                        "Settings",
+                        "Channel",
+                        self.uploaded_settings.handles[handle]
+                        .probes[probe]
+                        .channel[channel]
+                        .__dict__,
+                        -1.0,
+                        -1.0,
+                    )
+        add_to_stimrec(
+            self.stim_file_path,
+            "Instructions",
+            "Instruction",
+            {"filename": self.recording_name, "instruction_type": "recording_start"},
+            self._rec_start_time,
+            dt_rec_start,
         )
 
         self.tracking.recording = True
@@ -462,23 +489,15 @@ class ViperBox:
         return True, f"Recording started: {recording_name}"
 
     def _time(self) -> float:
-        return time.time_ns() / 1e9
+        """Returns the current time in seconds.
+        If start_time_program is given, it will be subtracted from the current time.
 
-    def _add_stimulation_record(
-        self,
-        type: str,
-        start_time: float,
-        delta_time: float,
-        message: str | None = None,
-    ) -> None:
-        if start_time is None:
-            start_time = time.strftime("%Y%m%d_%H%M%S")
-        with open(self.stim_file, "a") as file:
-            message = f"Furthermore: {message}."
-            file.write(
-                f"""{type} at {start_time} s with delta {delta_time} s. 
-                {message}"""
-            )
+        TODO: year 2262 this will wrap.
+        """
+        if self._rec_start_time:
+            return time.time_ns() / 1e9 - self._rec_start_time
+        else:
+            return time.time_ns() / 1e9
 
     def _create_file_folder(
         self,
@@ -606,8 +625,8 @@ class ViperBox:
 
         self.tracking.recording = False
 
-        # self._convert_recording()
         # TODO: combine stim history and recording into some file format
+        # self._convert_recording()
 
         return True, "Recording stopped"
 
@@ -619,29 +638,33 @@ class ViperBox:
         """
         # TODO: not implemented
 
-        conver_recording_read_handle = NVP.streamOpenFile(self._rec_path, self._probe)
+        # conver_recording_read_handle = NVP.streamOpenFile(self._rec_path, self._probe)
 
-        mtx = self._os2chip_mat()
-        while True:
-            # TODO: implement skipping of packages by checking:
-            # time = 0
-            # NAND
-            # session id is wrong
+        # mtx = self._os2chip_mat()
+        # while True:
+        #     # TODO: implement skipping of packages by checking:
+        #     # time = 0
+        #     # NAND
+        #     # session id is wrong
 
-            packets = NVP.streamReadData(conver_recording_read_handle, self.BUFFER_SIZE)
-            count = len(packets)
+        #     packets = NVP.streamReadData(
+        #         conver_recording_read_handle,
+        #         self.BUFFER_SIZE
+        #         )
+        #     count = len(packets)
 
-            if count < self.BUFFER_SIZE:
-                self.logger.warning("Out of packets")
-                break
+        #     if count < self.BUFFER_SIZE:
+        #         self.logger.warning("Out of packets")
+        #         break
 
-            # TODO: Rearrange data depening on selected gain
-            databuffer = np.asarray(
-                [packets[i].data for i in range(self.BUFFER_SIZE)], dtype="uint16"
-            )
-            databuffer = (databuffer @ mtx).T
-            databuffer = np.multiply(databuffer, self._settings.gain_vec[:, None])
-            self._add_to_zarr(databuffer)
+        #     # TODO: Rearrange data depening on selected gain
+        #     databuffer = np.asarray(
+        #         [packets[i].data for i in range(self.BUFFER_SIZE)], dtype="uint16"
+        #     )
+        #     databuffer = (databuffer @ mtx).T
+        #     databuffer = np.multiply(databuffer, self._settings.gain_vec[:, None])
+        #     self._add_to_zarr(databuffer)
+        pass
 
     def _add_to_zarr(self, databuffer: np.ndarray) -> None:
         """Adds the data to the zarr file."""
@@ -724,7 +747,7 @@ class ViperBox:
 
                 self._add_stimulation_record(
                     "stim_start",
-                    tmp_counter - self._rec_start_time,
+                    tmp_counter,
                     tmp_delta,
                     f"handle: {handle} probe: {probe}, SU: {SU_dict[handle][probe]}",
                 )

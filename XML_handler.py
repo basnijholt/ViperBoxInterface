@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from typing import Any, Tuple
 
 from lxml import etree
@@ -197,7 +198,7 @@ def check_xml_with_settings(
     return True, "XML is valid."
 
 
-def create_empty_xml(path: str):
+def create_empty_xml(path: Path):
     """Create an empty xml file with the root element Recording and a child element
         Settings
 
@@ -221,7 +222,14 @@ def create_empty_xml(path: str):
     return program
 
 
-def add_to_stimrec(path: str, main_type: str, sub_type: str, settings_dict: dict):
+def add_to_stimrec(
+    path: Path,
+    main_type: str,
+    sub_type: str,
+    settings_dict: dict,
+    start_time: float,
+    delta_time: float,
+):
     """
     Add setting or instruction to the stimrec xml file.
 
@@ -232,6 +240,8 @@ def add_to_stimrec(path: str, main_type: str, sub_type: str, settings_dict: dict
         'Mapping' only in case of settings
     - settings_dict: dictionary with the settings to be added. This is currently not
         checked
+    - start_time: start time of the setting
+    - delta_time: delta time of the setting
 
     Test cases:
     - path is not a string
@@ -243,6 +253,12 @@ def add_to_stimrec(path: str, main_type: str, sub_type: str, settings_dict: dict
 
 
     """
+    settings_dict = {str(key): str(value) for key, value in settings_dict.items()}
+    settings_dict = {
+        "start_time": str(start_time),
+        "delta_time": str(delta_time),
+        **settings_dict,
+    }
     sub_type_map = {
         "Channel": "RecordingSettings",
         "Configuration": "StimulationWaveformsSettings",
@@ -275,8 +291,8 @@ def add_to_stimrec(path: str, main_type: str, sub_type: str, settings_dict: dict
             settings = recording[-1]
 
         # Create sub_type parent ["RecordingSettings",
-        # "StimulationWaveformsSettings". "StimulationMappingSettings"] if it does not
-        # exist
+        # "StimulationWaveformsSettings". "StimulationMappingSettings"] if it does
+        # not exist
         if settings.find(f".//{sub_type_map[sub_type]}") is None:
             parent_settings = etree.SubElement(settings, f"{sub_type_map[sub_type]}")
         else:
