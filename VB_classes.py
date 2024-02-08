@@ -46,6 +46,10 @@ class ChanSettings:
                 tmp_dct[k] = str(env[k])
         return cls(**tmp_dct)
 
+    @property
+    def hash(self):
+        return hash(f"{self.references}{self.gain}{self.input}")
+
 
 @dataclass
 class SUSettings:
@@ -227,6 +231,7 @@ def printet(obj: Any) -> None:
     """
     Readable print of an ET object.
     """
+    # print(etree.tostring(obj, pretty_print=True, indent=4).decode())
     print(etree.tostring(obj, pretty_print=True).decode())
 
 

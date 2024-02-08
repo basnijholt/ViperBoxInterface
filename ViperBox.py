@@ -1,10 +1,9 @@
 import copy
 import logging
 import os
-import socket
 import time
 from pathlib import Path
-from typing import Any, List, Mapping, Tuple
+from typing import Any, Tuple
 
 import numpy as np
 import requests
@@ -155,9 +154,9 @@ class ViperBox:
         # TODO handlefix: also loop over handles
         for probe_1 in probe_list_1:
             try:
-                NVP.init(self._handle, probe_1 - 1)  # Initialize all probes
+                NVP.init(self._handle, int(probe_1) - 1)  # Initialize all probes
                 logging.info(f"Probe {probe_1} initialized: {self._handle}")
-                self.local_settings.handles[1].probes[probe_1] = ProbeSettings()
+                self.local_settings.handles[1].probes[int(probe_1)] = ProbeSettings()
             except Exception as error:
                 logging.warning(f"!! Init() exception error, probe {probe_1}: {error}")
                 # self._probe_recognized[probe_1-1] = 0
@@ -323,6 +322,7 @@ class ViperBox:
         )
 
         # TODO handlefix
+        start_time = self._time()
         try:
             self._write_stimulation_settings(updated_tmp_settings)
         except Exception:
@@ -331,6 +331,43 @@ class ViperBox:
                 """Error in uploading stimulation settings, settings not applied and 
                 reverted to previous settings""",
             )
+        dt_time = self._time() - start_time
+
+        for handle in updated_tmp_settings.handles.keys():
+            for probe in updated_tmp_settings.handles[handle].probes.keys():
+                for configuration in (
+                    updated_tmp_settings.handles[handle]
+                    .probes[probe]
+                    .stim_unit_sett.keys()
+                ):
+                    add_to_stimrec(
+                        self.stim_file_path,
+                        "Settings",
+                        "Configuration",
+                        updated_tmp_settings.handles[handle]
+                        .probes[probe]
+                        .stim_unit_sett[configuration]
+                        .__dict__,
+                        start_time,
+                        dt_time,
+                    )
+                for mapping in (
+                    updated_tmp_settings.handles[handle]
+                    .probes[probe]
+                    .stim_unit_elec.keys()
+                ):
+                    add_to_stimrec(
+                        self.stim_file_path,
+                        "Settings",
+                        "Mapping",
+                        {
+                            f"""{mapping}""": f"""{updated_tmp_settings.handles[handle]
+                            .probes[probe]
+                            .stim_unit_elec[mapping]}"""
+                        },
+                        start_time,
+                        dt_time,
+                    )
         self.tracking.stimulation_settings_uploaded = True
         self.local_settings = updated_tmp_settings
         self.uploaded_settings = copy.deepcopy(self.local_settings)
@@ -370,6 +407,7 @@ class ViperBox:
         )
 
         # TODO handlefix
+        start_time = self._time()
         try:
             self._write_recording_settings(updated_tmp_settings)
         except Exception:
@@ -386,6 +424,58 @@ class ViperBox:
                 """Error in uploading stimulation settings, settings not applied and 
                 reverted to previous settings""",
             )
+        dt_time = self._time() - start_time
+
+        for handle in updated_tmp_settings.handles.keys():
+            for probe in updated_tmp_settings.handles[handle].probes.keys():
+                for channel in (
+                    self.uploaded_settings.handles[handle].probes[probe].channel.keys()
+                ):
+                    add_to_stimrec(
+                        self.stim_file_path,
+                        "Settings",
+                        "Channel",
+                        self.uploaded_settings.handles[handle]
+                        .probes[probe]
+                        .channel[channel]
+                        .__dict__,
+                        start_time,
+                        dt_time,
+                    )
+                for configuration in (
+                    updated_tmp_settings.handles[handle]
+                    .probes[probe]
+                    .stim_unit_sett.keys()
+                ):
+                    add_to_stimrec(
+                        self.stim_file_path,
+                        "Settings",
+                        "Configuration",
+                        updated_tmp_settings.handles[handle]
+                        .probes[probe]
+                        .stim_unit_sett[configuration]
+                        .__dict__,
+                        start_time,
+                        dt_time,
+                    )
+                for mapping in (
+                    updated_tmp_settings.handles[handle]
+                    .probes[probe]
+                    .stim_unit_elec.keys()
+                ):
+                    add_to_stimrec(
+                        self.stim_file_path,
+                        "Settings",
+                        "Mapping",
+                        {
+                            f"""{mapping}""": f"""{updated_tmp_settings.handles[handle]
+                            .probes[probe]
+                            .stim_unit_elec[mapping]}"""
+                        },
+                        start_time,
+                        dt_time,
+                    )
+
         self.tracking.recording_settings_uploaded = True
         self.tracking.stimulation_settings_uploaded = True
         self.local_settings = updated_tmp_settings
@@ -545,66 +635,66 @@ class ViperBox:
                     not running"""
                 )
 
-    def _send_data_to_socket(self) -> None:
-        """Send data packets to a UDP socket, such that Open Ephys and other systems
-        can receive the raw data."""
+    # def _send_data_to_socket(self) -> None:
+    #     """Send data packets to a UDP socket, such that Open Ephys and other systems
+    #     can receive the raw data."""
 
-        bufferInterval: float = self.BUFFER_SIZE / self.FREQ
+    #     bufferInterval: float = self.BUFFER_SIZE / self.FREQ
 
-        serverAddressPort: Tuple[str, int] = ("127.0.0.1", 9001)
-        # TODO: update settings of socket
-        MULTICAST_TTL = 2
-        UDPClientSocket: socket.socket = socket.socket(
-            socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
-        )
+    #     serverAddressPort: Tuple[str, int] = ("127.0.0.1", 9001)
+    #     # TODO: update settings of socket
+    #     MULTICAST_TTL = 2
+    #     UDPClientSocket: socket.socket = socket.socket(
+    #         socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
+    #     )
 
-        UDPClientSocket.setsockopt(
-            socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL
-        )
+    #     UDPClientSocket.setsockopt(
+    #         socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL
+    #     )
 
-        # TODO: check if this is necessary
-        time.sleep(0.1)
+    #     # TODO: check if this is necessary
+    #     time.sleep(0.1)
 
-        # TODO: How to handle data streams from multiple probes? align on timestamp?
-        send_data_read_handle = NVP.streamOpenFile(self._rec_path, self._probe)
+    #     # TODO: How to handle data streams from multiple probes? align on timestamp?
+    #     send_data_read_handle = NVP.streamOpenFile(self._rec_path, self._probe)
 
-        # TODO: remove packages with wrong session
-        # status = NVP.readDiagStats(self._handle)
-        # skip_packages = status.session_mismatch
-        # print('skip_packages: ', skip_packages)
-        # dump_count = 0
-        # while dump_count < skip_packages:
-        #     _ = NVP.streamReadData(self._read_handle, self.SKIP_SIZE)
-        #     dump_count += self.SKIP_SIZE
-        # print('dump_count: ', dump_count)
+    #     # TODO: remove packages with wrong session
+    #     # status = NVP.readDiagStats(self._handle)
+    #     # skip_packages = status.session_mismatch
+    #     # print('skip_packages: ', skip_packages)
+    #     # dump_count = 0
+    #     # while dump_count < skip_packages:
+    #     #     _ = NVP.streamReadData(self._read_handle, self.SKIP_SIZE)
+    #     #     dump_count += self.SKIP_SIZE
+    #     # print('dump_count: ', dump_count)
 
-        self.logger.info("Started sending data to Open Ephys")
-        mtx = self._os2chip_mat()
-        counter = 0
-        t0 = self._time()
-        while True:
-            counter += 1
+    #     self.logger.info("Started sending data to Open Ephys")
+    #     mtx = self._os2chip_mat()
+    #     counter = 0
+    #     t0 = self._time()
+    #     while True:
+    #         counter += 1
 
-            packets = NVP.streamReadData(send_data_read_handle, self.BUFFER_SIZE)
-            count = len(packets)
+    #         packets = NVP.streamReadData(send_data_read_handle, self.BUFFER_SIZE)
+    #         count = len(packets)
 
-            if count < self.BUFFER_SIZE:
-                self.logger.warning("Out of packets")
-                break
+    #         if count < self.BUFFER_SIZE:
+    #             self.logger.warning("Out of packets")
+    #             break
 
-            # TODO: Rearrange data depening on selected gain
-            databuffer = np.asarray(
-                [packets[i].data for i in range(self.BUFFER_SIZE)], dtype="uint16"
-            )
-            databuffer = (databuffer @ mtx).T
-            databuffer = databuffer.copy(order="C")
-            UDPClientSocket.sendto(databuffer, serverAddressPort)
+    #         # TODO: Rearrange data depening on selected gain
+    #         databuffer = np.asarray(
+    #             [packets[i].data for i in range(self.BUFFER_SIZE)], dtype="uint16"
+    #         )
+    #         databuffer = (databuffer @ mtx).T
+    #         databuffer = databuffer.copy(order="C")
+    #         UDPClientSocket.sendto(databuffer, serverAddressPort)
 
-            t2 = self._time()
-            while (t2 - t0) < counter * bufferInterval:
-                t2 = self._time()
+    #         t2 = self._time()
+    #         while (t2 - t0) < counter * bufferInterval:
+    #             t2 = self._time()
 
-        NVP.streamClose(self._read_handle)
+    #     NVP.streamClose(self._read_handle)
 
     def _os2chip_mat(self):
         mtx = np.zeros((64, 60), dtype="uint16")
@@ -619,11 +709,23 @@ class ViperBox:
         if self.tracking.recording is False:
             return False, "Recording not started"
 
+        start_time = self._time()
         NVP.arm(self._handle)
         # Close file
         NVP.setFileStream(self._handle, "")
+        dt_time = self._time() - start_time
+
+        add_to_stimrec(
+            self.stim_file_path,
+            "Instructions",
+            "Instruction",
+            {"filename": self.recording_name, "instruction_type": "recording_stop"},
+            start_time,
+            dt_time,
+        )
 
         self.tracking.recording = False
+        self._rec_start_time = None
 
         # TODO: combine stim history and recording into some file format
         # self._convert_recording()
@@ -671,7 +773,7 @@ class ViperBox:
         # TODO: not implemented
         pass
 
-    def _convert_SU_list(SU_list):
+    def _convert_SU_list(self, SU_list):
         # convert SUs to NVP format
         SU_string = "".join(["1" if i in SU_list else "0" for i in range(1, 9)])
         return int(SU_string, 2)
@@ -698,8 +800,11 @@ class ViperBox:
                 start recording first""",
             )
 
-        SU_dict: Mapping[int, Mapping[int, List[int]]] = {}
+        # SU_dict = {handle1: {probe1: [1,2,5], probe2: [3,4,6]}}
+        SU_dict: Any = {}
         # Check if handles, probes and SUs are in right format and properly configured
+        # i.e, have waveform configured
+        # Using try/except to catch ValueError from parse_numbers
         try:
             for handle in parse_numbers(
                 handles, list(self.uploaded_settings.handles.keys())
@@ -733,6 +838,14 @@ class ViperBox:
         except ValueError as e:
             return False, f"Handle {handle} doesn't seem to be connected: {e}"
 
+        SU_dict = {
+            int(handle): {
+                int(probe): self._convert_SU_list(sulist)
+                for probe, sulist in probes.items()
+            }
+            for handle, probes in SU_dict.items()
+        }
+
         # Trigger SUs
         for handle in SU_dict.keys():
             for probe in SU_dict[handle].keys():
@@ -741,16 +854,22 @@ class ViperBox:
                 NVP.SUtrig1(
                     self._handle,
                     probe - 1,
-                    self._convert_SU_list(SU_dict[handle][probe]),
+                    SU_dict[handle][probe],
                 )
                 tmp_delta = self._time() - tmp_counter
 
-                self._add_stimulation_record(
-                    "stim_start",
+                add_to_stimrec(
+                    self.stim_file_path,
+                    "Instructions",
+                    "Instruction",
+                    {
+                        "filename": self.recording_name,
+                        "instruction_type": "recording_start",
+                    },
                     tmp_counter,
                     tmp_delta,
-                    f"handle: {handle} probe: {probe}, SU: {SU_dict[handle][probe]}",
                 )
+
         return_statement = f"Stimulation started on handles {handles} probe "
         f"{probes} for SU's {SU_dict[handle][probe]}"
         return True, return_statement
