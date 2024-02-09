@@ -338,10 +338,15 @@ class ViperBox:
                             self.stim_file_path,
                             "Settings",
                             "Configuration",
-                            updated_tmp_settings.handles[handle]
-                            .probes[probe]
-                            .stim_unit_sett[configuration]
-                            .__dict__,
+                            {
+                                "handle": handle,
+                                "probe": probe,
+                                "stimunit": configuration,
+                                **updated_tmp_settings.handles[handle]
+                                .probes[probe]
+                                .stim_unit_sett[configuration]
+                                .__dict__,
+                            },
                             start_time,
                             dt_time,
                         )
@@ -355,14 +360,16 @@ class ViperBox:
                             "Settings",
                             "Mapping",
                             {
-                                f"{mapping}": f"""{updated_tmp_settings.handles[handle]
+                                "handle": handle,
+                                "probe": probe,
+                                "stimunit": mapping,
+                                "electrodes": updated_tmp_settings.handles[handle]
                                 .probes[probe]
-                                .stim_unit_elec[mapping]}"""
+                                .stim_unit_elec[mapping],
                             },
                             start_time,
                             dt_time,
                         )
-
         return True, "Stimulation settings wrote to stimrec file"
 
     def stimulation_settings(
@@ -484,10 +491,15 @@ class ViperBox:
                         self.stim_file_path,
                         "Settings",
                         "Channel",
-                        self.uploaded_settings.handles[handle]
-                        .probes[probe]
-                        .channel[channel]
-                        .__dict__,
+                        {
+                            "handle": handle,
+                            "probe": probe,
+                            "channel": channel,
+                            **self.uploaded_settings.handles[handle]
+                            .probes[probe]
+                            .channel[channel]
+                            .__dict__,
+                        },
                         start_time,
                         dt_time,
                     )
@@ -500,10 +512,15 @@ class ViperBox:
                         self.stim_file_path,
                         "Settings",
                         "Configuration",
-                        updated_tmp_settings.handles[handle]
-                        .probes[probe]
-                        .stim_unit_sett[configuration]
-                        .__dict__,
+                        {
+                            "handle": handle,
+                            "probe": probe,
+                            "stimunit": configuration,
+                            **updated_tmp_settings.handles[handle]
+                            .probes[probe]
+                            .stim_unit_sett[configuration]
+                            .__dict__,
+                        },
                         start_time,
                         dt_time,
                     )
@@ -517,9 +534,12 @@ class ViperBox:
                         "Settings",
                         "Mapping",
                         {
-                            f"""{mapping}""": f"""{updated_tmp_settings.handles[handle]
+                            "handle": handle,
+                            "probe": probe,
+                            "stimunit": mapping,
+                            "electrodes": updated_tmp_settings.handles[handle]
                             .probes[probe]
-                            .stim_unit_elec[mapping]}"""
+                            .stim_unit_elec[mapping],
                         },
                         start_time,
                         dt_time,
@@ -604,10 +624,15 @@ class ViperBox:
                         self.stim_file_path,
                         "Settings",
                         "Channel",
-                        self.uploaded_settings.handles[handle]
-                        .probes[probe]
-                        .channel[channel]
-                        .__dict__,
+                        {
+                            "handle": handle,
+                            "probe": probe,
+                            "channel": channel,
+                            **self.uploaded_settings.handles[handle]
+                            .probes[probe]
+                            .channel[channel]
+                            .__dict__,
+                        },
                         -1.0,
                         -1.0,
                     )

@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from typing import Any, Tuple
 
+import numpy as np
 from lxml import etree
 
 from VB_classes import (
@@ -270,11 +271,15 @@ def add_to_stimrec(
 
 
     """
-    settings_dict = {
-        key: value + 1
-        for key, value in settings_dict.items()
-        if key in ["handle", "probe", "channel", "stimunit", "electrodes"]
-    }
+    plus_one_list = ["handle", "probe", "channel", "stimunit"]
+    for key in plus_one_list:
+        if key in settings_dict.keys():
+            settings_dict[key] = settings_dict[key] + 1
+    if "electrodes" in settings_dict.keys():
+        settings_dict["electrodes"] = ", ".join(
+            map(str, np.asarray(settings_dict["electrodes"]) + 1)
+        )
+
     settings_dict = {str(key): str(value) for key, value in settings_dict.items()}
     settings_dict = {
         "start_time": str(start_time),
