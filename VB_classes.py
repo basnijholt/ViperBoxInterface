@@ -82,7 +82,7 @@ class SUSettings:
     def SUConfig(self):
         return (
             # self.stim_unit,
-            self.polarity,
+            bool(self.polarity),
             self.pulses,
             self.amplitude1,
             self.amplitude2,
@@ -261,7 +261,9 @@ def dict_to_dataclass(cls: Any, dict_obj: Any) -> Any:
 
 
 def parse_numbers(numstr: str, all_values: list[int]) -> list[int]:
-    """Parse a string of numbers and compare to an available list.
+    """Parse a string of numbers, converts to 0 indexed and compare to an
+    available list.
+
     If the format is wrong or if the numbers are not in the list, raise an error.
     These are inputs like: '1,2,3,4-6,8' or '-' for all possible values.
 
@@ -287,7 +289,8 @@ def parse_numbers(numstr: str, all_values: list[int]) -> list[int]:
             raise ValueError("all_values not known")
         result = np.asarray(all_values)
     elif len(numstr) == 1:
-        result = np.array([int(numstr)])
+        # - 1 because xml is 1 indexed and code is 0 indexed
+        result = np.array([int(numstr) - 1])
     else:
         split_numstr = numstr.split(",")
         for item in split_numstr:
@@ -312,6 +315,8 @@ def parse_numbers(numstr: str, all_values: list[int]) -> list[int]:
                 np_item = np.asarray(int(item))
             result = np.append(result, np_item)
         result = np.unique(result)
+        # - 1 because xml is 1 indexed and code is 0 indexed
+        result = result - 1
     if not set(result).issubset(set(all_values)):
         raise ValueError(
             "Invalid values; following instances are not connected"

@@ -54,6 +54,7 @@ class ViperBox:
         log_file = f"log_{self._session_datetime}.log"
         log_folder.mkdir(parents=True, exist_ok=True)
         self._log = log_folder.joinpath(log_file)
+        self.stim_file_path: None | Path = None
 
         self._default_XML = Path.cwd() / "default_XML"
         self._default_XML.mkdir(parents=True, exist_ok=True)
@@ -104,8 +105,7 @@ class ViperBox:
 
         # check if probes is a list of 4 elements and only containing ints 1 or 0
         try:
-            probe_list_int = parse_numbers(probe_list, [1, 2, 3, 4])
-            probe_list_int = [i - 1 for i in probe_list_int]
+            probe_list_int = parse_numbers(probe_list, [0, 1, 2, 3])
         except ValueError as e:
             return False, f"Invalid probe list: {e}"
 
@@ -133,7 +133,7 @@ class ViperBox:
 
         # Connect and set up viperbox
         # TODO handlefix: also loop over handles
-        handle = 1
+        handle = 0
         tmp_handel = NVP.createHandle(devices[0].ID)
         self._handle_ptrs[handle] = tmp_handel
         # self._handle_ptrs[handle] = NVP.createHandle(devices[0].ID)
@@ -192,7 +192,7 @@ class ViperBox:
         """Disconnects from the ViperBox and closes the API channel."""
 
         # TODO handlefix: also loop over handles
-        handle = 1
+        handle = 0
         NVP.closeProbes(self._handle_ptrs[handle])
         NVP.closeBS(self._handle_ptrs[handle])
         NVP.destroyHandle(self._handle_ptrs[handle])
@@ -245,7 +245,7 @@ class ViperBox:
 
                 NVP.writeChannelConfiguration(self._handle_ptrs[handle], probe, False)
 
-    def _write_stimulation_settings(self, updated_tmp_settings):
+    def _write_stimulation_settings_to_viperbox(self, updated_tmp_settings):
         for handle in updated_tmp_settings.handles.keys():
             for probe in updated_tmp_settings.handles[handle].probes.keys():
                 # Always set settings for entire probe at once.
@@ -262,9 +262,11 @@ class ViperBox:
                 NVP.writeSUConfiguration(
                     self._handle_ptrs[handle],
                     probe,
-                    updated_tmp_settings.handles[handle]
+                    SU,
+                    *updated_tmp_settings.handles[handle]
                     .probes[probe]
-                    .stim_unit_sett[SU],
+                    .stim_unit_sett[SU]
+                    .SUConfig(),
                 )
 
     def recording_settings(
@@ -292,6 +294,7 @@ class ViperBox:
         # make temporary copy of settings
         tmp_local_settings = copy.deepcopy(self.local_settings)
 
+        printable_dtd(f"local_settings: {self.local_settings}")
         result, feedback = check_xml_with_settings(
             XML_data, tmp_local_settings, "recording"
         )
@@ -303,7 +306,7 @@ class ViperBox:
         updated_tmp_settings = update_checked_settings(
             XML_data, tmp_local_settings, "recording"
         )
-        printable_dtd(updated_tmp_settings)
+        printable_dtd(f"updated_tmp_settings: {updated_tmp_settings}")
 
         try:
             # Always set settings for entire probe at once.
@@ -320,6 +323,48 @@ class ViperBox:
         self.uploaded_settings = copy.deepcopy(self.local_settings)
         return True, "Recording settings loaded"
 
+    def _write_stimulation_settings_to_stimrec(
+        self, updated_tmp_settings, start_time, dt_time
+    ):
+        if self.stim_file_path:
+            for handle in updated_tmp_settings.handles.keys():
+                for probe in updated_tmp_settings.handles[handle].probes.keys():
+                    for configuration in (
+                        updated_tmp_settings.handles[handle]
+                        .probes[probe]
+                        .stim_unit_sett.keys()
+                    ):
+                        add_to_stimrec(
+                            self.stim_file_path,
+                            "Settings",
+                            "Configuration",
+                            updated_tmp_settings.handles[handle]
+                            .probes[probe]
+                            .stim_unit_sett[configuration]
+                            .__dict__,
+                            start_time,
+                            dt_time,
+                        )
+                    for mapping in (
+                        updated_tmp_settings.handles[handle]
+                        .probes[probe]
+                        .stim_unit_elec.keys()
+                    ):
+                        add_to_stimrec(
+                            self.stim_file_path,
+                            "Settings",
+                            "Mapping",
+                            {
+                                f"{mapping}": f"""{updated_tmp_settings.handles[handle]
+                                .probes[probe]
+                                .stim_unit_elec[mapping]}"""
+                            },
+                            start_time,
+                            dt_time,
+                        )
+
+        return True, "Stimulation settings wrote to stimrec file"
+
     def stimulation_settings(
         self, xml_string: str, reset: bool = False, default_values: bool = False
     ) -> Tuple[bool, str]:
@@ -329,7 +374,7 @@ class ViperBox:
             return False, "Not connected to ViperBox"
 
         if default_values is True:
-            XML_data = etree.parse("defaults/default_settings.xml")
+            XML_data = etree.parse("defaults/default_stimulation_settings.xml")
         else:
             try:
                 XML_data = etree.fromstring(xml_string)
@@ -353,53 +398,28 @@ class ViperBox:
         # TODO handlefix
         start_time = self._time()
         try:
-            self._write_stimulation_settings(updated_tmp_settings)
+            self._write_stimulation_settings_to_viperbox(updated_tmp_settings)
+            self.uploaded_settings = copy.deepcopy(updated_tmp_settings)
         except Exception:
             return (
                 False,
-                """Error in uploading stimulation settings, settings not applied and 
+                """Error in uploading stimulation settings, settings not applied and
                 reverted to previous settings""",
             )
         dt_time = self._time() - start_time
 
-        for handle in updated_tmp_settings.handles.keys():
-            for probe in updated_tmp_settings.handles[handle].probes.keys():
-                for configuration in (
-                    updated_tmp_settings.handles[handle]
-                    .probes[probe]
-                    .stim_unit_sett.keys()
-                ):
-                    add_to_stimrec(
-                        self.stim_file_path,
-                        "Settings",
-                        "Configuration",
-                        updated_tmp_settings.handles[handle]
-                        .probes[probe]
-                        .stim_unit_sett[configuration]
-                        .__dict__,
-                        start_time,
-                        dt_time,
-                    )
-                for mapping in (
-                    updated_tmp_settings.handles[handle]
-                    .probes[probe]
-                    .stim_unit_elec.keys()
-                ):
-                    add_to_stimrec(
-                        self.stim_file_path,
-                        "Settings",
-                        "Mapping",
-                        {
-                            f"""{mapping}""": f"""{updated_tmp_settings.handles[handle]
-                            .probes[probe]
-                            .stim_unit_elec[mapping]}"""
-                        },
-                        start_time,
-                        dt_time,
-                    )
         self.tracking.stimulation_settings_uploaded = True
-        self.local_settings = updated_tmp_settings
-        self.uploaded_settings = copy.deepcopy(self.local_settings)
+        self.local_settings = copy.deepcopy(updated_tmp_settings)
+
+        # if stim_file_path doesn't exist, the recording hasn't started yet
+        # settings will be written to stimrec at start
+        if self.stim_file_path:
+            result, feedback = self._write_stimulation_settings_to_stimrec(
+                updated_tmp_settings, start_time, dt_time
+            )
+            if result is False:
+                return result, feedback
+
         return True, "Stimulation settings loaded"
 
     def verify_xml_with_local_settings(
@@ -446,7 +466,7 @@ class ViperBox:
                 reverted to previous settings""",
             )
         try:
-            self._write_stimulation_settings(updated_tmp_settings)
+            self._write_stimulation_settings_to_viperbox(updated_tmp_settings)
         except Exception:
             return (
                 False,
@@ -567,13 +587,14 @@ class ViperBox:
             "Stimulations",
             "stimulation_record",
             "xml",
-            f"{self._rec_start_time, True}",
+            f"{time.strftime('%Y%m%d_%H%M%S')}",
         )
         # TODO record: replace following with function that writes start
         # of recording with time and deltatime to stim_file
 
         # Create stimulation record
         create_empty_xml(self.stim_file_path)
+
         for handle in self.uploaded_settings.handles.keys():
             for probe in self.uploaded_settings.handles[handle].probes.keys():
                 for channel in (
@@ -590,6 +611,9 @@ class ViperBox:
                         -1.0,
                         -1.0,
                     )
+
+        self._write_stimulation_settings_to_stimrec(self.local_settings, -1.0, -1.0)
+
         add_to_stimrec(
             self.stim_file_path,
             "Instructions",
@@ -739,7 +763,7 @@ class ViperBox:
             return False, "Recording not started"
 
         start_time = self._time()
-        handle = 1
+        handle = 0
         NVP.arm(self._handle_ptrs[handle])
         # Close file
         NVP.setFileStream(self._handle_ptrs[handle], "")
@@ -818,6 +842,9 @@ class ViperBox:
         - handles: str - all handles to start stimulation in
         - probes: str - all probes to start stimulation in
         - SU_input: str - the SUs to start stimulation in
+
+        Test:
+        - Check if this also works if sus are half configured
         """
 
         if self.tracking.box_connected is False:
@@ -835,38 +862,35 @@ class ViperBox:
         # Check if handles, probes and SUs are in right format and properly configured
         # i.e, have waveform configured
         # Using try/except to catch ValueError from parse_numbers
-        try:
-            for handle in parse_numbers(
-                handles, list(self.uploaded_settings.handles.keys())
+        for handle in parse_numbers(
+            handles, list(self.uploaded_settings.handles.keys())
+        ):
+            SU_dict[handle] = {}
+            for probe in parse_numbers(
+                probes,
+                list(self.uploaded_settings.handles[handle].probes.keys()),
             ):
-                SU_dict[handle] = {}
-                try:
-                    for probe in parse_numbers(
-                        probes,
-                        list(self.uploaded_settings.handles[handle].probes.keys()),
-                    ):
-                        try:
-                            SU_dict[handle][probe] = parse_numbers(
-                                SU_input,
-                                list(
-                                    self.uploaded_settings.handles[handle]
-                                    .probes[probe]
-                                    .stim_unit_sett.keys()
-                                ),
-                            )
-                        except ValueError as e:
-                            return_statement = "SU settings not available on probe "
-                            f"{probe}, on handle {handle} are not available: {e}"
-                            return False, return_statement
-                except ValueError as e:
-                    return_statement
-                    return (
-                        False,
-                        f"""Probe {probe} on handle {handle} doesn't seem to be 
-                        connected: {e}""",
-                    )
-        except ValueError as e:
-            return False, f"Handle {handle} doesn't seem to be connected: {e}"
+                SU_dict[handle][probe] = parse_numbers(
+                    SU_input,
+                    list(
+                        self.uploaded_settings.handles[handle]
+                        .probes[probe]
+                        .stim_unit_sett.keys()
+                    ),
+                )
+        #                 except ValueError as e:
+        #                     return_statement = "SU settings not available on probe "
+        #                     f"{probe}, on handle {handle} are not available: {e}"
+        #                     return False, return_statement
+        #         except ValueError as e:
+        #             return_statement
+        #             return (
+        #                 False,
+        #                 f"""Probe {probe} on handle {handle} doesn't seem to be
+        #                 connected: {e}""",
+        #             )
+        # except ValueError as e:
+        #     return False, f"Handle {handle} doesn't seem to be connected: {e}"
 
         SU_dict = {
             int(handle): {

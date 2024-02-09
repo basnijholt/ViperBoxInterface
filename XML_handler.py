@@ -122,7 +122,7 @@ def overwrite_settings(
     else:
         tags = ["StimulationWaveformsSettings", "StimulationMappingSettings"]
 
-    printable_dtd(local_settings)
+    printable_dtd(f"overwrite_settings version of local_settings: {local_settings}")
 
     for XML_element in data_xml.iter():
         # goes through all XML_elements
@@ -133,21 +133,21 @@ def overwrite_settings(
                     XML_settings.attrib["handle"], list(local_settings.connected.keys())
                 )
                 for handle in handles:
-                    handle -= 1
-                    print(f"handle: {handle}")
+                    # handle -= 1
+                    # print(f"handle: {handle}")
                     probes = parse_numbers(
                         XML_settings.attrib["probe"], local_settings.connected[handle]
                     )
                     for probe in probes:
-                        probe -= 1
-                        print(f"probe: {probe}")
+                        # probe -= 1
+                        # print(f"probe: {probe}")
                         if XML_settings.tag == "Channel":
                             all_channels = parse_numbers(
                                 XML_settings.attrib["channel"], list(range(64))
                             )
                             for channel in all_channels:
-                                channel -= 1
-                                print(f"channel: {channel}")
+                                # channel -= 1
+                                # print(f"channel: {channel}")
                                 check_references_format(
                                     XML_settings.attrib["references"]
                                 )
@@ -161,7 +161,7 @@ def overwrite_settings(
                                 XML_settings.attrib["stimunit"], list(range(8))
                             )
                             for waveform in all_waveforms:
-                                waveform -= 1
+                                # waveform -= 1
                                 for parameter_set in verify_params:
                                     verify_step_min_max(
                                         *parameter_set,
@@ -177,7 +177,7 @@ def overwrite_settings(
                                 XML_settings.attrib["stimunit"], list(range(8))
                             )
                             for mapping in all_mappings:
-                                mapping -= 1
+                                # mapping -= 1
                                 local_settings.handles[handle].probes[
                                     probe
                                 ].stim_unit_elec[mapping] = parse_numbers(
