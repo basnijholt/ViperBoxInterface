@@ -46,8 +46,10 @@ def check_references_format(references: str) -> bool:
     - references contains a letter
     """
     if len(references) != 9:
+        print("References should be a 9 digit string")
         raise ValueError("References should be a 9 digit string")
     if not all([i in ["0", "1"] for i in references]):
+        print("References should only contain 0s and 1s")
         raise ValueError("References should only contain 0s and 1s")
     return True
 
@@ -96,12 +98,14 @@ def verify_step_min_max(name: str, step: int, min_val: int, max_val: int, value:
 
 
 def overwrite_settings(
-    data: Any, local_settings: GeneralSettings, check_topic: str = "all"
+    data_xml: Any, local_settings: GeneralSettings, check_topic: str = "all"
 ):
-    """Write xml data to local settings
+    """Write xml data_xml to local settings
+
+    Goes through all handles and probes in data_xml xml
 
     Arguments:
-    - data: xml data of type lxml.etree._ElementTree
+    - data_xml: xml of type lxml.etree._ElementTree
     - local_settings: local settings of type GeneralSettings
     - check_topic: string, either "all", "recording" or "stimulation"
 
@@ -118,54 +122,67 @@ def overwrite_settings(
     else:
         tags = ["StimulationWaveformsSettings", "StimulationMappingSettings"]
 
-    for element in data.iter():
-        # goes through all elements
-        if element.tag in tags:
-            # if element contains recording settings, add these settings
-            for settings in element:
+    printable_dtd(local_settings)
+
+    for XML_element in data_xml.iter():
+        # goes through all XML_elements
+        if XML_element.tag in tags:
+            # if XML_element contains recording settings, add these settings
+            for XML_settings in XML_element:
                 handles = parse_numbers(
-                    settings.attrib["handle"], list(local_settings.connected.keys())
+                    XML_settings.attrib["handle"], list(local_settings.connected.keys())
                 )
                 for handle in handles:
+                    handle -= 1
+                    print(f"handle: {handle}")
                     probes = parse_numbers(
-                        settings.attrib["probe"], local_settings.connected[handle]
+                        XML_settings.attrib["probe"], local_settings.connected[handle]
                     )
                     for probe in probes:
-                        if settings.tag == "Channel":
+                        probe -= 1
+                        print(f"probe: {probe}")
+                        if XML_settings.tag == "Channel":
                             all_channels = parse_numbers(
-                                settings.attrib["channel"], list(range(1, 65))
+                                XML_settings.attrib["channel"], list(range(64))
                             )
                             for channel in all_channels:
-                                check_references_format(settings.attrib["references"])
-                                check_gain_input_format(settings.attrib["gain"])
-                                check_gain_input_format(settings.attrib["input"])
+                                channel -= 1
+                                print(f"channel: {channel}")
+                                check_references_format(
+                                    XML_settings.attrib["references"]
+                                )
+                                check_gain_input_format(XML_settings.attrib["gain"])
+                                check_gain_input_format(XML_settings.attrib["input"])
                                 local_settings.handles[handle].probes[probe].channel[
                                     channel
-                                ] = ChanSettings.from_dict(settings.attrib)
-                        if settings.tag == "Configuration":
+                                ] = ChanSettings.from_dict(XML_settings.attrib)
+                        if XML_settings.tag == "Configuration":
                             all_waveforms = parse_numbers(
-                                settings.attrib["stimunit"], list(range(1, 9))
+                                XML_settings.attrib["stimunit"], list(range(8))
                             )
                             for waveform in all_waveforms:
+                                waveform -= 1
                                 for parameter_set in verify_params:
                                     verify_step_min_max(
                                         *parameter_set,
-                                        int(settings.attrib[parameter_set[0]]),
+                                        int(XML_settings.attrib[parameter_set[0]]),
                                     )
                                 local_settings.handles[handle].probes[
                                     probe
                                 ].stim_unit_sett[waveform] = SUSettings.from_dict(
-                                    settings.attrib
+                                    XML_settings.attrib
                                 )
-                        if settings.tag == "Mapping":
+                        if XML_settings.tag == "Mapping":
                             all_mappings = parse_numbers(
-                                settings.attrib["stimunit"], list(range(1, 9))
+                                XML_settings.attrib["stimunit"], list(range(8))
                             )
                             for mapping in all_mappings:
+                                mapping -= 1
                                 local_settings.handles[handle].probes[
                                     probe
                                 ].stim_unit_elec[mapping] = parse_numbers(
-                                    settings.attrib["electrodes"], list(range(1, 129))
+                                    XML_settings.attrib["electrodes"],
+                                    list(range(128)),
                                 )
     return local_settings
 
@@ -253,6 +270,11 @@ def add_to_stimrec(
 
 
     """
+    settings_dict = {
+        key: value + 1
+        for key, value in settings_dict.items()
+        if key in ["handle", "probe", "channel", "stimunit", "electrodes"]
+    }
     settings_dict = {str(key): str(value) for key, value in settings_dict.items()}
     settings_dict = {
         "start_time": str(start_time),

@@ -96,27 +96,16 @@ class SUSettings:
         )
 
 
-# @dataclass
-# class ProbeSettings:
-#     channel_sett: Dict[str, ChanSettings] = field(
-#         default_factory=dict(str, ChanSettings)
-#     )
-#     stim_unit_sett: Dict[str, SUSettings] = field(default_factory=dict())
-#     stim_unit_elec: Dict[str, List[int]] = field(default_factory=dict())
-#     _sus: int = 8
-#     _elecs: int = 128
-
-
 @dataclass
 class ProbeSettings:
-    channel: Dict[str, ChanSettings] = field(default_factory=dict)
-    stim_unit_sett: Dict[str, SUSettings] = field(default_factory=dict)
-    stim_unit_elec: Dict[str, List[int]] = field(default_factory=dict)
+    channel: Dict[int, ChanSettings] = field(default_factory=dict)
+    stim_unit_sett: Dict[int, SUSettings] = field(default_factory=dict)
+    stim_unit_elec: Dict[int, List[int]] = field(default_factory=dict)
     _sus: int = 8
     _elecs: int = 128
 
-    def SUs_connected(self):
-        # return binary string of SU's that have uploaded settings
+    def SUs_connected(self, stim_unit: int):
+        # return binary string of SU's for a particular SU that have uploaded settings
         pass
 
     @property
@@ -271,7 +260,7 @@ def dict_to_dataclass(cls: Any, dict_obj: Any) -> Any:
         return dict_obj
 
 
-def parse_numbers(numstr: str, all_values: list[int]):
+def parse_numbers(numstr: str, all_values: list[int]) -> list[int]:
     """Parse a string of numbers and compare to an available list.
     If the format is wrong or if the numbers are not in the list, raise an error.
     These are inputs like: '1,2,3,4-6,8' or '-' for all possible values.

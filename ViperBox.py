@@ -69,9 +69,6 @@ class ViperBox:
         # handler = logging.StreamHandler(sys.stdout)
         # self.logger.addHandler(handler)
 
-        # self._probe = 0
-        # self._probe_recognized = [0, 0, 0, 0]
-
         if not self.headless:
             try:
                 os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
@@ -85,7 +82,7 @@ class ViperBox:
 
     def connect(
         self,
-        probe_list_1: str = "1,2,3,4",
+        probe_list: str = "1,2,3,4",
         emulation: bool = False,
         boxless: bool = False,
     ) -> Tuple[bool, str]:
@@ -95,7 +92,6 @@ class ViperBox:
         TODO: !!!!! all existing data is removed because the local settings are reset.
         """
         start_time = self._time()
-        print(f"start time: {start_time}")
 
         # Checks if the ViperBox is connected and connects if not.
         self.logger.info("Connecting to ViperBox...")
@@ -108,7 +104,8 @@ class ViperBox:
 
         # check if probes is a list of 4 elements and only containing ints 1 or 0
         try:
-            probe_list_1 = parse_numbers(probe_list_1, [1, 2, 3, 4])
+            probe_list_int = parse_numbers(probe_list, [1, 2, 3, 4])
+            probe_list_int = [i - 1 for i in probe_list_int]
         except ValueError as e:
             return False, f"Invalid probe list: {e}"
 
@@ -128,7 +125,7 @@ class ViperBox:
         elif number_of_devices == 1:
             logging.info(f"Device found: {devices[0]}")
             # TODO add handle settings and info and stuffff
-            self.local_settings.handles = {1: HandleSettings()}
+            self.local_settings.handles = {0: HandleSettings()}
             pass
         else:
             raise ViperBoxError(f"Error in device list; devices list: {devices}")
@@ -171,18 +168,14 @@ class ViperBox:
         print(f"{self._time()-start_time} opened probes, starting initialization")
         # Connect and set up probes
         # TODO handlefix: also loop over handles
-        for probe_1 in probe_list_1:
+        for probe in probe_list_int:
+            print(f"type probe: {type(probe)}")
             try:
-                NVP.init(
-                    self._handle_ptrs[handle], int(probe_1) - 1
-                )  # Initialize all probes
-                logging.info(
-                    f"Probe {probe_1} initialized: {self._handle_ptrs[handle]}"
-                )
-                self.local_settings.handles[1].probes[int(probe_1)] = ProbeSettings()
+                NVP.init(self._handle_ptrs[handle], int(probe))  # Initialize all probes
+                logging.info(f"Probe {probe} initialized: {self._handle_ptrs[handle]}")
+                self.local_settings.handles[0].probes[probe] = ProbeSettings()
             except Exception as error:
-                logging.warning(f"!! Init() exception error, probe {probe_1}: {error}")
-                # self._probe_recognized[probe_1-1] = 0
+                logging.warning(f"!! Init() exception error, probe {probe}: {error}")
         logging.info(f"API channel opened: {devices[0]}")
         self._deviceId = devices[0].ID
         self.tracking.probe_connected = True
@@ -222,7 +215,7 @@ class ViperBox:
             print(f"handle: {handle}")
             for probe in updated_tmp_settings.handles[handle].probes.keys():
                 # TODO: ugly; probe should be either 0 indexed or 1 indexed
-                probe = probe - 1
+                probe = probe
                 print(f"probe: {probe}")
                 for channel in (
                     updated_tmp_settings.handles[handle].probes[probe].channel.keys()
@@ -258,7 +251,7 @@ class ViperBox:
                 # Always set settings for entire probe at once.
                 NVP.setOSimage(
                     self._handle_ptrs[handle],
-                    probe - 1,
+                    probe,
                     updated_tmp_settings.handles[handle].probes[probe].os_data,
                 )
                 for OS in range(128):
@@ -268,7 +261,7 @@ class ViperBox:
             for SU in range(8):
                 NVP.writeSUConfiguration(
                     self._handle_ptrs[handle],
-                    probe - 1,
+                    probe,
                     updated_tmp_settings.handles[handle]
                     .probes[probe]
                     .stim_unit_sett[SU],
@@ -856,8 +849,8 @@ class ViperBox:
                             SU_dict[handle][probe] = parse_numbers(
                                 SU_input,
                                 list(
-                                    self.uploaded_settings.handles[handles]
-                                    .probes[probes]
+                                    self.uploaded_settings.handles[handle]
+                                    .probes[probe]
                                     .stim_unit_sett.keys()
                                 ),
                             )
@@ -890,7 +883,7 @@ class ViperBox:
                 # TODO could be faster by not having to do this converstion here
                 NVP.SUtrig1(
                     self._handle_ptrs[handle],
-                    probe - 1,
+                    probe,
                     SU_dict[handle][probe],
                 )
                 tmp_delta = self._time() - tmp_counter
