@@ -161,7 +161,6 @@ class TTL_handels:
 
 @dataclass
 class HandleSettings:
-    handle_id: str = ""
     hardware_id_base_station: IDInformation | None = None
     hardware_id_head_stage: IDInformation | None = None
     probes: Dict[int, ProbeSettings] = field(default_factory=dict)
