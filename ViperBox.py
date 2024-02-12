@@ -617,9 +617,13 @@ class ViperBox:
         dt_rec_start = self._time()  # - self._rec_start_time
 
         print("create empty stimrec file")
+        if self.recording_name:
+            stimrec_name = self.recording_name
+        else:
+            stimrec_name = "unnamed_stimulation_record"
         self.stim_file_path = self._create_file_folder(
             "Stimulations",
-            "stimulation_record",
+            stimrec_name,
             "xml",
             f"{time.strftime('%Y%m%d_%H%M%S')}",
         )
@@ -670,8 +674,10 @@ class ViperBox:
         self.tracking.recording = True
 
         # TODO: Check if this works.
+        threading.Thread(target=self._start_eo_acquire, args=(True,)).start()
         # self._start_eo_acquire(True)
         # TODO fix probe number
+        self.oe_socket = True
         threading.Thread(target=self._send_data_to_socket, args=(0,)).start()
 
         self.logger.info(f"Recording started: {recording_name}")
@@ -782,7 +788,7 @@ class ViperBox:
         mtx = self._os2chip_mat()
         counter = 0
         t0 = self._time()
-        while True:
+        while self.oe_socket is True:
             counter += 1
 
             packets = NVP.streamReadData(send_data_read_handle, self.BUFFER_SIZE)
@@ -825,6 +831,7 @@ class ViperBox:
         # Close file
         NVP.setFileStream(self._handle_ptrs[handle], "")
         dt_time = self._time() - start_time
+        self.oe_socket = False
 
         add_to_stimrec(
             self.stim_file_path,
