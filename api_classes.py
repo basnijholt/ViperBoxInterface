@@ -4,6 +4,8 @@ from typing import List
 from pydantic import BaseModel, field_validator
 from pydantic.dataclasses import dataclass
 
+from VB_classes import parse_numbers
+
 """
 The following classes are used to validate the input from the API.
 """
@@ -11,34 +13,37 @@ The following classes are used to validate the input from the API.
 
 @dataclass
 class Connect(BaseModel):
-    probe_list: str = "1,2,3,4"
+    probes: str = "1"
     emulation: bool = False
     boxless: bool = False
 
-    @field_validator("probe_list")
+    @field_validator("probes")
     @classmethod
-    def check_probe_list(cls, probe_list: List[int]) -> List[int]:
-        if len(probe_list) != 4:
-            raise ValueError("probe_list must contain exactly 4 integers")
-        for i in probe_list:
-            if i not in [0, 1]:
-                raise ValueError("probe_list can only contain 0 or 1")
-        return probe_list
+    def check_probes(cls, probes: str) -> str:
+        try:
+            parse_numbers(probes, [0, 1, 2, 3])
+        except ValueError as e:
+            raise ValueError(
+                f"probes must be a list of integers, separated by \
+                            commas and in the range 1-4. Error: {e}"
+            )
+        return probes
 
 
 @dataclass
 class apiRecSettings(BaseModel):
     recording_XML: str = ""
     reset: bool = False
-    default_values: bool = False
+    default_values: bool = True
 
     @field_validator("recording_XML")
     @classmethod
     def check_xml(cls, recording_XML: str) -> str:
-        try:
-            ET.fromstring(recording_XML)
-        except ET.ParseError as e:
-            raise ValueError(f"recording_XML is not valid XML. Error: {e}") from e
+        if recording_XML != "":
+            try:
+                ET.fromstring(recording_XML)
+            except ET.ParseError as e:
+                raise ValueError(f"recording_XML is not valid XML. Error: {e}") from e
         return recording_XML
 
 
@@ -46,15 +51,22 @@ class apiRecSettings(BaseModel):
 class apiStimSettings(BaseModel):
     stimulation_XML: str = ""
     reset: bool = False
-    default_values: bool = False
+    default_values: bool = True
 
     @field_validator("stimulation_XML")
     @classmethod
-    def check_xml(cls, stimulation_XML: str) -> str:
-        try:
-            ET.fromstring(stimulation_XML)
-        except ET.ParseError as e:
-            raise ValueError(f"recording_XML is not valid XML. Error: {e}") from e
+    def check_xml(cls, stimulation_XML: str, values) -> str:
+        if stimulation_XML != "":
+            try:
+                ET.fromstring(stimulation_XML)
+            except ET.ParseError as e:
+                raise ValueError(f"stimulation_XML is not valid XML. Error: {e}")
+        elif values["default_values"] is False:
+            raise ValueError(
+                "recording_XML is empty and default_values is False. \
+                            Please provide a recording_XML or set default_values to \
+                            True."
+            )
         return stimulation_XML
 
 
@@ -74,17 +86,47 @@ class apiStartRec(BaseModel):
 
 @dataclass
 class apiStartStim(BaseModel):
-    SU_bit_mask: list = []
+    handles: str = "1"
+    probes: str = "1"
+    SU_input: str = "1,2,3,4,5,6,7,8"
 
-    @field_validator("SU_bit_mask")
+    @field_validator("handles")
     @classmethod
-    def check_SU_bit_mask(cls, SU_bit_mask: List[int]) -> List[int]:
-        if len(SU_bit_mask) != 8:
-            raise ValueError("SU_bit_mask must contain exactly 8 integers")
-        for i in SU_bit_mask:
-            if i not in [0, 1]:
-                raise ValueError("SU_bit_mask can only contain 0 or 1")
-        return SU_bit_mask
+    def check_handles(cls, handles: str) -> str:
+        if handles not in "1":
+            raise ValueError("handles must be 1, multiple handles not implemented yet.")
+        # try:
+        #     parse_numbers(handles, [1])
+        # except ValueError as e:
+        #     raise ValueError(
+        #         f"handles must be a list of integers, separated by \
+        #                     commas and in the range 1-3. Error: {e}"
+        #     )
+        return handles
+
+    @field_validator("probes")
+    @classmethod
+    def check_probes(cls, probes: str) -> str:
+        try:
+            parse_numbers(probes, [0, 1, 2, 3])
+        except ValueError as e:
+            raise ValueError(
+                f"probes must be a list of integers, separated by \
+                            commas and in the range 1-4. Error: {e}"
+            )
+        return probes
+
+    @field_validator("SU_input")
+    @classmethod
+    def check_SU_input(cls, SU_input: str) -> str:
+        try:
+            parse_numbers(SU_input, [0, 1, 2, 3, 4, 5, 6, 7])
+        except ValueError as e:
+            raise ValueError(
+                f"SU_input must be a list of integers, separated by \
+                            commas and in the range 1-8. Error: {e}"
+            )
+        return SU_input
 
 
 @dataclass
@@ -143,7 +185,7 @@ class apiVerifyXML(BaseModel):
         try:
             ET.fromstring(verify_XML)
         except ET.ParseError as e:
-            raise ValueError(f"verify_XML is not valid XML. Error: {e}") from e
+            raise ValueError(f"Input is not valid XML. Error: {e}") from e
         return verify_XML
 
     @field_validator("check_topic")
