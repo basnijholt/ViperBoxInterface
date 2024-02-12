@@ -92,12 +92,13 @@ async def init(connect: Connect):
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info(f"API /connect called with {Connect}")
+    logging.info(f"API /connect called with {connect.__dict__}")
     result, feedback = VB.connect(
         probe_list=connect.probes,
         emulation=connect.emulation,
         boxless=connect.boxless,
     )
+    logging.info(f"API /connect returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -112,6 +113,7 @@ async def disconnect():
     """
     logging.info("API /disconnect called")
     result, feedback = VB.disconnect()
+    logging.info(f"API /disconnect returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -127,6 +129,7 @@ async def shutdown():
     """
     logging.info("API /shutdown called")
     result, feedback = VB.shutdown()
+    logging.info(f"API /shutdown returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -148,10 +151,11 @@ async def verify_xml(api_verify_xml: apiVerifyXML):
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info(f"API /verify_xml called with {api_verify_xml}")
+    logging.info(f"API /verify_xml called with {api_verify_xml.__dict__}")
     result, feedback = VB.verify_xml_with_local_settings(
         api_verify_xml.XML, api_verify_xml.check_topic
     )
+    logging.info(f"API /verify_xml returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -172,12 +176,13 @@ async def recording_settings(api_rec_settings: apiRecSettings):
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info(f"API /recording_settings called with {api_rec_settings}")
+    logging.info(f"API /recording_settings called with {api_rec_settings.__dict__}")
     result, feedback = VB.recording_settings(
         xml_string=api_rec_settings.recording_XML,
         reset=api_rec_settings.reset,
         default_values=api_rec_settings.default_values,
     )
+    logging.info(f"API /recording_settings returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -198,12 +203,13 @@ async def stimulation_settings(api_stim_settings: apiStimSettings):
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info(f"API /stimulation_settings called with {api_stim_settings}")
+    logging.info(f"API /stimulation_settings called with {api_stim_settings.__dict__}")
     result, feedback = VB.stimulation_settings(
         xml_string=api_stim_settings.stimulation_XML,
         reset=api_stim_settings.reset,
         default_values=api_stim_settings.default_values,
     )
+    logging.info(f"API /stimulation_settings returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -221,8 +227,9 @@ async def start_recording(api_start_rec: apiStartRec):
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info(f"API /start_recording called with {api_start_rec}")
+    logging.info(f"API /start_recording called with {api_start_rec.__dict__}")
     result, feedback = VB.start_recording(recording_name=api_start_rec.recording_name)
+    logging.info(f"API /start_recording returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -237,6 +244,7 @@ async def stop_recording():
     """
     logging.info("API /stop_recording called")
     result, feedback = VB.stop_recording()
+    logging.info(f"API /stop_recording returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -258,12 +266,13 @@ async def start_stimulation(api_start_stim: apiStartStim):
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info(f"API /start_stimulation called with {api_start_stim}")
+    logging.info(f"API /start_stimulation called with {api_start_stim.__dict__}")
     result, feedback = VB.start_stimulation(
         handles=api_start_stim.handles,
         probes=api_start_stim.probes,
         SU_input=api_start_stim.SU_input,
     )
+    logging.info(f"API /start_stimulation returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 

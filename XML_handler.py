@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 from typing import Any, Tuple
 
@@ -14,6 +15,8 @@ from VB_classes import (
     parse_numbers,
     printable_dtd,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def check_handles_exist(data, existing_handles):
@@ -111,7 +114,12 @@ def overwrite_settings(
     - check_topic: string, either "all", "recording" or "stimulation"
 
     """
+
     # TODO deal with overwriting all settings.
+    logger.info(
+        "THIS IS A TEST FROM XML_HANDLER, also deal with overwriting all \
+                settings"
+    )
     if check_topic == "all":
         tags = [
             "RecordingSettings",
