@@ -1,6 +1,8 @@
 import copy
 import logging
 import os
+import socket
+import threading
 import time
 from pathlib import Path
 from typing import Any, Tuple
@@ -553,6 +555,11 @@ class ViperBox:
         return True, "Stimulation settings loaded"
 
     def start_recording(self, recording_name: str | None = None) -> Tuple[bool, str]:
+        """Start
+
+        Tests:
+        - start recording with incomplete settings uploaded
+        """
         if self.tracking.box_connected is False:
             return False, "Not connected to ViperBox"
 
@@ -565,6 +572,7 @@ class ViperBox:
 
         # TODO this should check if recording settings are available for all
         # connected handles
+        print("Check if all recording channels have settings, this is necessaru")
         for handle in self.uploaded_settings.handles.keys():
             for probe in self.uploaded_settings.handles[handle].probes.keys():
                 if (
@@ -586,6 +594,7 @@ class ViperBox:
         rec_folder.mkdir(parents=True, exist_ok=True)
         self.recording_name = recording_name
 
+        print("create recording filename")
         if self.recording_name is None:
             self._rec_path = rec_folder.joinpath(
                 f"unnamed_recording_{self._recording_datetime}.bin"
@@ -595,14 +604,19 @@ class ViperBox:
                 f"{self.recording_name}_{self._recording_datetime}.bin"
             )
 
+        print("set filestream, enable filestream and arm")
         NVP.setFileStream(self._handle_ptrs[handle], str(self._rec_path))
+        print("the problem is enable filestream")
         NVP.enableFileStream(self._handle_ptrs[handle], str(self._rec_path))
+        print("the problem is arm")
         NVP.arm(self._handle_ptrs[handle])
 
+        print("set sw trigger")
         self._rec_start_time = self._time()
         NVP.setSWTrigger(self._handle_ptrs[handle])
         dt_rec_start = self._time()  # - self._rec_start_time
 
+        print("create empty stimrec file")
         self.stim_file_path = self._create_file_folder(
             "Stimulations",
             "stimulation_record",
@@ -613,8 +627,10 @@ class ViperBox:
         # of recording with time and deltatime to stim_file
 
         # Create stimulation record
+        print(f"initialize stimrec file: {self.stim_file_path}")
         create_empty_xml(self.stim_file_path)
 
+        print(f"write recording settingss to stimrec: {self.uploaded_settings}")
         for handle in self.uploaded_settings.handles.keys():
             for probe in self.uploaded_settings.handles[handle].probes.keys():
                 for channel in (
@@ -637,21 +653,26 @@ class ViperBox:
                         -1.0,
                     )
 
+        print("write stimulation settings to stimrec")
         self._write_stimulation_settings_to_stimrec(self.local_settings, -1.0, -1.0)
 
+        print("write recording start to stimrec")
         add_to_stimrec(
             self.stim_file_path,
             "Instructions",
             "Instruction",
             {"filename": self.recording_name, "instruction_type": "recording_start"},
-            self._rec_start_time,
+            0.0,
             dt_rec_start,
         )
 
+        print("set flag")
         self.tracking.recording = True
 
         # TODO: Check if this works.
-        self._start_eo_acquire(True)
+        # self._start_eo_acquire(True)
+        # TODO fix probe number
+        threading.Thread(target=self._send_data_to_socket, args=(0,)).start()
 
         self.logger.info(f"Recording started: {recording_name}")
         return True, f"Recording started: {recording_name}"
@@ -689,6 +710,7 @@ class ViperBox:
         try:
             # TODO: consider using http lib from standard library
             r = requests.get("http://localhost:37497/api/status")
+            print(r.json())
             if r.json()["mode"] != "ACQUIRE":
                 r = requests.put(
                     "http://localhost:37497/api/status", json={"mode": "ACQUIRE"}
@@ -696,13 +718,21 @@ class ViperBox:
         except Exception:
             if start_oe:
                 try:
+                    print("Starting Open Ephys")
                     os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
-                    r = requests.get("http://localhost:37497/api/status")
+                    r = requests.get("http://localhost:37497/api/status", timeout=5)
                     if r.json()["mode"] != "ACQUIRE":
-                        r = requests.put(
-                            "http://localhost:37497/api/status",
-                            json={"mode": "ACQUIRE"},
-                        )
+                        try:
+                            r = requests.put(
+                                "http://localhost:37497/api/status",
+                                json={"mode": "ACQUIRE"},
+                                timeout=5,
+                            )
+                        except Exception as e:
+                            self.logger.warning(
+                                f"Can't start Open Ephys, please start it manually. \
+                                    Error: {e}"
+                            )
                 except Exception as e2:
                     self.logger.warning(
                         f"Can't start Open Ephys, please start it manually. Error: {e2}"
@@ -713,66 +743,68 @@ class ViperBox:
                     not running"""
                 )
 
-    # def _send_data_to_socket(self) -> None:
-    #     """Send data packets to a UDP socket, such that Open Ephys and other systems
-    #     can receive the raw data."""
+    def _send_data_to_socket(self, probe: int) -> None:
+        """Send data packets to a UDP socket, such that Open Ephys and other systems
+        can receive the raw data."""
 
-    #     bufferInterval: float = self.BUFFER_SIZE / self.FREQ
+        bufferInterval: float = self.BUFFER_SIZE / self.FREQ
 
-    #     serverAddressPort: Tuple[str, int] = ("127.0.0.1", 9001)
-    #     # TODO: update settings of socket
-    #     MULTICAST_TTL = 2
-    #     UDPClientSocket: socket.socket = socket.socket(
-    #         socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
-    #     )
+        serverAddressPort: Tuple[str, int] = ("127.0.0.1", 9001)
+        # TODO: update settings of socket
+        MULTICAST_TTL = 2
+        UDPClientSocket: socket.socket = socket.socket(
+            socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
+        )
 
-    #     UDPClientSocket.setsockopt(
-    #         socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL
-    #     )
+        UDPClientSocket.setsockopt(
+            socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL
+        )
 
-    #     # TODO: check if this is necessary
-    #     time.sleep(0.1)
+        # TODO: check if this is necessary
+        time.sleep(0.1)
 
-    #     # TODO: How to handle data streams from multiple probes? align on timestamp?
-    #     send_data_read_handle = NVP.streamOpenFile(self._rec_path, self._probe)
+        print("start streamOpenFile")
+        # TODO: How to handle data streams from multiple probes? align on timestamp?
+        send_data_read_handle = NVP.streamOpenFile(str(self._rec_path), probe)
+        print("streamOpenFile handle created")
 
-    #     # TODO: remove packages with wrong session
-    #     # status = NVP.readDiagStats(self._handle)
-    #     # skip_packages = status.session_mismatch
-    #     # print('skip_packages: ', skip_packages)
-    #     # dump_count = 0
-    #     # while dump_count < skip_packages:
-    #     #     _ = NVP.streamReadData(self._read_handle, self.SKIP_SIZE)
-    #     #     dump_count += self.SKIP_SIZE
-    #     # print('dump_count: ', dump_count)
+        # TODO: remove packages with wrong session
+        # status = NVP.readDiagStats(self._handle)
+        # skip_packages = status.session_mismatch
+        # print('skip_packages: ', skip_packages)
+        # dump_count = 0
+        # while dump_count < skip_packages:
+        #     _ = NVP.streamReadData(self._read_handle, self.SKIP_SIZE)
+        #     dump_count += self.SKIP_SIZE
+        # print('dump_count: ', dump_count)
 
-    #     self.logger.info("Started sending data to Open Ephys")
-    #     mtx = self._os2chip_mat()
-    #     counter = 0
-    #     t0 = self._time()
-    #     while True:
-    #         counter += 1
+        self.logger.info("Started sending data to Open Ephys")
+        mtx = self._os2chip_mat()
+        counter = 0
+        t0 = self._time()
+        while True:
+            counter += 1
 
-    #         packets = NVP.streamReadData(send_data_read_handle, self.BUFFER_SIZE)
-    #         count = len(packets)
+            packets = NVP.streamReadData(send_data_read_handle, self.BUFFER_SIZE)
+            count = len(packets)
 
-    #         if count < self.BUFFER_SIZE:
-    #             self.logger.warning("Out of packets")
-    #             break
+            if count < self.BUFFER_SIZE:
+                self.logger.warning("Out of packets")
+                break
 
-    #         # TODO: Rearrange data depening on selected gain
-    #         databuffer = np.asarray(
-    #             [packets[i].data for i in range(self.BUFFER_SIZE)], dtype="uint16"
-    #         )
-    #         databuffer = (databuffer @ mtx).T
-    #         databuffer = databuffer.copy(order="C")
-    #         UDPClientSocket.sendto(databuffer, serverAddressPort)
+            # TODO: Rearrange data depening on selected gain
+            databuffer = np.asarray(
+                [packets[i].data for i in range(self.BUFFER_SIZE)], dtype="uint16"
+            )
+            databuffer = (databuffer @ mtx).T
+            databuffer = databuffer.copy(order="C")
+            UDPClientSocket.sendto(databuffer, serverAddressPort)
 
-    #         t2 = self._time()
-    #         while (t2 - t0) < counter * bufferInterval:
-    #             t2 = self._time()
+            t2 = self._time()
+            while (t2 - t0) < counter * bufferInterval:
+                t2 = self._time()
 
-    #     NVP.streamClose(self._read_handle)
+        NVP.streamClose(send_data_read_handle)
 
     def _os2chip_mat(self):
         mtx = np.zeros((64, 60), dtype="uint16")
@@ -819,7 +851,9 @@ class ViperBox:
         """
         # TODO: not implemented
 
-        # conver_recording_read_handle = NVP.streamOpenFile(self._rec_path, self._probe)
+        # convert_recording_read_handle = NVP.streamOpenFile(
+        #     str(self._rec_path), self._probe
+        # )
 
         # mtx = self._os2chip_mat()
         # while True:
@@ -943,7 +977,12 @@ class ViperBox:
                     "Instruction",
                     {
                         "filename": self.recording_name,
-                        "instruction_type": "recording_start",
+                        "instruction_type": "stimulation_start",
+                        "handles": SU_dict.keys(),
+                        "probes": {
+                            handle: probes.keys() for handle, probes in SU_dict.items()
+                        },
+                        "SU_dict": SU_dict,
                     },
                     tmp_counter,
                     tmp_delta,
