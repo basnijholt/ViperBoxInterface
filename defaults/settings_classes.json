@@ -6,14 +6,14 @@
         "api_version_major": ""
     },
     "TTL_sett": {
-        "TTL_handles": {
+        "TTL_boxes": {
             "1": {},
             "2": {
                 "TTL_probes": {
                     "1": {},
                     "2": {
                         "trigger_function": "",
-                        "target_handle": "",
+                        "target_box": "",
                         "target_probe": "",
                         "target_SU": ""
                     }
@@ -21,7 +21,7 @@
             }
         }
     },
-    "handles": {
+    "boxes": {
         "1": {
             "probes": {
                 "1": {},
@@ -31,7 +31,7 @@
             }
         },
         "2": {
-            "handle_id": "12345",
+            "box_id": "12345",
             "hardware_id_base_station": {
                 "serial_number": "",
                 "version_major": "",

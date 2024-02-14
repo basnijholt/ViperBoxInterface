@@ -5,15 +5,15 @@
             <RecordingName>Mouse22</RecordingName>
         </MetaData>
         <RecordingSettings>
-            <Channel handle="-" probe="-" channel="-" references="100000000" gain="1" input="0" />
+            <Channel box="-" probe="-" channel="-" references="100000000" gain="1" input="0" />
         </RecordingSettings>
         <StimulationWaveformSettings>
-            <Configuration handle="-" probe="-" stimunit="-" polarity="0" pulses="20"
+            <Configuration box="-" probe="-" stimunit="-" polarity="0" pulses="20"
                 prephase="0" amplitude1="1" width1="170" interphase="60" amplitude2="1" width2="170"
                 discharge="200" duration="600" aftertrain="1000" />
         </StimulationWaveformSettings>
         <StimulationMappingSettings>
-            <Mapping handle="-" probe="-" stimunit="-" electrodes="-" />
+            <Mapping box="-" probe="-" stimunit="-" electrodes="-" />
         </StimulationMappingSettings>
     </Settings>
 </Program>

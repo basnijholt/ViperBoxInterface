@@ -4,11 +4,11 @@
             "MetaData": { "RecordingName": "Mouse22" },
             "TTLSettings": {
                 "Setting": {
-                    "handle": "1",
+                    "box": "1",
                     "probe": "1",
                     "TTL": "1",
                     "trigger_function": "start_recording",
-                    "target_handle": "1",
+                    "target_box": "1",
                     "target_probe": "1",
                     "target_SU": "-"
                 }
@@ -16,7 +16,7 @@
             "RecordingSettings": {
                 "Channel": [
                     {
-                        "handle": "1",
+                        "box": "1",
                         "probe": "3",
                         "channel": "1-3",
                         "references": "100101000",
@@ -24,7 +24,7 @@
                         "input": "0"
                     },
                     {
-                        "handle": "1",
+                        "box": "1",
                         "probe": "3",
                         "channel": "2",
                         "references": "100000000",
@@ -36,7 +36,7 @@
             "StimulationWaveformSettings": {
                 "Configuration": [
                     {
-                        "handle": "0",
+                        "box": "0",
                         "probe": "0,1,2,3",
                         "stimunit": "0",
                         "polarity": "0",
@@ -52,7 +52,7 @@
                         "aftertrain": "1000"
                     },
                     {
-                        "handle": "1",
+                        "box": "1",
                         "probe": "0",
                         "stimunit": "1",
                         "polarity": "0",
@@ -72,25 +72,25 @@
             "StimulationMappingSettings": {
                 "Mapping": [
                     {
-                        "handle": "0",
+                        "box": "0",
                         "probe": "0",
                         "stimunit": "0",
                         "electrodes": "1,2,5,21"
                     },
                     {
-                        "handle": "0",
+                        "box": "0",
                         "probe": "1",
                         "stimunit": "0",
                         "electrodes": "1,5,22"
                     },
                     {
-                        "handle": "0",
+                        "box": "0",
                         "probe": "2",
                         "stimunit": "0",
                         "electrodes": "25"
                     },
                     {
-                        "handle": "0",
+                        "box": "0",
                         "probe": "3",
                         "stimunit": "0",
                         "electrodes": "11,12,13"
@@ -107,14 +107,14 @@
                 "Instruction": [
                     {
                         "type": "stimulus",
-                        "handle": "0",
+                        "box": "0",
                         "probe": "0,1,2,3",
                         "stimunit": "0"
                     },
                     { "type": "wait", "time": "20" },
                     {
                         "type": "stimulus",
-                        "handle": "0",
+                        "box": "0",
                         "probe": "0",
                         "stimunit": "1"
                     },
