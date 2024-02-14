@@ -86,23 +86,23 @@ class apiStartRec(BaseModel):
 
 @dataclass
 class apiStartStim(BaseModel):
-    handles: str = "1"
+    boxes: str = "1"
     probes: str = "1"
     SU_input: str = "1,2,3,4,5,6,7,8"
 
-    @field_validator("handles")
+    @field_validator("boxes")
     @classmethod
-    def check_handles(cls, handles: str) -> str:
-        if handles not in "1":
-            raise ValueError("handles must be 1, multiple handles not implemented yet.")
+    def check_boxes(cls, boxes: str) -> str:
+        if boxes not in "1":
+            raise ValueError("boxes must be 1, multiple boxes not implemented yet.")
         # try:
-        #     parse_numbers(handles, [1])
+        #     parse_numbers(boxes, [1])
         # except ValueError as e:
         #     raise ValueError(
-        #         f"handles must be a list of integers, separated by \
+        #         f"boxes must be a list of integers, separated by \
         #                     commas and in the range 1-3. Error: {e}"
         #     )
-        return handles
+        return boxes
 
     @field_validator("probes")
     @classmethod

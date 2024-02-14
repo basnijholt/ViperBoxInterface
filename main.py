@@ -19,7 +19,8 @@ from ViperBox import ViperBox
 
 session_datetime = time.strftime("%Y%m%d_%H%M%S")
 _init_logging(session_datetime=session_datetime)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
+logger.name = "API"
 
 
 docs = """
@@ -92,13 +93,13 @@ async def init(connect: Connect):
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info(f"API /connect called with {connect.__dict__}")
+    logging.info(f"/connect called with {connect.__dict__}")
     result, feedback = VB.connect(
         probe_list=connect.probes,
         emulation=connect.emulation,
         boxless=connect.boxless,
     )
-    logging.info(f"API /connect returned with {result}; {feedback}")
+    logging.info(f"/connect returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -111,9 +112,9 @@ async def disconnect():
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info("API /disconnect called")
+    logging.info("/disconnect called")
     result, feedback = VB.disconnect()
-    logging.info(f"API /disconnect returned with {result}; {feedback}")
+    logging.info(f"/disconnect returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -127,9 +128,9 @@ async def shutdown():
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info("API /shutdown called")
+    logging.info("/shutdown called")
     result, feedback = VB.shutdown()
-    logging.info(f"API /shutdown returned with {result}; {feedback}")
+    logging.info(f"/shutdown returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -144,18 +145,18 @@ async def verify_xml(api_verify_xml: apiVerifyXML):
     - XML: Settings XML to be checked.
     - check_topic: must be one of 'all', 'recording' or 'stimulation'. This says
     something about which part of the settings will be checked. If 'stimulation'
-    is selected, both the settings in StimulationWaveformsSettings and in
+    is selected, both the settings in StimulationWaveformSettings and in
     StimulationMappingSettings will be checked.
 
     Returns:
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info(f"API /verify_xml called with {api_verify_xml.__dict__}")
+    logging.info(f"/verify_xml called with {api_verify_xml.__dict__}")
     result, feedback = VB.verify_xml_with_local_settings(
         api_verify_xml.XML, api_verify_xml.check_topic
     )
-    logging.info(f"API /verify_xml returned with {result}; {feedback}")
+    logging.info(f"/verify_xml returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -176,13 +177,13 @@ async def recording_settings(api_rec_settings: apiRecSettings):
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info(f"API /recording_settings called with {api_rec_settings.__dict__}")
+    logging.info(f"/recording_settings called with {api_rec_settings.__dict__}")
     result, feedback = VB.recording_settings(
         xml_string=api_rec_settings.recording_XML,
         reset=api_rec_settings.reset,
         default_values=api_rec_settings.default_values,
     )
-    logging.info(f"API /recording_settings returned with {result}; {feedback}")
+    logging.info(f"/recording_settings returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -203,13 +204,13 @@ async def stimulation_settings(api_stim_settings: apiStimSettings):
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info(f"API /stimulation_settings called with {api_stim_settings.__dict__}")
+    logging.info(f"/stimulation_settings called with {api_stim_settings.__dict__}")
     result, feedback = VB.stimulation_settings(
         xml_string=api_stim_settings.stimulation_XML,
         reset=api_stim_settings.reset,
         default_values=api_stim_settings.default_values,
     )
-    logging.info(f"API /stimulation_settings returned with {result}; {feedback}")
+    logging.info(f"/stimulation_settings returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -227,9 +228,9 @@ async def start_recording(api_start_rec: apiStartRec):
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info(f"API /start_recording called with {api_start_rec.__dict__}")
+    logging.info(f"/start_recording called with {api_start_rec.__dict__}")
     result, feedback = VB.start_recording(recording_name=api_start_rec.recording_name)
-    logging.info(f"API /start_recording returned with {result}; {feedback}")
+    logging.info(f"/start_recording returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -242,9 +243,9 @@ async def stop_recording():
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info("API /stop_recording called")
+    logging.info("/stop_recording called")
     result, feedback = VB.stop_recording()
-    logging.info(f"API /stop_recording returned with {result}; {feedback}")
+    logging.info(f"/stop_recording returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -254,7 +255,7 @@ async def start_stimulation(api_start_stim: apiStartStim):
     Triggers the selected stimulation units.
 
     Args:
-    - handles (string) (default: "1", only implemented for 1): All ViperBoxes on
+    - boxes (string) (default: "1", only implemented for 1): All ViperBoxes on
     which stimulation should occur. "1" for only one ViperBox, "1,2" for two boxes,
     etc. Max 3 boxes.
     - probes (string) (default: "1"): All ASIC's/probes on which stimulation should
@@ -266,13 +267,13 @@ async def start_stimulation(api_start_stim: apiStartStim):
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info(f"API /start_stimulation called with {api_start_stim.__dict__}")
+    logging.info(f"/start_stimulation called with {api_start_stim.__dict__}")
     result, feedback = VB.start_stimulation(
-        handles=api_start_stim.handles,
+        boxes=api_start_stim.boxes,
         probes=api_start_stim.probes,
         SU_input=api_start_stim.SU_input,
     )
-    logging.info(f"API /start_stimulation returned with {result}; {feedback}")
+    logging.info(f"/start_stimulation returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 

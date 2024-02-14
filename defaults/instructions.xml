@@ -12,14 +12,14 @@
             <Channel handle="-" probe="-" channel="1-3" references="100101000" gain="1" input="0" />
             <Channel handle="1" probe="3" channel="63" references="100000000" gain="1" input="0" />
         </RecordingSettings>
-        <StimulationWaveformsSettings>
+        <StimulationWaveformSettings>
             <Configuration handle="1" probe="1,2,3,4" stimunit="5-8,2,1" polarity="0" pulses="20"
                 prephase="0" amplitude1="5" width1="170" interphase="60" amplitude2="5" width2="170"
                 discharge="200" duration="600" aftertrain="1000" />
             <Configuration handle="2" probe="1" stimunit="1" polarity="0" pulses="20" prephase="0"
                 amplitude1="5" width1="170" interphase="60" amplitude2="5" width2="170"
                 discharge="200" duration="600" aftertrain="1000" />
-        </StimulationWaveformsSettings>
+        </StimulationWaveformSettings>
         <StimulationMappingSettings>
             <Mapping handle="1,2" probe="1" stimunit="1" electrodes="1,2,5,21" />
             <Mapping handle="1" probe="1" stimunit="1" electrodes="1,5,22" />

@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 import numpy as np
 from lxml import etree
 
-# handle contains 4 probes
+# box contains 4 probes
 # each probe contains 64 channels, 8 SU's and 128 electrodes
 # recording goes through the 64 channels
 # stimulation goes through the 8 SU's
@@ -133,7 +133,7 @@ class IDInformation:
 @dataclass
 class TTLSettings:
     trigger_function: str = ""
-    target_handle: str = ""
+    target_box: str = ""
     target_probe: str = ""
     target_SU: str = ""
 
@@ -144,12 +144,12 @@ class TTL_probes:
 
 
 @dataclass
-class TTL_handels:
-    TTL_handels: Dict[int, TTLSettings] = field(default_factory=dict)
+class TTL_boxes:
+    TTL_boxes: Dict[int, TTLSettings] = field(default_factory=dict)
 
 
 @dataclass
-class HandleSettings:
+class BoxSettings:
     hardware_id_base_station: IDInformation | None = None
     hardware_id_head_stage: IDInformation | None = None
     probes: Dict[int, ProbeSettings] = field(default_factory=dict)
@@ -161,42 +161,40 @@ class GeneralSettings:
     session_starting_datetime: str = ""
     api_version_minor: str = ""
     api_version_major: str = ""
-    # handle_sett: HandleSettings = field(default_factory=HandleSettings)
-    handles: Dict[int, HandleSettings] = field(default_factory=dict)
-    # connected: Dict[int, List[int]] = field(default_factory=dict)
+    boxes: Dict[int, BoxSettings] = field(default_factory=dict)
 
     @property
     def connected(self):
-        connected_hp = {}
-        if self.handles:
-            handle_list = list(self.handles.keys())
-            for handle in handle_list:
-                if self.handles[handle].probes:
-                    connected_hp[handle] = list(self.handles[handle].probes.keys())
-            return connected_hp
+        connected_boxprobes = {}
+        if self.boxes:
+            box_list = list(self.boxes.keys())
+            for box in box_list:
+                if self.boxes[box].probes:
+                    connected_boxprobes[box] = list(self.boxes[box].probes.keys())
+            return connected_boxprobes
         else:
-            return connected_hp
+            return connected_boxprobes
 
     def reset_recording_settings(self):
         connected_hp = self.connected
-        for handle, probes in connected_hp.items():
+        for box, probes in connected_hp.items():
             for probe in probes:
-                self.handles[handle].probes[probe].channel = {}
+                self.boxes[box].probes[probe].channel = {}
 
     def reset_stimulation_settings(self):
         connected_hp = self.connected
-        for handle, probes in connected_hp.items():
+        for box, probes in connected_hp.items():
             for probe in probes:
-                self.handles[handle].probes[probe].stim_unit_sett = {}
-                self.handles[handle].probes[probe].stim_unit_elec = {}
+                self.boxes[box].probes[probe].stim_unit_sett = {}
+                self.boxes[box].probes[probe].stim_unit_elec = {}
 
     def reset_probe_settings(self):
         connected_hp = self.connected
-        for handle, probes in connected_hp.items():
+        for box, probes in connected_hp.items():
             for probe in probes:
-                self.handles[handle].probes[probe].channel = {}
-                self.handles[handle].probes[probe].stim_unit_sett = {}
-                self.handles[handle].probes[probe].stim_unit_elec = {}
+                self.boxes[box].probes[probe].channel = {}
+                self.boxes[box].probes[probe].stim_unit_sett = {}
+                self.boxes[box].probes[probe].stim_unit_elec = {}
 
 
 def printable_dtd(obj: Any) -> None:
@@ -325,51 +323,51 @@ def parse_numbers(numstr: str, all_values: list[int]) -> list[int]:
     return result.tolist()
 
 
-def get_handles(settings):
-    """Get the handles of all settings in the settings dictionary
+def get_boxes(settings):
+    """Get the boxes of all settings in the settings dictionary
 
     Arguments:
     - settings {dict} -- dictionary of settings
 
     Returns:
-    - handles {list} -- list of handles
+    - boxes {list} -- list of boxes
     """
-    handles = [int(i) for i in settings["handles"].keys()]
-    if not handles:
-        raise ValueError("No handles found in settings")
-    return handles
+    boxes = [int(i) for i in settings["boxes"].keys()]
+    if not boxes:
+        raise ValueError("No boxes found in settings")
+    return boxes
 
 
-def get_probes(handle: int, settings):
-    """Get the probes of a handle
+def get_probes(box: int, settings):
+    """Get the probes of a box
 
     Arguments:
-    - handle {int} -- handle of the setting
+    - box {int} -- box of the setting
     - settings {dict} -- dictionary of settings
 
     Returns:
     - probes {list} -- list of probes
     """
-    probes = [int(i) for i in settings["handles"][str(handle)]["probes"].keys()]
+    probes = [int(i) for i in settings["boxes"][str(box)]["probes"].keys()]
     if not probes:
-        raise ValueError(f"No probes found in handle {handle}")
+        raise ValueError(f"No probes found in box {box}")
     return probes
 
 
-def __check_handles_exist(data, existing_handles):
-    """Check if xml handles are in existing handles. If not, throw ValueError, else pass
+def __check_boxes_exist(data, existing_boxes):
+    """Check if xml boxes are in existing boxes. If not, throw ValueError, else pass
 
     Arguments:
     - data: xml data of type lxml.etree._ElementTree
-    - existing_handles: list of existing handles
-    TODO: existing handles should be changed to something that comes from the local
+    - existing_boxes: list of existing boxes
+    TODO: existing boxes should be changed to something that comes from the local
     settings.
 
     test cases:
-    - xml handle is not in existing handles
+    - xml box is not in existing boxes
 
     """
-    for element in data.xpath(".//*[@handle]"):
-        setting_handles = element.attrib["handle"]
-        _ = parse_numbers(setting_handles, existing_handles)
+    for element in data.xpath(".//*[@box]"):
+        setting_boxes = element.attrib["box"]
+        _ = parse_numbers(setting_boxes, existing_boxes)
     return True

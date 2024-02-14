@@ -7,9 +7,9 @@ import numpy as np
 from lxml import etree
 
 from VB_classes import (
+    BoxSettings,
     ChanSettings,
     GeneralSettings,
-    HandleSettings,
     ProbeSettings,
     SUSettings,
     parse_numbers,
@@ -19,22 +19,22 @@ from VB_classes import (
 logger = logging.getLogger(__name__)
 
 
-def check_handles_exist(data, existing_handles):
-    """Check if xml handles are in existing handles. If not, throw ValueError, else pass
+def check_boxes_exist(data, existing_boxes):
+    """Check if xml boxes are in existing boxes. If not, throw ValueError, else pass
 
     Arguments:
     - data: xml data of type lxml.etree._ElementTree
-    - existing_handles: list of existing handles
-    TODO: existing handles should be changed to something that comes from the local
+    - existing_boxes: list of existing boxes
+    TODO: existing boxes should be changed to something that comes from the local
     settings.
 
     test cases:
-    - xml handle is not in existing handles
+    - xml box is not in existing boxes
 
     """
-    for element in data.xpath(".//*[@handle]"):
-        setting_handles = element.attrib["handle"]
-        _ = parse_numbers(setting_handles, existing_handles)
+    for element in data.xpath(".//*[@box]"):
+        setting_boxes = element.attrib["box"]
+        _ = parse_numbers(setting_boxes, existing_boxes)
     return True
 
 
@@ -106,7 +106,7 @@ def overwrite_settings(
 ):
     """Write xml data_xml to local settings
 
-    Goes through all handles and probes in data_xml xml
+    Goes through all boxes and probes in data_xml xml
 
     Arguments:
     - data_xml: xml of type lxml.etree._ElementTree
@@ -123,25 +123,25 @@ def overwrite_settings(
     if check_topic == "all":
         tags = [
             "RecordingSettings",
-            "StimulationWaveformsSettings",
+            "StimulationWaveformSettings",
             "StimulationMappingSettings",
         ]
     elif check_topic == "recording":
         tags = ["RecordingSettings"]
     else:
-        tags = ["StimulationWaveformsSettings", "StimulationMappingSettings"]
+        tags = ["StimulationWaveformSettings", "StimulationMappingSettings"]
 
     for XML_element in data_xml.iter():
         # goes through all XML_elements
         if XML_element.tag in tags:
             # if XML_element contains recording settings, add these settings
             for XML_settings in XML_element:
-                handles = parse_numbers(
-                    XML_settings.attrib["handle"], list(local_settings.connected.keys())
+                boxes = parse_numbers(
+                    XML_settings.attrib["box"], list(local_settings.connected.keys())
                 )
-                for handle in handles:
+                for box in boxes:
                     probes = parse_numbers(
-                        XML_settings.attrib["probe"], local_settings.connected[handle]
+                        XML_settings.attrib["probe"], local_settings.connected[box]
                     )
                     for probe in probes:
                         if XML_settings.tag == "Channel":
@@ -154,7 +154,7 @@ def overwrite_settings(
                                 )
                                 check_gain_input_format(XML_settings.attrib["gain"])
                                 check_gain_input_format(XML_settings.attrib["input"])
-                                local_settings.handles[handle].probes[probe].channel[
+                                local_settings.boxes[box].probes[probe].channel[
                                     channel
                                 ] = ChanSettings.from_dict(XML_settings.attrib)
                         if XML_settings.tag == "Configuration":
@@ -167,19 +167,17 @@ def overwrite_settings(
                                         *parameter_set,
                                         int(XML_settings.attrib[parameter_set[0]]),
                                     )
-                                local_settings.handles[handle].probes[
-                                    probe
-                                ].stim_unit_sett[waveform] = SUSettings.from_dict(
-                                    XML_settings.attrib
-                                )
+                                local_settings.boxes[box].probes[probe].stim_unit_sett[
+                                    waveform
+                                ] = SUSettings.from_dict(XML_settings.attrib)
                         if XML_settings.tag == "Mapping":
                             all_mappings = parse_numbers(
                                 XML_settings.attrib["stimunit"], list(range(8))
                             )
                             for mapping in all_mappings:
-                                local_settings.handles[handle].probes[
-                                    probe
-                                ].stim_unit_elec[mapping] = parse_numbers(
+                                local_settings.boxes[box].probes[probe].stim_unit_elec[
+                                    mapping
+                                ] = parse_numbers(
                                     XML_settings.attrib["electrodes"],
                                     list(range(128)),
                                 )
@@ -204,7 +202,7 @@ def check_xml_with_settings(
     Checks if settings are valid with existing local_settings.
     """
     try:
-        check_handles_exist(data, list(settings.connected.keys()))
+        check_boxes_exist(data, list(settings.connected.keys()))
     except ValueError as e:
         return False, f"{e}"
     try:
@@ -269,7 +267,7 @@ def add_to_stimrec(
 
 
     """
-    plus_one_list = ["handle", "probe", "channel", "stimunit"]
+    plus_one_list = ["box", "probe", "channel", "stimunit"]
     for key in plus_one_list:
         if key in settings_dict.keys():
             settings_dict[key] = settings_dict[key] + 1
@@ -286,7 +284,7 @@ def add_to_stimrec(
     }
     sub_type_map = {
         "Channel": "RecordingSettings",
-        "Configuration": "StimulationWaveformsSettings",
+        "Configuration": "StimulationWaveformSettings",
         "Mapping": "StimulationMappingSettings",
         "Instruction": "Instructions",
     }
@@ -316,7 +314,7 @@ def add_to_stimrec(
             settings = recording[-1]
 
         # Create sub_type parent ["RecordingSettings",
-        # "StimulationWaveformsSettings". "StimulationMappingSettings"] if it does
+        # "StimulationWaveformSettings". "StimulationMappingSettings"] if it does
         # not exist
         if settings.find(f".//{sub_type_map[sub_type]}") is None:
             parent_settings = etree.SubElement(settings, f"{sub_type_map[sub_type]}")
@@ -364,40 +362,40 @@ if __name__ == "__main__":
                 <RecordingName>Mouse22</RecordingName>
             </MetaData>
             <TTLSettings>
-                <Setting handle="1" probe="1" TTL="1" trigger_function="start_recording"
-                    target_handle="1" target_probe="1" target_SU="-" />
+                <Setting box="1" probe="1" TTL="1" trigger_function="start_recording"
+                    target_box="1" target_probe="1" target_SU="-" />
             </TTLSettings>
             <RecordingSettings>
-                <Channel handle="-" probe="-" channel="1-3" references="100101000" 
+                <Channel box="-" probe="-" channel="1-3" references="100101000" 
                 gain="1" input="0" />
-                <Channel handle="1" probe="3" channel="63" references="100000000" 
+                <Channel box="1" probe="3" channel="63" references="100000000" 
                 gain="1" input="0" />
             </RecordingSettings>
-            <StimulationWaveformsSettings>
-                <Configuration handle="1" probe="1,2,3,4" stimunit="5-8,2,1" 
+            <StimulationWaveformSettings>
+                <Configuration box="1" probe="1,2,3,4" stimunit="5-8,2,1" 
                 polarity="0" pulses="20"
                     prephase="0" amplitude1="5" width1="170" interphase="60" 
                     amplitude2="5" width2="170"
                     discharge="200" duration="600" aftertrain="1000" />
-                <Configuration handle="2" probe="1" stimunit="1" polarity="0" 
+                <Configuration box="2" probe="1" stimunit="1" polarity="0" 
                 pulses="20" prephase="0"
                     amplitude1="5" width1="170" interphase="60" amplitude2="5" 
                     width2="170"
                     discharge="200" duration="600" aftertrain="1000" />
-            </StimulationWaveformsSettings>
+            </StimulationWaveformSettings>
             <StimulationMappingSettings>
-                <Mapping handle="1,2" probe="1" stimunit="1" electrodes="1,2,5,21" />
-                <Mapping handle="1" probe="1" stimunit="1" electrodes="1,5,22" />
-                <Mapping handle="1" probe="2" stimunit="1" electrodes="25" />
-                <Mapping handle="1" probe="3" stimunit="1" electrodes="11,12,13" />
+                <Mapping box="1,2" probe="1" stimunit="1" electrodes="1,2,5,21" />
+                <Mapping box="1" probe="1" stimunit="1" electrodes="1,5,22" />
+                <Mapping box="1" probe="2" stimunit="1" electrodes="25" />
+                <Mapping box="1" probe="3" stimunit="1" electrodes="11,12,13" />
             </StimulationMappingSettings>
         </Settings>
         <StimulationSequence>
             <Instruction type="trigger_recording" data_address="1.0.0.127" />
             <StimulationSequence>
-                <Instruction type="stimulus" handle="1" probe="1,2,3,4" stimunit="1" />
+                <Instruction type="stimulus" box="1" probe="1,2,3,4" stimunit="1" />
                 <Instruction type="wait" time="20" />
-                <Instruction type="stimulus" handle="1" probe="1" stimunit="1" />
+                <Instruction type="stimulus" box="1" probe="1" stimunit="1" />
                 <Instruction type="wait" time="5" />
             </StimulationSequence>
         </StimulationSequence>
@@ -407,25 +405,25 @@ if __name__ == "__main__":
     with open("defaults/settings_classes.json") as f:
         classes = json.load(f)
 
-    connected_handles_probes = {}
-    existing_handles = [int(key) for key in classes["handles"].keys()]
-    for handle in existing_handles:
+    connected_boxes_probes = {}
+    existing_boxes = [int(key) for key in classes["boxes"].keys()]
+    for box in existing_boxes:
         try:
-            connected_handles_probes[handle] = [
-                int(key) for key in classes["handles"][str(handle)]["probes"].keys()
+            connected_boxes_probes[box] = [
+                int(key) for key in classes["boxes"][str(box)]["probes"].keys()
             ]
         except KeyError:
-            connected_handles_probes[handle] = []
+            connected_boxes_probes[box] = []
     print(
-        f"""handles: {list(connected_handles_probes.keys())} and \nhandle probe 
-        dict: {connected_handles_probes}"""
+        f"""boxes: {list(connected_boxes_probes.keys())} and \nbox probe 
+        dict: {connected_boxes_probes}"""
     )
 
     local_settings = GeneralSettings()
-    for key in connected_handles_probes.keys():
-        local_settings.handles[key] = HandleSettings()
-        for probe in connected_handles_probes[key]:
-            local_settings.handles[key].probes[probe] = ProbeSettings()
+    for key in connected_boxes_probes.keys():
+        local_settings.boxes[key] = BoxSettings()
+        for probe in connected_boxes_probes[key]:
+            local_settings.boxes[key].probes[probe] = ProbeSettings()
 
     check_xml_with_settings(data, local_settings)
     local_settings = update_checked_settings(data, local_settings)

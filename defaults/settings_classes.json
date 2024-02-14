@@ -5,9 +5,33 @@
         "api_version_minor": "",
         "api_version_major": ""
     },
+    "TTL_sett": {
+        "TTL_handles": {
+            "1": {},
+            "2": {
+                "TTL_probes": {
+                    "1": {},
+                    "2": {
+                        "trigger_function": "",
+                        "target_handle": "",
+                        "target_probe": "",
+                        "target_SU": ""
+                    }
+                }
+            }
+        }
+    },
     "handles": {
-        "1": {},
+        "1": {
+            "probes": {
+                "1": {},
+                "2": {},
+                "3": {},
+                "4": {}
+            }
+        },
         "2": {
+            "handle_id": "12345",
             "hardware_id_base_station": {
                 "serial_number": "",
                 "version_major": "",
@@ -22,7 +46,8 @@
             },
             "probes": {
                 "1": {},
-                "2": {
+                "2": {},
+                "3": {
                     "hardware_id_probe": {
                         "serial_number": "",
                         "version_major": "",
@@ -58,14 +83,6 @@
                         "1": [1, 2],
                         "2": [3, 4]
                     }
-                }
-            },
-            "TTL_sett": {
-                "1": {},
-                "2": {
-                    "functionality": "start_recording",
-                    "probe_list": 20,
-                    "SU_list": []
                 }
             }
         }
