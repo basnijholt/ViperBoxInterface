@@ -15,8 +15,8 @@ import NeuraviperPy as NVP
 from custom_exceptions import ViperBoxError
 from defaults.defaults import OS2chip
 from VB_classes import (
+    BoxSettings,
     GeneralSettings,
-    HandleSettings,
     ProbeSettings,
     StatusTracking,
     parse_numbers,
@@ -46,7 +46,7 @@ class ViperBox:
         self.local_settings = GeneralSettings()
         self.uploaded_settings = GeneralSettings()
         self.tracking = StatusTracking()
-        self._handle_ptrs = {}
+        self._box_ptrs = {}
 
         self._session_datetime = _session_datetime
         self._rec_start_time: float | None = None
@@ -56,9 +56,6 @@ class ViperBox:
         log_folder.mkdir(parents=True, exist_ok=True)
         self._log = log_folder.joinpath(log_file)
         self.stim_file_path: None | Path = None
-
-        self._default_XML = Path.cwd() / "default_XML"
-        self._default_XML.mkdir(parents=True, exist_ok=True)
 
         self._rec_path: Path | None = None
 
@@ -89,7 +86,7 @@ class ViperBox:
         emulation: bool = False,
         boxless: bool = False,
     ) -> Tuple[bool, str]:
-        """Initiates ViperBox and connects to probes. Handle is created and emulation\
+        """Initiates ViperBox and connects to probes. Box is created and emulation\
         type is set.
 
         TODO: !!!!! all existing data is removed because the local settings are reset.
@@ -122,63 +119,56 @@ class ViperBox:
             return False, err_msg
         elif number_of_devices > 1:
             err_msg = """More than one device found, currently this software can only \
-                handle one device"""
+                box one device"""
             self.logger.error(err_msg)
             return False, err_msg
         elif number_of_devices == 1:
             self.logger.info(f"Device found: {devices[0]}")
-            # TODO add handle settings and info and stuffff
-            self.local_settings.handles = {0: HandleSettings()}
+            # TODO add box settings and info and stuffff
+            self.local_settings.boxes = {0: BoxSettings()}
             pass
         else:
             raise ViperBoxError(f"Error in device list; devices list: {devices}")
         self.tracking.box_connected = True
 
         # Connect and set up viperbox
-        # TODO handlefix: also loop over handles
-        handle = 0
+        # TODO boxfix: also loop over boxes
+        box = 0
         tmp_handel = NVP.createHandle(devices[0].ID)
-        self._handle_ptrs[handle] = tmp_handel
-        # self._handle_ptrs[handle] = NVP.createHandle(devices[0].ID)
-        self.logger.info(f"Handle created: {self._handle_ptrs[handle]}")
-        NVP.openBS(self._handle_ptrs[handle])
-        self.logger.info(f"BS opened: {self._handle_ptrs[handle]}")
+        self._box_ptrs[box] = tmp_handel
+        # self._box_ptrs[box] = NVP.createHandle(devices[0].ID)
+        self.logger.info(f"Box handle created: {self._box_ptrs[box]}")
+        NVP.openBS(self._box_ptrs[box])
+        self.logger.info(f"BS opened: {self._box_ptrs[box]}")
         if (
             emulation is True
         ):  # Choose linear ramp emulation (1 sample shift between channels)
             NVP.setDeviceEmulatorMode(
-                self._handle_ptrs[handle], NVP.DeviceEmulatorMode.LINEAR
+                self._box_ptrs[box], NVP.DeviceEmulatorMode.LINEAR
             )
             NVP.setDeviceEmulatorType(
-                self._handle_ptrs[handle], NVP.DeviceEmulatorType.EMULATED_PROBE
+                self._box_ptrs[box], NVP.DeviceEmulatorType.EMULATED_PROBE
             )
             self.logger.info("Emulation mode: linear ramp")
         else:
-            NVP.setDeviceEmulatorMode(
-                self._handle_ptrs[handle], NVP.DeviceEmulatorMode.OFF
-            )
-            NVP.setDeviceEmulatorType(
-                self._handle_ptrs[handle], NVP.DeviceEmulatorType.OFF
-            )
+            NVP.setDeviceEmulatorMode(self._box_ptrs[box], NVP.DeviceEmulatorMode.OFF)
+            NVP.setDeviceEmulatorType(self._box_ptrs[box], NVP.DeviceEmulatorType.OFF)
             self.logger.info("Emulation mode: off")
         # print(
         #     f"""{self._time()-start_time} finished setting emulation, starting \
         #     opening probes"""
         # )
-        NVP.openProbes(self._handle_ptrs[handle])
-        self.logger.info(f"Probes opened: {self._handle_ptrs[handle]}")
+        NVP.openProbes(self._box_ptrs[box])
+        self.logger.info(f"Probes opened: {self._box_ptrs[box]}")
 
         # print(f"{self._time()-start_time} opened probes, starting initialization")
         # Connect and set up probes
-        # TODO handlefix: also loop over handles
+        # TODO boxfix: also loop over boxes
         for probe in probe_list_int:
-            print(f"type probe: {type(probe)}")
             try:
-                NVP.init(self._handle_ptrs[handle], int(probe))  # Initialize all probes
-                self.logger.info(
-                    f"Probe {probe} initialized: {self._handle_ptrs[handle]}"
-                )
-                self.local_settings.handles[0].probes[probe] = ProbeSettings()
+                NVP.init(self._box_ptrs[box], int(probe))  # Initialize all probes
+                self.logger.info(f"Probe {probe} initialized: {self._box_ptrs[box]}")
+                self.local_settings.boxes[0].probes[probe] = ProbeSettings()
             except Exception as error:
                 self.logger.warning(
                     f"!! Init() exception error, probe {probe}: {error}"
@@ -189,7 +179,7 @@ class ViperBox:
         # print(self.local_settings)
         self.uploaded_settings = copy.deepcopy(self.local_settings)
 
-        # TODO handlefix: also loop over handles
+        # TODO boxfix: also loop over boxes
         continue_statement = f"""ViperBox initialized successfully with probes 
         {self.local_settings.connected}"""
         return True, continue_statement
@@ -197,11 +187,11 @@ class ViperBox:
     def disconnect(self) -> Tuple[bool, str]:
         """Disconnects from the ViperBox and closes the API channel."""
 
-        # TODO handlefix: also loop over handles
-        handle = 0
-        NVP.closeProbes(self._handle_ptrs[handle])
-        NVP.closeBS(self._handle_ptrs[handle])
-        NVP.destroyHandle(self._handle_ptrs[handle])
+        # TODO boxfix: also loop over boxes
+        box = 0
+        NVP.closeProbes(self._box_ptrs[box])
+        NVP.closeBS(self._box_ptrs[box])
+        NVP.destroyHandle(self._box_ptrs[box])
         self._deviceId = 0
         self.tracking.box_connected = False
         self.tracking.probe_connected = False
@@ -224,62 +214,62 @@ class ViperBox:
         self.logger.info(
             f"Writing recording settings to ViperBox: {updated_tmp_settings}"
         )
-        for handle in updated_tmp_settings.handles.keys():
-            # print(f"handle: {handle}")
-            for probe in updated_tmp_settings.handles[handle].probes.keys():
+        for box in updated_tmp_settings.boxes.keys():
+            # print(f"box: {box}")
+            for probe in updated_tmp_settings.boxes[box].probes.keys():
                 # TODO: ugly; probe should be either 0 indexed or 1 indexed
                 probe = probe
                 # print(f"probe: {probe}")
                 for channel in (
-                    updated_tmp_settings.handles[handle].probes[probe].channel.keys()
+                    updated_tmp_settings.boxes[box].probes[probe].channel.keys()
                 ):
-                    NVP.selectElectrode(self._handle_ptrs[handle], probe, channel, 0)
+                    NVP.selectElectrode(self._box_ptrs[box], probe, channel, 0)
                     NVP.setReference(
-                        self._handle_ptrs[handle],
+                        self._box_ptrs[box],
                         probe,
                         channel,
-                        updated_tmp_settings.handles[handle]
+                        updated_tmp_settings.boxes[box]
                         .probes[probe]
                         .channel[channel]
                         .get_refs,
                     )
                     NVP.setGain(
-                        self._handle_ptrs[handle],
+                        self._box_ptrs[box],
                         probe,
                         channel,
-                        updated_tmp_settings.handles[handle]
+                        updated_tmp_settings.boxes[box]
                         .probes[probe]
                         .channel[channel]
                         .gain,
                     )
                     NVP.setAZ(
-                        self._handle_ptrs[handle], probe, channel, False
+                        self._box_ptrs[box], probe, channel, False
                     )  # see email Patrick 08/01/2024
 
-                NVP.writeChannelConfiguration(self._handle_ptrs[handle], probe, False)
+                NVP.writeChannelConfiguration(self._box_ptrs[box], probe, False)
 
     def _write_stimulation_settings_to_viperbox(self, updated_tmp_settings):
         self.logger.info(
             f"Writing stimulation settings to ViperBox: {updated_tmp_settings}"
         )
-        for handle in updated_tmp_settings.handles.keys():
-            for probe in updated_tmp_settings.handles[handle].probes.keys():
+        for box in updated_tmp_settings.boxes.keys():
+            for probe in updated_tmp_settings.boxes[box].probes.keys():
                 # Always set settings for entire probe at once.
                 NVP.setOSimage(
-                    self._handle_ptrs[handle],
+                    self._box_ptrs[box],
                     probe,
-                    updated_tmp_settings.handles[handle].probes[probe].os_data,
+                    updated_tmp_settings.boxes[box].probes[probe].os_data,
                 )
                 for OS in range(128):
-                    NVP.setOSDischargeperm(self._handle_ptrs[handle], probe, OS, False)
-                    NVP.setOSStimblank(self._handle_ptrs[handle], probe, OS, True)
+                    NVP.setOSDischargeperm(self._box_ptrs[box], probe, OS, False)
+                    NVP.setOSStimblank(self._box_ptrs[box], probe, OS, True)
 
             for SU in range(8):
                 NVP.writeSUConfiguration(
-                    self._handle_ptrs[handle],
+                    self._box_ptrs[box],
                     probe,
                     SU,
-                    *updated_tmp_settings.handles[handle]
+                    *updated_tmp_settings.boxes[box]
                     .probes[probe]
                     .stim_unit_sett[SU]
                     .SUConfig(),
@@ -325,7 +315,7 @@ class ViperBox:
 
         try:
             # Always set settings for entire probe at once.
-            # TODO handlefix
+            # TODO boxfix
             self._write_recording_settings(updated_tmp_settings)
         except Exception as e:
             return (
@@ -346,10 +336,10 @@ class ViperBox:
             f"Writing stimulation settings to stimrec file: {updated_tmp_settings}"
         )
         if self.stim_file_path:
-            for handle in updated_tmp_settings.handles.keys():
-                for probe in updated_tmp_settings.handles[handle].probes.keys():
+            for box in updated_tmp_settings.boxes.keys():
+                for probe in updated_tmp_settings.boxes[box].probes.keys():
                     for configuration in (
-                        updated_tmp_settings.handles[handle]
+                        updated_tmp_settings.boxes[box]
                         .probes[probe]
                         .stim_unit_sett.keys()
                     ):
@@ -358,10 +348,10 @@ class ViperBox:
                             "Settings",
                             "Configuration",
                             {
-                                "handle": handle,
+                                "box": box,
                                 "probe": probe,
                                 "stimunit": configuration,
-                                **updated_tmp_settings.handles[handle]
+                                **updated_tmp_settings.boxes[box]
                                 .probes[probe]
                                 .stim_unit_sett[configuration]
                                 .__dict__,
@@ -370,7 +360,7 @@ class ViperBox:
                             dt_time,
                         )
                     for mapping in (
-                        updated_tmp_settings.handles[handle]
+                        updated_tmp_settings.boxes[box]
                         .probes[probe]
                         .stim_unit_elec.keys()
                     ):
@@ -379,10 +369,10 @@ class ViperBox:
                             "Settings",
                             "Mapping",
                             {
-                                "handle": handle,
+                                "box": box,
                                 "probe": probe,
                                 "stimunit": mapping,
-                                "electrodes": updated_tmp_settings.handles[handle]
+                                "electrodes": updated_tmp_settings.boxes[box]
                                 .probes[probe]
                                 .stim_unit_elec[mapping],
                             },
@@ -421,7 +411,7 @@ class ViperBox:
             XML_data, tmp_local_settings, "stimulation"
         )
 
-        # TODO handlefix
+        # TODO boxfix
         start_time = self._time()
         try:
             self._write_stimulation_settings_to_viperbox(updated_tmp_settings)
@@ -481,7 +471,7 @@ class ViperBox:
             XML_data, updated_tmp_settings, "stimulation"
         )
 
-        # TODO handlefix
+        # TODO boxfix
         start_time = self._time()
         try:
             self._write_recording_settings(updated_tmp_settings)
@@ -501,20 +491,20 @@ class ViperBox:
             )
         dt_time = self._time() - start_time
 
-        for handle in updated_tmp_settings.handles.keys():
-            for probe in updated_tmp_settings.handles[handle].probes.keys():
+        for box in updated_tmp_settings.boxes.keys():
+            for probe in updated_tmp_settings.boxes[box].probes.keys():
                 for channel in (
-                    self.uploaded_settings.handles[handle].probes[probe].channel.keys()
+                    self.uploaded_settings.boxes[box].probes[probe].channel.keys()
                 ):
                     add_to_stimrec(
                         self.stim_file_path,
                         "Settings",
                         "Channel",
                         {
-                            "handle": handle,
+                            "box": box,
                             "probe": probe,
                             "channel": channel,
-                            **self.uploaded_settings.handles[handle]
+                            **self.uploaded_settings.boxes[box]
                             .probes[probe]
                             .channel[channel]
                             .__dict__,
@@ -523,19 +513,17 @@ class ViperBox:
                         dt_time,
                     )
                 for configuration in (
-                    updated_tmp_settings.handles[handle]
-                    .probes[probe]
-                    .stim_unit_sett.keys()
+                    updated_tmp_settings.boxes[box].probes[probe].stim_unit_sett.keys()
                 ):
                     add_to_stimrec(
                         self.stim_file_path,
                         "Settings",
                         "Configuration",
                         {
-                            "handle": handle,
+                            "box": box,
                             "probe": probe,
                             "stimunit": configuration,
-                            **updated_tmp_settings.handles[handle]
+                            **updated_tmp_settings.boxes[box]
                             .probes[probe]
                             .stim_unit_sett[configuration]
                             .__dict__,
@@ -544,19 +532,17 @@ class ViperBox:
                         dt_time,
                     )
                 for mapping in (
-                    updated_tmp_settings.handles[handle]
-                    .probes[probe]
-                    .stim_unit_elec.keys()
+                    updated_tmp_settings.boxes[box].probes[probe].stim_unit_elec.keys()
                 ):
                     add_to_stimrec(
                         self.stim_file_path,
                         "Settings",
                         "Mapping",
                         {
-                            "handle": handle,
+                            "box": box,
                             "probe": probe,
                             "stimunit": mapping,
-                            "electrodes": updated_tmp_settings.handles[handle]
+                            "electrodes": updated_tmp_settings.boxes[box]
                             .probes[probe]
                             .stim_unit_elec[mapping],
                         },
@@ -583,22 +569,19 @@ class ViperBox:
         if self.tracking.recording is True:
             return (
                 False,
-                """Already recording, first stop recording to start a new 
-            recording""",
+                """Already recording, first stop recording to start a new \
+                    recording""",
             )
 
         # TODO this should check if recording settings are available for all
-        # connected handles
-        for handle in self.uploaded_settings.handles.keys():
-            for probe in self.uploaded_settings.handles[handle].probes.keys():
-                if (
-                    len(self.uploaded_settings.handles[handle].probes[probe].channel)
-                    != 64
-                ):
+        # connected boxes
+        for box in self.uploaded_settings.boxes.keys():
+            for probe in self.uploaded_settings.boxes[box].probes.keys():
+                if len(self.uploaded_settings.boxes[box].probes[probe].channel) != 64:
                     return (
                         False,
                         """Recording settings not available for all channels on 
-                        handle {handle}, probe {probe}. Consider first uploading 
+                        box {box}, probe {probe}. Consider first uploading 
                         default settings for all channels, then upload your custom 
                         settings and then try again.""",
                     )
@@ -619,12 +602,12 @@ class ViperBox:
                 f"{self.recording_name}_{self._recording_datetime}.bin"
             )
 
-        NVP.setFileStream(self._handle_ptrs[handle], str(self._rec_path))
-        NVP.enableFileStream(self._handle_ptrs[handle], str(self._rec_path))
-        NVP.arm(self._handle_ptrs[handle])
+        NVP.setFileStream(self._box_ptrs[box], str(self._rec_path))
+        NVP.enableFileStream(self._box_ptrs[box], str(self._rec_path))
+        NVP.arm(self._box_ptrs[box])
 
         self._rec_start_time = self._time()
-        NVP.setSWTrigger(self._handle_ptrs[handle])
+        NVP.setSWTrigger(self._box_ptrs[box])
         dt_rec_start = self._time()  # - self._rec_start_time
 
         if self.recording_name:
@@ -646,20 +629,20 @@ class ViperBox:
         self.logger.info(
             f"Writing recording settings to stimrec file: {self.uploaded_settings}"
         )
-        for handle in self.uploaded_settings.handles.keys():
-            for probe in self.uploaded_settings.handles[handle].probes.keys():
+        for box in self.uploaded_settings.boxes.keys():
+            for probe in self.uploaded_settings.boxes[box].probes.keys():
                 for channel in (
-                    self.uploaded_settings.handles[handle].probes[probe].channel.keys()
+                    self.uploaded_settings.boxes[box].probes[probe].channel.keys()
                 ):
                     add_to_stimrec(
                         self.stim_file_path,
                         "Settings",
                         "Channel",
                         {
-                            "handle": handle,
+                            "box": box,
                             "probe": probe,
                             "channel": channel,
-                            **self.uploaded_settings.handles[handle]
+                            **self.uploaded_settings.boxes[box]
                             .probes[probe]
                             .channel[channel]
                             .__dict__,
@@ -729,7 +712,6 @@ class ViperBox:
         try:
             # TODO: consider using http lib from standard library
             r = requests.get("http://localhost:37497/api/status")
-            print(r.json())
             if r.json()["mode"] != "ACQUIRE":
                 r = requests.put(
                     "http://localhost:37497/api/status", json={"mode": "ACQUIRE"}
@@ -758,8 +740,8 @@ class ViperBox:
                     )
             else:
                 self.logger.warning(
-                    """Open Ephys not detected, please start it manually if it is 
-                    not running"""
+                    """Open Ephys not detected, please start it manually if it is \
+                        not running"""
                 )
 
     def _send_data_to_socket(self, probe: int) -> None:
@@ -782,11 +764,11 @@ class ViperBox:
         # TODO: check if this is necessary
         time.sleep(0.1)
 
-        # TODO: How to handle data streams from multiple probes? align on timestamp?
+        # TODO: How to box data streams from multiple probes? align on timestamp?
         send_data_read_handle = NVP.streamOpenFile(str(self._rec_path), probe)
 
         # TODO: remove packages with wrong session
-        # status = NVP.readDiagStats(self._handle)
+        # status = NVP.readDiagStats(self._box)
         # skip_packages = status.session_mismatch
         # print('skip_packages: ', skip_packages)
         # dump_count = 0
@@ -838,10 +820,10 @@ class ViperBox:
 
         self.logger.info("Stopping recording")
         start_time = self._time()
-        handle = 0
-        NVP.arm(self._handle_ptrs[handle])
+        box = 0
+        NVP.arm(self._box_ptrs[box])
         # Close file
-        NVP.setFileStream(self._handle_ptrs[handle], "")
+        NVP.setFileStream(self._box_ptrs[box], "")
         dt_time = self._time() - start_time
         self.oe_socket = False
 
@@ -911,13 +893,13 @@ class ViperBox:
         return int(SU_string, 2)
 
     def start_stimulation(
-        self, handles: str, probes: str, SU_input: str
+        self, boxes: str, probes: str, SU_input: str
     ) -> Tuple[bool, str]:
-        """Starts stimulation on the specified handle(s), probe(s) and SU(s).
-        First checks if the SUs are configured for their respective handles and probes.
+        """Starts stimulation on the specified box(s), probe(s) and SU(s).
+        First checks if the SUs are configured for their respective boxes and probes.
 
         Arguments:
-        - handles: str - all handles to start stimulation in
+        - boxes: str - all boxes to start stimulation in
         - probes: str - all probes to start stimulation in
         - SU_input: str - the SUs to start stimulation in
 
@@ -931,64 +913,62 @@ class ViperBox:
         if self.tracking.recording is False:
             return (
                 False,
-                """No recording in progress, cannot start stimulation, please 
-                start recording first""",
+                """No recording in progress, cannot start stimulation, please \
+                    start recording first""",
             )
 
-        # SU_dict = {handle1: {probe1: [1,2,5], probe2: [3,4,6]}}
+        # SU_dict = {box1: {probe1: [1,2,5], probe2: [3,4,6]}}
         SU_dict: Any = {}
-        # Check if handles, probes and SUs are in right format and properly configured
+        # Check if boxes, probes and SUs are in right format and properly configured
         # i.e, have waveform configured
         # Using try/except to catch ValueError from parse_numbers
-        self.logger.info("Check if handles, probes and SUs exist and are configured")
-        for handle in parse_numbers(
-            handles, list(self.uploaded_settings.handles.keys())
-        ):
-            SU_dict[handle] = {}
+        self.logger.info("Check if boxes, probes and SUs exist and are configured")
+        for box in parse_numbers(boxes, list(self.uploaded_settings.boxes.keys())):
+            SU_dict[box] = {}
             for probe in parse_numbers(
                 probes,
-                list(self.uploaded_settings.handles[handle].probes.keys()),
+                list(self.uploaded_settings.boxes[box].probes.keys()),
             ):
-                SU_dict[handle][probe] = parse_numbers(
+                SU_dict[box][probe] = parse_numbers(
                     SU_input,
                     list(
-                        self.uploaded_settings.handles[handle]
+                        self.uploaded_settings.boxes[box]
                         .probes[probe]
                         .stim_unit_sett.keys()
                     ),
                 )
         #                 except ValueError as e:
         #                     return_statement = "SU settings not available on probe "
-        #                     f"{probe}, on handle {handle} are not available: {e}"
+        #                     f"{probe}, on box {box} are not available: {e}"
         #                     return False, return_statement
         #         except ValueError as e:
         #             return_statement
         #             return (
         #                 False,
-        #                 f"""Probe {probe} on handle {handle} doesn't seem to be
+        #                 f"""Probe {probe} on box {box} doesn't seem to be
         #                 connected: {e}""",
         #             )
         # except ValueError as e:
-        #     return False, f"Handle {handle} doesn't seem to be connected: {e}"
+        #     return False, f"Box {box} doesn't seem to be connected: {e}"
 
         SU_dict = {
-            int(handle): {
+            int(box): {
                 int(probe): self._convert_SU_list(sulist)
                 for probe, sulist in probes.items()
             }
-            for handle, probes in SU_dict.items()
+            for box, probes in SU_dict.items()
         }
 
         # Trigger SUs
         self.logger.info(f"Triggering SUs: {SU_dict}")
-        for handle in SU_dict.keys():
-            for probe in SU_dict[handle].keys():
+        for box in SU_dict.keys():
+            for probe in SU_dict[box].keys():
                 tmp_counter = self._time()
                 # TODO could be faster by not having to do this converstion here
                 NVP.SUtrig1(
-                    self._handle_ptrs[handle],
+                    self._box_ptrs[box],
                     probe,
-                    SU_dict[handle][probe],
+                    SU_dict[box][probe],
                 )
                 tmp_delta = self._time() - tmp_counter
 
@@ -999,9 +979,9 @@ class ViperBox:
                     {
                         "filename": self.recording_name,
                         "instruction_type": "stimulation_start",
-                        "handles": SU_dict.keys(),
+                        "boxes": SU_dict.keys(),
                         "probes": {
-                            handle: probes.keys() for handle, probes in SU_dict.items()
+                            box: probes.keys() for box, probes in SU_dict.items()
                         },
                         "SU_dict": SU_dict,
                     },
@@ -1009,8 +989,8 @@ class ViperBox:
                     tmp_delta,
                 )
 
-        return_statement = f"Stimulation started on handles {handles} probe {probes} \
-            for SU's {SU_dict[handle][probe]}"
+        return_statement = f"Stimulation started on boxes {boxes} probe {probes} \
+            for SU's {SU_dict[box][probe]}"
         return True, return_statement
 
     # def TTL_start(
