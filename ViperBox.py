@@ -4,6 +4,7 @@ import os
 import socket
 import threading
 import time
+import traceback
 from pathlib import Path
 from typing import Any, List, Tuple
 
@@ -74,7 +75,8 @@ class ViperBox:
                 os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
             except Exception as e:
                 self.logger.warning(
-                    f"Can't start Open Ephys, please start it manually. Error: {e}"
+                    f"Can't start Open Ephys, please start it manually. \
+                        Error: {self._er(e)}"
                 )
 
         self.logger.info("ViperBox initialized")
@@ -107,7 +109,10 @@ class ViperBox:
         try:
             probe_list_int = parse_numbers(probe_list, [0, 1, 2, 3])
         except ValueError as e:
-            return False, f"Invalid probe list: {e}"
+            return (
+                False,
+                f"Invalid probe list: {self._er(e)}",
+            )
 
         # Scan for devices
         NVP.scanBS()
@@ -171,7 +176,7 @@ class ViperBox:
                 self.local_settings.boxes[0].probes[probe] = ProbeSettings()
             except Exception as error:
                 self.logger.warning(
-                    f"!! Init() exception error, probe {probe}: {error}"
+                    f"!! Init() exception error, probe {probe}: {self._er(error)}"
                 )
         self.logger.info(f"API channel opened: {devices[0]}")
         self._deviceId = devices[0].ID
@@ -294,8 +299,11 @@ class ViperBox:
         else:
             try:
                 XML_data = etree.fromstring(xml_string)
-            except TypeError:
-                return (False, "Invalid xml string. Error: {e}")
+            except TypeError as e:
+                return (
+                    False,
+                    f"Invalid xml string. Error: {self._er(e)}",
+                )
 
         # make temporary copy of settings
         tmp_local_settings = copy.deepcopy(self.local_settings)
@@ -308,7 +316,9 @@ class ViperBox:
             return result, feedback
 
         if reset:
+            self.logger.info("Resetting recording settings")
             tmp_local_settings.reset_recording_settings()
+        self.logger.info("Updating supplied settings to local settings")
         updated_tmp_settings = update_checked_settings(
             XML_data, tmp_local_settings, "recording"
         )
@@ -321,7 +331,7 @@ class ViperBox:
             return (
                 False,
                 f"""Error in uploading recording settings, settings not applied and 
-                reverted to previous settings. Error: {e}""",
+                reverted to previous settings. Error: {self._er(e)}""",
             )
         self.tracking.recording_settings_uploaded = True
         self.local_settings = updated_tmp_settings
@@ -394,8 +404,11 @@ class ViperBox:
         else:
             try:
                 XML_data = etree.fromstring(xml_string)
-            except TypeError:
-                return (False, "Invalid xml string. Error: {e}")
+            except TypeError as e:
+                return (
+                    False,
+                    f"Invalid xml string. Error: {self._er(e)}",
+                )
 
         tmp_local_settings = copy.deepcopy(self.local_settings)
 
@@ -732,11 +745,12 @@ class ViperBox:
                         except Exception as e:
                             self.logger.warning(
                                 f"Can't start Open Ephys, please start it manually. \
-                                    Error: {e}"
+                                    Error: {self._er(e)}"
                             )
                 except Exception as e2:
                     self.logger.warning(
-                        f"Can't start Open Ephys, please start it manually. Error: {e2}"
+                        f"Can't start Open Ephys, please start it manually. \
+                            Error: {e2}"
                     )
             else:
                 self.logger.warning(
@@ -939,17 +953,20 @@ class ViperBox:
                 )
         #                 except ValueError as e:
         #                     return_statement = "SU settings not available on probe "
-        #                     f"{probe}, on box {box} are not available: {e}"
+        #                     f"{probe}, on box {box} are not available:
+        # {self._er(e)}"
         #                     return False, return_statement
         #         except ValueError as e:
         #             return_statement
         #             return (
         #                 False,
         #                 f"""Probe {probe} on box {box} doesn't seem to be
-        #                 connected: {e}""",
+        #                 connected:
+        # {self._er(e)}""",
         #             )
         # except ValueError as e:
-        #     return False, f"Box {box} doesn't seem to be connected: {e}"
+        #     return False, f"Box {box} doesn't seem to be connected:
+        # {self._er(e)}"
 
         SU_dict = {
             int(box): {
@@ -992,6 +1009,9 @@ class ViperBox:
         return_statement = f"Stimulation started on boxes {boxes} probe {probes} \
             for SU's {SU_dict[box][probe]}"
         return True, return_statement
+
+    def _er(self, error):
+        return "".join(traceback.TracebackException.from_exception(error).format())
 
     # def TTL_start(
     #     self, probe: str, TTL_channel: str, SU_input: str

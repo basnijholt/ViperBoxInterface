@@ -5,7 +5,7 @@
             <RecordingName>Mouse22</RecordingName>
         </MetaData>
         <RecordingSettings>
-            <Channel box="-" probe="-" channel="-" references="100000000" gain="1" input="0" />
+            <Channel box="-" probe="-" channel="-" references="-" gain="1" input="0" />
         </RecordingSettings>
         <StimulationWaveformSettings>
             <Configuration box="-" probe="-" stimunit="-" polarity="0" pulses="20"

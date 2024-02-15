@@ -351,8 +351,6 @@ def parse_references(refstr: str) -> str:
     refstr = refstr.replace("b", "0")
     result = np.array([], dtype=int)
     if refstr == "-":
-        if all_values is None:
-            raise ValueError("all_values not known")
         result = np.asarray(all_values)
     elif len(refstr) == 1:
         result = np.array([int(refstr)])
@@ -377,15 +375,17 @@ def parse_references(refstr: str) -> str:
                         range(int(split_item[0]), int(split_item[1]) + 1)
                     )
             else:
+                if int(item) > 8:
+                    raise ValueError("Max value of any reference is 8")
                 np_item = np.asarray(int(item))
             result = np.append(result, np_item)
         result = np.unique(result)
     if not set(result).issubset(set(all_values)):
         raise ValueError(
-            "Invalid values; following instances are not connected"
-            f":{set(result) - set(all_values)}."
+            f"Invalid references; following instances are not connected. Set of \
+                input: {set(result)}, set of available instances: {set(all_values)}."
         )
-    result = ["1" if i in result else "0" for i in all_values]
+    result = "".join(["1" if i in result else "0" for i in all_values])
     return result
 
 
