@@ -207,12 +207,22 @@ class ViperBox:
     def shutdown(self) -> Tuple[bool, str]:
         self.disconnect()
         # if not self.headless:
-        try:
-            _ = requests.put(
-                "http://localhost:37497/api/window", json={"command": "quit"}, timeout=5
-            )
-        except Exception:
-            pass
+        # try:
+        #     _ = requests.put(
+        #         "http://localhost:37497/api/status",
+        #         json={"mode": "ACQUIRE"},
+        #         timeout=2,
+        #     )
+        # except Exception:
+        #     pass
+        # try:
+        #     _ = requests.put(
+        #         "http://localhost:37497/api/window",
+        #         json={"command": "quit"},
+        #         timeout=5,
+        #     )
+        # except Exception:
+        #     pass
         return True, "ViperBox shutdown"
 
     def _write_recording_settings(self, updated_tmp_settings):
@@ -722,6 +732,7 @@ class ViperBox:
         self.logger.info(
             "Try to switch open ephys to acquire mode, otherwise start it."
         )
+        acquiring = False
         try:
             # TODO: consider using http lib from standard library
             r = requests.get("http://localhost:37497/api/status")
@@ -736,17 +747,19 @@ class ViperBox:
                     os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
                     r = requests.get("http://localhost:37497/api/status", timeout=5)
                     if r.json()["mode"] != "ACQUIRE":
-                        try:
-                            r = requests.put(
-                                "http://localhost:37497/api/status",
-                                json={"mode": "ACQUIRE"},
-                                timeout=5,
-                            )
-                        except Exception as e:
-                            self.logger.warning(
-                                f"Can't start Open Ephys, please start it manually. \
-                                    Error: {self._er(e)}"
-                            )
+                        while not acquiring:
+                            try:
+                                r = requests.put(
+                                    "http://localhost:37497/api/status",
+                                    json={"mode": "ACQUIRE"},
+                                    timeout=5,
+                                )
+                                acquiring = True
+                            except Exception as e:
+                                self.logger.warning(
+                                    f"Can't start Open Ephys, please start it \
+                                        manually. Error: {self._er(e)}"
+                                )
                 except Exception as e2:
                     self.logger.warning(
                         f"Can't start Open Ephys, please start it manually. \
