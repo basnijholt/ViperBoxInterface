@@ -3,17 +3,52 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     Start-Process powershell.exe "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
     exit
 }
-
+Write-Host "Starting installer..." -ForegroundColor Yellow
 # Check for Anaconda3 and Miniconda in user folder and ProgramData folder
 $userFolder = [Environment]::GetFolderPath("UserProfile")
 $programDataFolder = [Environment]::GetFolderPath("CommonApplicationData")
 
-$anaconda3Path = Get-ChildItem -Path $userFolder, $programDataFolder -Filter "anaconda3" -Directory -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
-$minicondaPath = Get-ChildItem -Path $userFolder, $programDataFolder -Filter "miniconda" -Directory -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+Write-Host "Found $($userFolder) and $($programDataFolder)" -ForegroundColor Yellow
+
+$anaconda3Path = Get-ChildItem -Path $userFolder, $programDataFolder -Filter "anaconda3" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+$minicondaPath = Get-ChildItem -Path $userFolder, $programDataFolder -Filter "miniconda" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
 
 # Save the locations in variables
-$tmpPath = if ($minicondaPath) { $minicondaPath } else { "C:\ProgramData\Anaconda3" }
+$tmpPath = if ($minicondaPath) { $minicondaPath } else { $null }
 $anacondaLocation = if ($anaconda3Path) { $anaconda3Path } else { $tmpPath }
+
+if (-not $anacondaLocation) {
+    Write-Host "Anaconda3 or Miniconda not found." -ForegroundColor Yellow
+}
+else {
+    Write-Host "Anaconda3 or Miniconda found at $($anacondaLocation)" -ForegroundColor Green
+
+}
+
+$anacondaSoftware = @{
+    "Anaconda" = @{
+        "url"       = "https://repo.anaconda.com/archive/Anaconda3-2023.09-0-Windows-x86_64.exe"
+        "checkPath" = "$userFolder\anaconda3"
+    }
+}
+
+# if @anacondaLocation is null, install Anaconda
+if (-not $anacondaLocation) {
+    $ProgressPreference = 'SilentlyContinue'
+    if (Test-Path -Path $anacondaSoftware.Value.checkPath) {
+        Write-Host "$($anacondaSoftware.Name) is already installed." -ForegroundColor Green
+    }
+    else {
+        Write-Host "Installing Anaconda. This might take a while, go grab a coffee and check again in 20 to 40 minutes. Don't be fooled, this line will be here for a long time but be patient." -ForegroundColor Yellow
+        $installerPath = "$env:TEMP\$($anacondaSoftware.Name).exe"
+        Invoke-WebRequest -Uri $anacondaSoftware.Value.url -OutFile $installerPath
+        Start-Process -FilePath $installerPath -Wait -ArgumentList "/S /AddToPath=1"
+        Remove-Item -Path $installerPath
+        Write-Host "$($anacondaSoftware.Name) has been installed." -ForegroundColor Green
+    }
+}
+
+$anacondaLocation = "$userFolder\anaconda3" 
 
 # Define URLs and paths for software installations
 $software = @{
@@ -21,17 +56,11 @@ $software = @{
         "url"       = "https://openephysgui.jfrog.io/artifactory/Release-Installer/windows/Install-Open-Ephys-GUI-v0.6.6.exe"
         "checkPath" = "C:\Program Files\Open Ephys"
     }
-    "Anaconda"  = @{
-        "url"       = "https://repo.anaconda.com/archive/Anaconda3-2023.09-0-Windows-x86_64.exe"
-        "checkPath" = $anacondaLocation
-    }
     "Git"       = @{
         "url"       = "https://github.com/git-for-windows/git/releases/download/v2.42.0.windows.2/Git-2.42.0.2-64-bit.exe"
         "checkPath" = "C:\Program Files\Git"
     }
 }
-
-
 # Install the software
 $ProgressPreference = 'SilentlyContinue'
 foreach ($s in $software.GetEnumerator()) {
@@ -42,7 +71,7 @@ foreach ($s in $software.GetEnumerator()) {
         Write-Host "Installing $($s.Name)..." -ForegroundColor Yellow
         $installerPath = "$env:TEMP\$($s.Name).exe"
         Invoke-WebRequest -Uri $s.Value.url -OutFile $installerPath
-        Start-Process -FilePath $installerPath -Wait -ArgumentList "/S /AddToPath=1"
+        Start-Process -FilePath $installerPath -Wait
         Remove-Item -Path $installerPath
         Write-Host "$($s.Name) has been installed." -ForegroundColor Green
     }
@@ -51,7 +80,8 @@ foreach ($s in $software.GetEnumerator()) {
 # Update the conda base environment and create a new environment
 $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
 $envYamlPath = Join-Path -Path $scriptPath -ChildPath "viperboxV0_0_1.yaml"
-Write-Host "Creating a new Conda environment and installing packages..." -ForegroundColor Yellow
+Write-Host "Updating base conda and creating a new environment for ViperBox, this, again, might take a while." -ForegroundColor Yellow
+# Start-Process -FilePath "$anacondaLocation\Scripts\conda.exe" -ArgumentList "info --envs" -Wait
 Start-Process -FilePath "$anacondaLocation\Scripts\conda.exe" -ArgumentList "update -n base conda -y" -Wait
 Start-Process -FilePath "$anacondaLocation\Scripts\conda.exe" -ArgumentList "env create -f `"$envYamlPath`" -y" -Wait
 
