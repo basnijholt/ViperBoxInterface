@@ -71,12 +71,12 @@ VB = ViperBox(_session_datetime=session_datetime, headless=True)
 # multiprocessing.Process(target=gui).start()
 
 
-# @app.get("/test", tags=["test"])
+# @app.get("/test")#, tags=["test"])
 # async def test():
 #     return {"result": True, "feedback": "test"}
 
 
-@app.post("/connect", tags=["connect"])
+@app.post("/connect")  # , tags=["connect"])
 async def init(connect: Connect):
     """
     Initializes the ViperBoxInterface.
@@ -103,7 +103,7 @@ async def init(connect: Connect):
     return {"result": result, "feedback": feedback}
 
 
-@app.post("/disconnect", tags=["disconnect"])
+@app.post("/disconnect")  # , tags=["disconnect"])
 async def disconnect():
     """
     Disconnects from the ViperBox.
@@ -118,7 +118,7 @@ async def disconnect():
     return {"result": result, "feedback": feedback}
 
 
-@app.post("/shutdown", tags=["shutdown"])
+@app.post("/shutdown")  # , tags=["shutdown"])
 async def shutdown():
     """
     Shuts down the ViperBoxInterface, apart from disconnect, it also tries to close
@@ -134,7 +134,7 @@ async def shutdown():
     return {"result": result, "feedback": feedback}
 
 
-@app.post("/verify_xml/", tags=["verify_xml"])
+@app.post("/verify_xml/")  # , tags=["verify_xml"])
 async def verify_xml(api_verify_xml: apiVerifyXML):
     """
     Verify XML in string format (plain text). The settings that are in the uploaded
@@ -160,7 +160,7 @@ async def verify_xml(api_verify_xml: apiVerifyXML):
     return {"result": result, "feedback": feedback}
 
 
-@app.post("/recording_settings/", tags=["recording_settings"])
+@app.post("/recording_settings/")  # , tags=["recording_settings"])
 async def recording_settings(api_rec_settings: apiRecSettings):
     """
     Upload recording settings.
@@ -187,7 +187,7 @@ async def recording_settings(api_rec_settings: apiRecSettings):
     return {"result": result, "feedback": feedback}
 
 
-@app.post("/stimulation_settings/", tags=["stimulation_settings"])
+@app.post("/stimulation_settings/")  # , tags=["stimulation_settings"])
 async def stimulation_settings(api_stim_settings: apiStimSettings):
     """
     Upload stimulation settings.
@@ -214,7 +214,7 @@ async def stimulation_settings(api_stim_settings: apiStimSettings):
     return {"result": result, "feedback": feedback}
 
 
-@app.post("/start_recording", tags=["start_recording"])
+@app.post("/start_recording")  # , tags=["start_recording"])
 async def start_recording(api_start_rec: apiStartRec):
     """
     Starts recording with the specified recording name. Recording is saved in
@@ -234,7 +234,7 @@ async def start_recording(api_start_rec: apiStartRec):
     return {"result": result, "feedback": feedback}
 
 
-@app.post("/stop_recording", tags=["stop_recording"])
+@app.post("/stop_recording")  # , tags=["stop_recording"])
 async def stop_recording():
     """
     Stops the recording.
@@ -249,7 +249,7 @@ async def stop_recording():
     return {"result": result, "feedback": feedback}
 
 
-@app.post("/start_stimulation/", tags=["start_stimulation"])
+@app.post("/start_stimulation/")  # , tags=["start_stimulation"])
 async def start_stimulation(api_start_stim: apiStartStim):
     """
     Triggers the selected stimulation units.
@@ -277,7 +277,7 @@ async def start_stimulation(api_start_stim: apiStartStim):
     return {"result": result, "feedback": feedback}
 
 
-# @app.post("/TTL_start/", tags=["TTL_start"])
+# @app.post("/TTL_start/")#, tags=["TTL_start"])
 # async def TTL_start(api_TTL_start: apiTTLStart):
 #     result, feedback = VB.TTL_start(
 #         api_TTL_start.TTL_channel,
@@ -287,7 +287,7 @@ async def start_stimulation(api_start_stim: apiStartStim):
 #     return {"result": result, "feedback": feedback}
 
 
-# @app.post("/TTL_stop/", tags=["TTL_stop"])
+# @app.post("/TTL_stop/")#, tags=["TTL_stop"])
 # async def TTL_stop(api_TTL_stop: apiTTLStop):
 #     result, feedback = VB.TTL_stop(apiTTLStop.TTL_channel)
 #     return {"result": result, "feedback": feedback}
