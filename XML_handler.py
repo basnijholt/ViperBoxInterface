@@ -205,10 +205,10 @@ def check_xml_with_settings(
         check_boxes_exist(data, list(settings.connected.keys()))
     except ValueError as e:
         return False, f"{e}"
-    # try:
-    _ = overwrite_settings(data, settings, check_topic)
-    # except ValueError as e:
-    #     return False, f"{e}"
+    try:
+        _ = overwrite_settings(data, settings, check_topic)
+    except ValueError as e:
+        return False, f"{e}"
     return True, "XML is valid."
 
 
