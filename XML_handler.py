@@ -38,24 +38,24 @@ def check_boxes_exist(data, existing_boxes):
     return True
 
 
-def check_references_format(references: str) -> bool:
-    """Check if references are in the correct format
+# def check_references_format(references: str) -> bool:
+#     """Check if references are in the correct format
 
-    Arguments:
-    - references: string of 9 digits, only 1s and 0s
+#     Arguments:
+#     - references: string of 9 digits, only 1s and 0s
 
-    test cases:
-    - references are 10 digits
-    - references contains a 2
-    - references contains a letter
-    """
-    if len(references) != 9:
-        print("References should be a 9 digit string")
-        raise ValueError("References should be a 9 digit string")
-    if not all([i in ["0", "1"] for i in references]):
-        print("References should only contain 0s and 1s")
-        raise ValueError("References should only contain 0s and 1s")
-    return True
+#     test cases:
+#     - references are 10 digits
+#     - references contains a 2
+#     - references contains a letter
+#     """
+#     if len(references) != 9:
+#         print("References should be a 9 digit string")
+#         raise ValueError("References should be a 9 digit string")
+#     if not all([i in ["0", "1", "b"] for i in references]):
+#         print("References should only contain 0s and 1s")
+#         raise ValueError("References should only contain 0s and 1s")
+#     return True
 
 
 def check_gain_input_format(gain: int) -> bool:
@@ -149,9 +149,9 @@ def overwrite_settings(
                                 XML_settings.attrib["channel"], list(range(64))
                             )
                             for channel in all_channels:
-                                check_references_format(
-                                    XML_settings.attrib["references"]
-                                )
+                                # check_references_format(
+                                #     XML_settings.attrib["references"]
+                                # )
                                 check_gain_input_format(XML_settings.attrib["gain"])
                                 check_gain_input_format(XML_settings.attrib["input"])
                                 local_settings.boxes[box].probes[probe].channel[

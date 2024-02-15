@@ -40,7 +40,9 @@ class ChanSettings:
     def from_dict(cls, env):
         tmp_dct = {}
         for k, v in cls.__annotations__.items():
-            if not isinstance(env[k], v):
+            if k == "references":
+                tmp_dct[k] = parse_references(env[k])
+            elif not isinstance(env[k], v):
                 tmp_dct[k] = int(env[k])
             else:
                 tmp_dct[k] = str(env[k])
@@ -321,6 +323,70 @@ def parse_numbers(numstr: str, all_values: list[int]) -> list[int]:
             f":{set(result) - set(all_values)}."
         )
     return result.tolist()
+
+
+def parse_references(refstr: str) -> str:
+    """Parse a string of references, replaces b with 0'th reference.
+
+    If the format is wrong or if the numbers are not in the list, raise an error.
+    These are inputs like: '1,2,3,4-6,8' or '-' for all possible values.
+
+    Arguments:
+    - refstr {str} -- string of numbers to parse
+    - all_values {list[int]} -- list of all possible values for the numbers
+
+    Returns:
+    - result {numpy.ndarray} -- numpy array of parsed integers in sequential order
+
+    Test cases:
+    - wrong ranges: '1-2-3', '1-', '1,,2', '1--2', '-1'
+    might be more.
+    """
+
+    all_values = list(range(9))
+    if ",," in refstr:
+        raise ValueError("Invalid input, can't have double commas")
+    if "--" in refstr:
+        raise ValueError("Invalid input, can't have double dashes")
+    refstr = refstr.replace("b", "0")
+    result = np.array([], dtype=int)
+    if refstr == "-":
+        if all_values is None:
+            raise ValueError("all_values not known")
+        result = np.asarray(all_values)
+    elif len(refstr) == 1:
+        result = np.array([int(refstr)])
+    else:
+        split_refstr = refstr.split(",")
+        for item in split_refstr:
+            if item[0] == "-":
+                raise ValueError("Invalid input, can't start with a dash")
+            if item[-1] == "-":
+                raise ValueError("Invalid input, can't end with a dash")
+            if "-" in item:
+                split_item = item.split("-")
+                # check if the range is valid
+                if len(split_item) != 2:
+                    raise ValueError("Invalid range")
+                elif int(split_item[0]) > int(split_item[1]):
+                    np_item = np.asarray(
+                        range(int(split_item[1]), int(split_item[0]) + 1)
+                    )
+                else:
+                    np_item = np.asarray(
+                        range(int(split_item[0]), int(split_item[1]) + 1)
+                    )
+            else:
+                np_item = np.asarray(int(item))
+            result = np.append(result, np_item)
+        result = np.unique(result)
+    if not set(result).issubset(set(all_values)):
+        raise ValueError(
+            "Invalid values; following instances are not connected"
+            f":{set(result) - set(all_values)}."
+        )
+    result = ["1" if i in result else "0" for i in all_values]
+    return result
 
 
 def get_boxes(settings):
