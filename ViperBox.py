@@ -10,10 +10,10 @@ from typing import Any, List, Tuple
 
 import numpy as np
 import requests
+from custom_exceptions import ViperBoxError
 from lxml import etree
 
 import NeuraviperPy as NVP
-from custom_exceptions import ViperBoxError
 from defaults.defaults import OS2chip
 from VB_classes import (
     BoxSettings,
@@ -690,7 +690,6 @@ class ViperBox:
 
         # TODO: Check if this works.
         threading.Thread(target=self._start_eo_acquire, args=(True,)).start()
-        # self._start_eo_acquire(True)
         # TODO fix probe number
         self.oe_socket = True
         threading.Thread(target=self._send_data_to_socket, args=(0,)).start()
@@ -736,6 +735,10 @@ class ViperBox:
         try:
             # TODO: consider using http lib from standard library
             r = requests.get("http://localhost:37497/api/status")
+            _ = requests.put(
+                "http://localhost:37497/api/recording",
+                json={"parent_directory": os.path.abspath("setup\\oesettings.xml")},
+            )
             if r.json()["mode"] != "ACQUIRE":
                 r = requests.put(
                     "http://localhost:37497/api/status", json={"mode": "ACQUIRE"}

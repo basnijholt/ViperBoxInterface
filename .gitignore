@@ -3,6 +3,7 @@ __pycache__/*
 .ruff_cache
 .ipynb_checkpoints/
 .pre-commit-config.yaml
+testing.ipynb
 
 start_app.bat
 
