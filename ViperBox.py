@@ -10,7 +10,6 @@ from typing import Any, List, Tuple
 
 import numpy as np
 import requests
-from custom_exceptions import ViperBoxError
 from lxml import etree
 
 import NeuraviperPy as NVP
@@ -92,6 +91,7 @@ class ViperBox:
         type is set.
 
         TODO: !!!!! all existing data is removed because the local settings are reset.
+        The solution is to mention this in the docs and GUI.
         """
         self._time()
 
@@ -133,7 +133,11 @@ class ViperBox:
             self.local_settings.boxes = {0: BoxSettings()}
             pass
         else:
-            raise ViperBoxError(f"Error in device list; devices list: {devices}")
+            self.logger.info(
+                "Unknown error, please restart the ViperBox or check the \
+                logs for more information"
+            )
+            return False, "Unknown error, please check the logs for more information"
         self.tracking.box_connected = True
 
         # Connect and set up viperbox
@@ -230,11 +234,7 @@ class ViperBox:
             f"Writing recording settings to ViperBox: {updated_tmp_settings}"
         )
         for box in updated_tmp_settings.boxes.keys():
-            # print(f"box: {box}")
             for probe in updated_tmp_settings.boxes[box].probes.keys():
-                # TODO: ugly; probe should be either 0 indexed or 1 indexed
-                probe = probe
-                # print(f"probe: {probe}")
                 for channel in (
                     updated_tmp_settings.boxes[box].probes[probe].channel.keys()
                 ):
@@ -335,7 +335,7 @@ class ViperBox:
 
         try:
             # Always set settings for entire probe at once.
-            # TODO boxfix
+            # TODO boxfix: also loop over boxes
             self._write_recording_settings(updated_tmp_settings)
         except Exception as e:
             return (
@@ -434,7 +434,7 @@ class ViperBox:
             XML_data, tmp_local_settings, "stimulation"
         )
 
-        # TODO boxfix
+        # TODO boxfix: also loop over boxes
         start_time = self._time()
         try:
             self._write_stimulation_settings_to_viperbox(updated_tmp_settings)
@@ -494,7 +494,7 @@ class ViperBox:
             XML_data, updated_tmp_settings, "stimulation"
         )
 
-        # TODO boxfix
+        # TODO boxfix: also loop over boxes
         start_time = self._time()
         try:
             self._write_recording_settings(updated_tmp_settings)
@@ -609,7 +609,7 @@ class ViperBox:
                         settings and then try again.""",
                     )
 
-        # TODO: Start open ephys in separate thread
+        threading.Thread(target=self._start_eo_acquire, args=(True,)).start()
         self._recording_datetime = time.strftime("%Y%m%d_%H%M%S")
 
         rec_folder = Path.cwd() / "Recordings"
@@ -631,7 +631,7 @@ class ViperBox:
 
         self._rec_start_time = self._time()
         NVP.setSWTrigger(self._box_ptrs[box])
-        dt_rec_start = self._time()  # - self._rec_start_time
+        dt_rec_start = self._time()
 
         if self.recording_name:
             stimrec_name = self.recording_name
@@ -643,8 +643,6 @@ class ViperBox:
             "xml",
             f"{time.strftime('%Y%m%d_%H%M%S')}",
         )
-        # TODO record: replace following with function that writes start
-        # of recording with time and deltatime to stim_file
 
         # Create stimulation record
         create_empty_xml(self.stim_file_path)
@@ -688,11 +686,12 @@ class ViperBox:
 
         self.tracking.recording = True
 
-        # TODO: Check if this works.
-        threading.Thread(target=self._start_eo_acquire, args=(True,)).start()
         # TODO fix probe number
+        # probably add a que for all data streams and be able to let open ephys
+        # switch between them
         self.oe_socket = True
-        threading.Thread(target=self._send_data_to_socket, args=(0,)).start()
+        probe = 0
+        threading.Thread(target=self._send_data_to_socket, args=(probe,)).start()
 
         self.logger.info(f"Recording started: {recording_name}")
         return True, f"Recording started: {recording_name}"
@@ -733,7 +732,6 @@ class ViperBox:
         )
         acquiring = False
         try:
-            # TODO: consider using http lib from standard library
             r = requests.get("http://localhost:37497/api/status")
             _ = requests.put(
                 "http://localhost:37497/api/recording",
@@ -749,6 +747,12 @@ class ViperBox:
                     print("Starting Open Ephys")
                     os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
                     r = requests.get("http://localhost:37497/api/status", timeout=5)
+                    _ = requests.put(
+                        "http://localhost:37497/api/recording",
+                        json={
+                            "parent_directory": os.path.abspath("setup\\oesettings.xml")
+                        },
+                    )
                     if r.json()["mode"] != "ACQUIRE":
                         while not acquiring:
                             try:
@@ -794,7 +798,7 @@ class ViperBox:
         # TODO: check if this is necessary
         time.sleep(0.1)
 
-        # TODO: How to box data streams from multiple probes? align on timestamp?
+        # TODO: How to handle data streams from multiple probes? align on timestamp?
         send_data_read_handle = NVP.streamOpenFile(str(self._rec_path), probe)
 
         # TODO: remove packages with wrong session
@@ -1125,16 +1129,10 @@ class ViperBox:
 
     #     return True, f"Tracking of TTL {TTL_channel} stopped."
 
-    # TODO: implement xml_interpreter
-    # TODO: Change self._probe everywhere because it doesn't make sense in a mulit
-    # probe setup
-    # TODO: _check_SUs_configured, returns non configured SUs
-    # TODO: add to zarr
     # TODO: get session id from somewhere and store it as recording self parameter
-    # TODO: implement start stim
-    # TODO: when inputting XML file, probably electrode numbers will be targeted
-    # these should be converted to os numbers in stim and rec settings
-    # TODO: implement gain_vec in vb classes
+    # TODO: handle stimulation mappings (SU->input->mzipa->probe) and
+    # recording (probe->MZIPA->OS->chan)
+    # TODO: implement gain_vec in vb classes for usage in recording settings
 
 
 if __name__ == "__main__":

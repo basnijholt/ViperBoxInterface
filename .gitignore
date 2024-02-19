@@ -6,6 +6,10 @@ __pycache__/*
 testing.ipynb
 
 start_app.bat
+gold_ui.py
+gui.py
+NeuraviperAPI_1_1_3_x64.dll
+NeuraviperAPI_1_1_3_x64.lib
 
 docs/
 Recordings/
