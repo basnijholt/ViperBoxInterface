@@ -10,4 +10,4 @@ repos:
     rev: 23.7.0
     hooks:
       - id: black
-        exclude: ^gui.py
+        # exclude: ^gui.py
