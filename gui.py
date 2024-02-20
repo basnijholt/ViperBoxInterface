@@ -1,6 +1,5 @@
 import json
 import logging
-import sys
 from pathlib import Path
 
 import matplotlib
@@ -989,3 +988,4 @@ if __name__ == "__main__":
             plot_vals = {k: int(values[k]) for k in generate_plot.__annotations__}
             fig = generate_plot(**plot_vals)
             figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
+            pass
