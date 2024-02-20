@@ -3,13 +3,12 @@ import logging
 import sys
 from pathlib import Path
 
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import PySimpleGUI as sg
 import requests
-
-# import matplotlib.pyplot as plt
-# import PySimpleGUI as sg
-# from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # matplotlib.use("TkAgg")
 
@@ -18,8 +17,9 @@ visibility_swap = True
 logger = logging.getLogger(__name__)
 logging.basicConfig(
     level=logging.DEBUG,
-    handlers=[logging.FileHandler("debug.log"), logging.StreamHandler()],
+    handlers=[logging.FileHandler("logs/debug.log"), logging.StreamHandler()],
 )
+logging.getLogger("matplotlib.font_manager").disabled = True
 # Create a file handler
 # handler = logging.FileHandler("log.txt")
 
@@ -29,8 +29,6 @@ logging.basicConfig(
 # stdout_handler.setFormatter(formatter)
 # stdout_handler.setLevel(logging.DEBUG)  # Set the level for stdout logging
 # logger.addHandler(stdout_handler)
-
-logger.info("Starting asdfasdfasdfasdf GUI")
 
 
 def collapse(layout, key):
@@ -73,7 +71,7 @@ sg.theme("SystemDefaultForReal")
 
 
 def generate_plot(
-    biphasic: int = 1,
+    # biphasic: int = 1,
     pulse_delay: int = 0,
     first_pulse_phase_width: int = 170,
     pulse_interphase_interval: int = 60,
@@ -81,13 +79,13 @@ def generate_plot(
     discharge_time: int = 200,
     pulse_amplitude_anode: int = 1,
     pulse_amplitude_cathode: int = 1,
-    pulse_amplitude_equal: int = 0,
+    # pulse_amplitude_equal: int = 0,
     pulse_duration: int = 600,
 ):
-    if bool(pulse_amplitude_equal):
-        pulse_amplitude_cathode = pulse_amplitude_anode
-    if not bool(biphasic):
-        pulse_amplitude_cathode = 0
+    # if bool(pulse_amplitude_equal):
+    #     pulse_amplitude_cathode = pulse_amplitude_anode
+    # if not bool(biphasic):
+    #     pulse_amplitude_cathode = 0
     time = np.linspace(0, pulse_duration, pulse_duration)
     current = np.zeros_like(time)
     tp1 = pulse_delay
@@ -201,7 +199,6 @@ viperbox_recording_settings_frame = sg.Column(
                 ]
             ),
         ],
-        # expand_x=True,
     ],
     expand_x=True,
     element_justification="c",
@@ -266,14 +263,17 @@ gain_button_matrix = [
     ]
 ]
 
-reference_frame = sg.Frame(
-    "Reference selection",
-    reference_button_matrix,
+reference_frame = sg.Column(
+    # "Reference selection",
+    [[sg.Text("Ref. selection", size=(10, 0)), sg.Column(reference_button_matrix)]],
     expand_x=True,
 )
 
-gain_frame = sg.Frame(
-    "Gain selection", gain_button_matrix, expand_x=True, vertical_alignment="bottom"
+gain_frame = sg.Column(
+    # "Gain selection",
+    [[sg.Text("Gain selection", size=(10, 0)), sg.Column(gain_button_matrix)]],
+    expand_x=True,
+    vertical_alignment="bottom",
 )
 
 upload_rec_button = sg.Button(
@@ -304,17 +304,17 @@ upload_settings_frame = sg.Column(
 
 def toggle_1d_color(event, reference_switch_matrix):
     row = int(event[-1])
-    print(reference_switch_matrix)
+    # print(reference_switch_matrix)
 
     if reference_switch_matrix[row] == "off":
         reference_switch_matrix[row] = "on"
         return "red"
     else:
         reference_switch_matrix[row] = "off"
-        print(
-            "reference_switch_matrix.count('off') :",
-            reference_switch_matrix.count("off"),
-        )
+        # print(
+        #     "reference_switch_matrix.count('off') :",
+        #     reference_switch_matrix.count("off"),
+        # )
         if reference_switch_matrix.count("off") == 9:
             logger.warning("At least one reference needs to be selected.")
             reference_switch_matrix[row] = "on"
@@ -362,8 +362,32 @@ electrode_button_matrix = [
     for j in range(MAX_ROWS)
 ]
 electrode_button_matrix = electrode_button_matrix[::-1]
+print(type(electrode_button_matrix))
 electrode_frame = sg.Frame(
-    "Stimulation electrode selection", electrode_button_matrix, expand_y=True
+    "Stimulation electrode selection",
+    [
+        [sg.Column(electrode_button_matrix)],
+        [
+            sg.Column(
+                [
+                    [
+                        sg.Button(
+                            "All",
+                            size=(4, 0),
+                            expand_x=True,
+                            key="button_all",
+                            button_color="red",
+                        ),
+                        sg.Button(
+                            "None", size=(4, 0), expand_x=True, key="button_none"
+                        ),
+                    ]
+                ],
+                expand_x=True,
+            )
+        ],
+    ],
+    expand_y=True,
 )
 
 
@@ -527,18 +551,18 @@ def update_settings_listbox(settings_folder_path):
 manual_stim = True
 pulse_shape_col_settings = sg.Column(
     [
-        [
-            sg.Text("Biphasic / Monophasic"),
-            sg.Drop(
-                key="biphasic",
-                size=(inpsize_w - 2, inpsize_h),
-                values=("Biphasic", "Monophasic"),
-                auto_size_text=True,
-                default_value="Biphasic",
-                # enable_events=True,
-            ),
-            sg.T(" ", size=(unit_h, unit_w)),
-        ],
+        # [
+        #     sg.Text("Biphasic / Monophasic"),
+        #     sg.Drop(
+        #         key="biphasic",
+        #         size=(inpsize_w - 2, inpsize_h),
+        #         values=("Biphasic", "Monophasic"),
+        #         auto_size_text=True,
+        #         default_value="Biphasic",
+        #         # enable_events=True,
+        #     ),
+        #     sg.T(" ", size=(unit_h, unit_w)),
+        # ],
         [
             sg.Text("Pulse duration"),
             sg.Input(
@@ -599,6 +623,26 @@ pulse_shape_col_settings = sg.Column(
             ),
             sg.T("μSec", size=(unit_h, unit_w)),
         ],
+        [
+            sg.Text("Pulse amplitude anode"),
+            sg.Input(
+                5,
+                size=(inpsize_w, inpsize_h),
+                key="pulse_amplitude_anode",
+                # enable_events=True,
+            ),
+            sg.T("μA", size=(unit_h, unit_w)),
+        ],
+        [
+            sg.Text("Pulse amplitude cathode"),
+            sg.Input(
+                5,
+                size=(inpsize_w, inpsize_h),
+                key="pulse_amplitude_cathode",
+                # enable_events=True,
+            ),
+            sg.T("μA", size=(unit_h, unit_w)),
+        ],
     ],
     element_justification="r",
     expand_x=True,
@@ -624,26 +668,27 @@ pulse_shape_col_el_frame = [
         ),
         sg.T("μA", size=(unit_h, unit_w)),
     ],
-    [
-        sg.T("Pulse amplitude equal"),
-        sg.Checkbox(
-            "",
-            key="pulse_amplitude_equal",
-            size=(inpsize_w - 4, inpsize_h),
-            enable_events=True,
-        ),
-        sg.T(
-            " ",
-            size=(unit_h, unit_w),
-        ),
-    ],
+    # [
+    #     sg.T("Pulse amplitude equal"),
+    #     sg.Checkbox(
+    #         "",
+    #         key="pulse_amplitude_equal",
+    #         size=(inpsize_w - 4, inpsize_h),
+    #         enable_events=True,
+    #     ),
+    #     sg.T(
+    #         " ",
+    #         size=(unit_h, unit_w),
+    #     ),
+    # ],
 ]
 
 pulse_shape_frame = sg.Frame(
     "Pulse shape parameters",
     [
         [pulse_shape_col_settings],
-        [collapse(pulse_shape_col_el_frame, "pulse_shape_col_el_frame")],
+        # [collapse(pulse_shape_col_el_frame, "pulse_shape_col_el_frame")],
+        # [pulse_shape_col_el_frame],
     ],
     element_justification="r",
     expand_x=True,
@@ -665,26 +710,26 @@ pulse_train_frame = sg.Frame(
             ),
             sg.T(" ", size=(unit_h, unit_w)),
         ],
-        [
-            sg.Text("Frequency of pulses"),
-            sg.Input(
-                200,
-                size=(inpsize_w, inpsize_h),
-                key="frequency_of_pulses",
-                # enable_events=True,
-            ),
-            sg.T("Hz", size=(unit_h, unit_w)),
-        ],
-        [
-            sg.Text("Number of trains"),
-            sg.Input(
-                5,
-                size=(inpsize_w, inpsize_h),
-                key="number_of_trains",
-                # enable_events=True,
-            ),
-            sg.T(" ", size=(unit_h, unit_w)),
-        ],
+        # [
+        #     sg.Text("Frequency of pulses"),
+        #     sg.Input(
+        #         200,
+        #         size=(inpsize_w, inpsize_h),
+        #         key="frequency_of_pulses",
+        #         # enable_events=True,
+        #     ),
+        #     sg.T("Hz", size=(unit_h, unit_w)),
+        # ],
+        # [
+        #     sg.Text("Number of trains"),
+        #     sg.Input(
+        #         5,
+        #         size=(inpsize_w, inpsize_h),
+        #         key="number_of_trains",
+        #         # enable_events=True,
+        #     ),
+        #     sg.T(" ", size=(unit_h, unit_w)),
+        # ],
         [
             sg.Text("Train interval (discharge)"),
             sg.Input(
@@ -695,16 +740,16 @@ pulse_train_frame = sg.Frame(
             ),
             sg.T("mSec", size=(unit_h, unit_w)),
         ],
-        [
-            sg.Text("On-set onset_jitter"),
-            sg.Input(
-                0,
-                size=(inpsize_w, inpsize_h),
-                key="onset_jitter",
-                # enable_events=True
-            ),
-            sg.T("Sec", size=(unit_h, unit_w)),
-        ],
+        # [
+        #     sg.Text("On-set onset_jitter"),
+        #     sg.Input(
+        #         0,
+        #         size=(inpsize_w, inpsize_h),
+        #         key="onset_jitter",
+        #         # enable_events=True
+        #     ),
+        #     sg.T("Sec", size=(unit_h, unit_w)),
+        # ],
     ],
     element_justification="r",
     expand_x=True,
@@ -839,9 +884,15 @@ layout += [
                     )
                 ],
                 [
-                    sg.Frame(
-                        "Stimulation settings",
-                        [[col_el_frame, col_params, col_plot]],
+                    sg.Column(
+                        # "Stimulation settings",
+                        [
+                            [
+                                sg.Column([[recording_settings_frame], [col_plot]]),
+                                col_params,
+                                col_el_frame,
+                            ]
+                        ],
                     )
                 ],
             ]
@@ -860,6 +911,8 @@ tmp_path = ""
 _, values = window.read(timeout=0)
 SetLED(window, "led_connect_probe", False)
 SetLED(window, "led_rec", False)
+fig = generate_plot()
+figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
 
 if __name__ == "__main__":
     while True:
@@ -900,3 +953,39 @@ if __name__ == "__main__":
                 window["button_stim"].update(disabled=True)
             else:
                 sg.popup_ok(f"{response_dct['feedback']}")
+        elif event[:3] == "el_":
+            window[event].update(
+                button_color=toggle_2d_color(event, electrode_switch_matrix)
+            )
+        elif event == "button_all":
+            electrode_switch_matrix = [
+                ["on" for i in range(MAX_COL)] for j in range(MAX_ROWS)
+            ]
+            for electrode in range(1, 61):
+                window[f"el_button_{electrode}"].update(button_color="red")
+        elif event == "button_none":
+            electrode_switch_matrix = [
+                ["off" for i in range(MAX_COL)] for j in range(MAX_ROWS)
+            ]
+            for electrode in range(1, 61):
+                window[f"el_button_{electrode}"].update(button_color="light gray")
+        elif event[:3] == "ref":
+            window[event].update(
+                button_color=toggle_1d_color(event, reference_switch_matrix)
+            )
+        elif event[:3] == "gai":
+            window["gain_0"].update(button_color="light grey")
+            window["gain_1"].update(button_color="light grey")
+            window["gain_2"].update(button_color="light grey")
+            window["gain_3"].update(button_color="light grey")
+            window[event].update(
+                button_color=toggle_gain_color(event, gain_switch_matrix)
+            )
+            gain = int(event[-1])
+        elif event == "Reload":
+            # Implementation from https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Browser.py
+            if figure_agg:
+                delete_figure_agg(figure_agg)
+            plot_vals = {k: int(values[k]) for k in generate_plot.__annotations__}
+            fig = generate_plot(**plot_vals)
+            figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
