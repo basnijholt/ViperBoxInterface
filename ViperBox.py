@@ -580,8 +580,16 @@ class ViperBox:
 
         return True, "Stimulation settings loaded"
 
-    def start_recording(self, recording_name: str | None = None) -> Tuple[bool, str]:
-        """Start
+    def start_recording(self, recording_name: str = "") -> Tuple[bool, str]:
+        """Start recording.
+
+        Arguments:
+        - recording_name: str | None - the name of the recording, it will be
+        saved in the Recordings folder. This can also be a folder path or a
+        file path. If it is a folder path, the recording will be saved as
+        unnamed_recording in that folder. In case of a file path, the recording will be
+        named as the filepath. If no name is given, the recording will be saved as
+        unnamed_recording in the Recordings folder.
 
         Tests:
         - start recording with incomplete settings uploaded
@@ -616,13 +624,27 @@ class ViperBox:
         rec_folder.mkdir(parents=True, exist_ok=True)
         self.recording_name = recording_name
 
-        if self.recording_name is None:
-            self._rec_path = rec_folder.joinpath(
-                f"unnamed_recording_{self._recording_datetime}.bin"
-            )
-        else:
+        # The options are: no input, input fname, input bs, input full path
+        if not ("\\" in self.recording_name or "/" in self.recording_name):
+            # this is a filename
             self._rec_path = rec_folder.joinpath(
                 f"{self.recording_name}_{self._recording_datetime}.bin"
+            )
+        elif "\\" in self.recording_name or "/" in self.recording_name:
+            tmp_rec_path = Path(self.recording_name)
+            # this is a path
+            # the last folder is used with unnamed recording
+            # the file is used as is
+            if tmp_rec_path.exists():
+                if tmp_rec_path.is_dir():
+                    self._rec_path = tmp_rec_path.joinpath(
+                        f"unnamed_recording_{self._recording_datetime}.bin"
+                    )
+                elif tmp_rec_path.is_file():
+                    self._rec_path = tmp_rec_path.with_suffix(".bin")
+        else:
+            self._rec_path = rec_folder.joinpath(
+                f"unnamed_recording_{self._recording_datetime}.bin"
             )
 
         NVP.setFileStream(self._box_ptrs[box], str(self._rec_path))
