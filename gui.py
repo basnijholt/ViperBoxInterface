@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import PySimpleGUI as sg
 import requests
+from lxml import etree
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # matplotlib.use("TkAgg")
@@ -217,17 +218,6 @@ reference_switch_matrix = ["off" for _ in range(ref_MAX_COL + 1)]
 reference_switch_matrix[8] = "on"
 reference_button_matrix = [
     sg.Button(
-        f"{i+1}",
-        size=(2, 1),
-        key=(f"reference_{i}"),
-        pad=(1, 1),
-        button_color="light gray",
-        disabled=False,
-    )
-    for i in range(ref_MAX_COL)
-]
-reference_button_matrix.append(
-    sg.Button(
         "B",
         size=(10, 1),
         key=(f"reference_{8}"),
@@ -235,6 +225,19 @@ reference_button_matrix.append(
         button_color="red",
         disabled=False,
     )
+]
+reference_button_matrix.extend(
+    [
+        sg.Button(
+            f"{i+1}",
+            size=(2, 1),
+            key=(f"reference_{i}"),
+            pad=(1, 1),
+            button_color="light gray",
+            disabled=False,
+        )
+        for i in range(ref_MAX_COL)
+    ]
 )
 reference_button_matrix = [reference_button_matrix]
 
@@ -333,11 +336,10 @@ def get_references(reference_switch_matrix):
     bin_input_list = "".join(
         ["1" if item == "on" else "0" for item in reference_switch_matrix]
     )
-    ref_integer = int(bin_input_list, 2)
-    # if ref_integer == 0:
-    #     logger.warning("At least one reference needs to be selected.")
-    #     asdfasdf
-    return ref_integer
+    # ref_integer = int(bin_input_list, 2)
+    ref_list = [str(i + 1) for i in range(9) if bin_input_list[i] == "1"]
+    ref_string = ", ".join(ref_list)
+    return ref_string
 
 
 # ------------------------------------------------------------------
@@ -407,10 +409,13 @@ def get_electrodes(electrode_switch_matrix, save_purpose=False):
     rows, cols = np.where(np.asarray(electrode_switch_matrix) == "on")
     if save_purpose:
         electrode_list = [str(i * MAX_ROWS + j + 1) for i, j in zip(cols, rows)]
+        electrode_list.sort()
+        return electrode_list
     else:
         electrode_list = [i * MAX_ROWS + j + 1 for i, j in zip(cols, rows)]
-    electrode_list.sort()
-    return electrode_list
+        electrode_list.sort()
+        electrode_list = [str(i) for i in electrode_list]
+        return ", ".join(electrode_list)
 
 
 def set_reference_matrix(electrode_list):
@@ -913,6 +918,41 @@ SetLED(window, "led_rec", False)
 fig = generate_plot()
 figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
 
+elements_names = [
+    "number_of_pulses",
+    "pulse_delay",
+    "pulse_amplitude_anode",
+    "first_pulse_phase_width",
+    "pulse_interphase_interval",
+    "pulse_amplitude_cathode",
+    "second_pulse_phase_width",
+    "pulse_interphase_interval",
+    "pulse_duration",
+    "discharge_time_extra",
+]
+elements = [window[key] for key in elements_names]
+
+for element in elements:
+    element.bind("<FocusOut>", "+FOCUS OUT")
+
+
+def to_settings_xml_string(settings_input: dict) -> str:
+    program = etree.Element("Program")
+    settings = etree.SubElement(program, "Settings")
+    settings_type = {
+        "Channel": "RecordingSettings",
+        "Configuration": "StimulationWaveformSettings",
+        "Mapping": "StimulationMappingSettings",
+    }
+    print(f"settings in to_setting fct: {settings}")
+
+    for sub_type, dct in settings_input.items():
+        recording_settings = etree.SubElement(settings, settings_type[sub_type])
+        _ = etree.SubElement(recording_settings, sub_type, attrib=dct)
+
+    return etree.tostring(program).decode("utf-8")
+
+
 if __name__ == "__main__":
     while True:
         event, values = window.read()
@@ -982,10 +1022,119 @@ if __name__ == "__main__":
             )
             gain = int(event[-1])
         elif event == "Reload":
-            # Implementation from https://github.com/PySimpleGUI/PySimpleGUI/blob/master/DemoPrograms/Demo_Matplotlib_Browser.py
+            # Implementation from https://github.com/PySimpleGUI/PySimpleGUI/blob/
+            # master/DemoPrograms/Demo_Matplotlib_Browser.py
             if figure_agg:
                 delete_figure_agg(figure_agg)
             plot_vals = {k: int(values[k]) for k in generate_plot.__annotations__}
             fig = generate_plot(**plot_vals)
             figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
-            pass
+        elif event == "upload_recording_settings":
+            recording_xml = to_settings_xml_string(
+                settings_input={
+                    "Channel": {
+                        "box": "-",
+                        "probe": "-",
+                        "channel": "-",
+                        "references": get_references(reference_switch_matrix),
+                        "gain": str(gain),
+                        "input": "0",
+                    }
+                },
+            )
+            data = {
+                "recording_XML": recording_xml,
+                "reset": False,
+                "default_values": False,
+            }
+            try:
+                response = requests.post(
+                    url + "upload_recording_settings", json=data, timeout=0.5
+                )
+                response_dct = json.loads(response.text)
+                print(response_dct)
+                if response_dct["result"]:
+                    print("recording settings uploaded")
+                else:
+                    sg.popup_ok(f"{response_dct['feedback']}")
+            except requests.exceptions.Timeout:
+                sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
+        elif event == "upload_stimulation_settings":
+            stimulation_xml = to_settings_xml_string(
+                settings_input={
+                    "Configuration": {
+                        "box": "-",
+                        "probe": "-",
+                        "stimunit": "-",
+                        "polarity": "1",
+                        "pulses": str(values["number_of_pulses"]),
+                        "prephase": str(values["pulse_delay"]),
+                        "amplitude1": str(values["pulse_amplitude_anode"]),
+                        "width1": str(values["first_pulse_phase_width"]),
+                        "interphase": str(values["pulse_interphase_interval"]),
+                        "amplitude2": str(values["pulse_amplitude_cathode"]),
+                        "width2": str(values["second_pulse_phase_width"]),
+                        "discharge": str(values["pulse_interphase_interval"]),
+                        "duration": str(values["pulse_duration"]),
+                        "aftertrain": str(values["discharge_time_extra"]),
+                    },
+                    "Mapping": {
+                        "box": "-",
+                        "probe": "-",
+                        "stimunit": "-",
+                        "electrodes": get_electrodes(electrode_switch_matrix),
+                    },
+                },
+            )
+            data = {
+                "stimulation_XML": stimulation_xml,
+                "reset": False,
+                "default_values": False,
+            }
+            try:
+                response = requests.post(
+                    url + "upload_stimulation_settings", json=data, timeout=0.5
+                )
+                response_dct = json.loads(response.text)
+                print(response_dct)
+                if response_dct["result"]:
+                    print("stimulation settings uploaded")
+                else:
+                    sg.popup_ok(f"{response_dct['feedback']}")
+            except requests.exceptions.Timeout:
+                sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
+        elif event.endswith("+FOCUS OUT"):  # and event != last_event:
+            event = event.split("+")[0]
+            print("current event: ", event, window[event])
+            settings_input = {
+                "Configuration": {
+                    "box": "-",
+                    "probe": "-",
+                    "stimunit": "-",
+                    "polarity": "1",
+                    "pulses": str(values["number_of_pulses"]),
+                    "prephase": str(values["pulse_delay"]),
+                    "amplitude1": str(values["pulse_amplitude_anode"]),
+                    "width1": str(values["first_pulse_phase_width"]),
+                    "interphase": str(values["pulse_interphase_interval"]),
+                    "amplitude2": str(values["pulse_amplitude_cathode"]),
+                    "width2": str(values["second_pulse_phase_width"]),
+                    "discharge": str(values["pulse_interphase_interval"]),
+                    "duration": str(values["pulse_duration"]),
+                    "aftertrain": str(values["discharge_time_extra"]),
+                }
+            }
+            check_xml = to_settings_xml_string(settings_input)
+            data = {"XML": check_xml}
+            print("check_xml: ", check_xml)
+            try:
+                response = requests.post(url + "verify_xml", json=data, timeout=2)
+                print("response: ", response)
+                response_dct = json.loads(response.text)
+                print(response_dct)
+                if response_dct["result"]:
+                    print("stimulation settings uploaded")
+                else:
+                    sg.popup_ok(f"{response_dct['feedback']}")
+            except requests.exceptions.Timeout:
+                sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")

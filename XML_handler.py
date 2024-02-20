@@ -201,14 +201,16 @@ def check_xml_with_settings(
     """
     Checks if settings are valid with existing local_settings.
     """
+    if not isinstance(data, etree._ElementTree):
+        data = etree.fromstring(data)
     try:
         check_boxes_exist(data, list(settings.connected.keys()))
     except ValueError as e:
-        return False, f"{e}"
+        return False, f"Requested box is not connected. Error: {e}"
     try:
         _ = overwrite_settings(data, settings, check_topic)
     except ValueError as e:
-        return False, f"{e}"
+        return False, f"Settings aren't valid. Error: {e}"
     return True, "XML is valid."
 
 
@@ -246,6 +248,7 @@ def add_to_stimrec(
 ):
     """
     Add setting or instruction to the stimrec xml file.
+    Converst from 0-indexing to 1-indexing.
 
     Arguments:
     - path: path to the xml file
