@@ -92,19 +92,44 @@ verify_params = [
     ("aftertrain", 100, 0, 25500),
 ]
 
+screen_name = {
+    "pulses": "Number of pulses",
+    "prephase": "Prephase",
+    "amplitude1": "Pulse amplitude anode",
+    "width1": "1st pulse phase width",
+    "interphase": "Pulse interphase interval",
+    "amplitude2": "Pulse amplitude cathode",
+    "width2": "2nd pulse phase width",
+    "discharge": "Interpulse interval (discharge)",
+    "duration": "Pulse duration",
+    "aftertrain": "Train interval (discharge)",
+}
+
 
 def verify_step_min_max(name: str, step: int, min_val: int, max_val: int, value: int):
+    """
+    The variable name must be the first thing that is mentioned in the error message.
+    It is used in the front end to correct a value to it's default.
+    """
     if not min_val <= value <= max_val:
-        raise ValueError(f"{name} must be between {min_val} and {max_val}.")
+        raise ValueError(
+            f"{screen_name[name]} must be between {min_val} and {max_val} and a \
+multiple of {step}. It is now {value}."
+        )
     if (value - min_val) % step != 0:
-        raise ValueError(f"{name} must be a multiple of {step}.")
+        raise ValueError(
+            f"{screen_name[name]} must be between {min_val} and {max_val} and a \
+multiple of {step}. It is now {value}."
+        )
     return True
 
 
 def overwrite_settings(
     data_xml: Any, local_settings: GeneralSettings, check_topic: str = "all"
 ):
-    """Write xml data_xml to local settings
+    """Write xml data_xml to local settings, only if the respective boxes and probes
+    are connected. Else they are skipped.
+    Also checks if the values are allowed.
 
     Goes through all boxes and probes in data_xml xml
 
@@ -196,17 +221,24 @@ def update_checked_settings(
 
 
 def check_xml_with_settings(
-    data: Any, settings: GeneralSettings, check_topic: str
+    data: Any, settings: GeneralSettings, check_topic: str, boxless: bool = False
 ) -> Tuple[bool, str]:
     """
     Checks if settings are valid with existing local_settings.
     """
-    if not isinstance(data, etree._ElementTree):
+    if isinstance(data, str):
+        logger.debug("XML is supplied as string")
         data = etree.fromstring(data)
-    try:
-        check_boxes_exist(data, list(settings.connected.keys()))
-    except ValueError as e:
-        return False, f"Requested box is not connected. Error: {e}"
+    else:
+        logger.debug(f"XML is supplied as {type(data)}")
+    if not boxless:
+        logger.debug("Checking XML with boxless = False, so box should be attached.")
+        try:
+            check_boxes_exist(data, list(settings.connected.keys()))
+        except ValueError as e:
+            return False, f"Requested box is not connected. Error: {e}"
+    else:
+        logger.debug("Check XML with boxless = True.")
     try:
         _ = overwrite_settings(data, settings, check_topic)
     except ValueError as e:

@@ -30,6 +30,19 @@ logging.getLogger("matplotlib.font_manager").disabled = True
 # stdout_handler.setLevel(logging.DEBUG)  # Set the level for stdout logging
 # logger.addHandler(stdout_handler)
 
+gui_start_vals = {
+    "number_of_pulses": (20, "pulses"),
+    "pulse_delay": (0, "prephase"),
+    "pulse_amplitude_anode": (5, "amplitude1"),
+    "first_pulse_phase_width": (170, "width1"),
+    "pulse_interphase_interval": (60, "interphase"),
+    "pulse_amplitude_cathode": (5, "amplitude2"),
+    "second_pulse_phase_width": (170, "width2"),
+    "discharge_time": (200, "discharge"),
+    "pulse_duration": (600, "duration"),
+    "discharge_time_extra": (1000, "aftertrain"),
+}
+
 
 def collapse(layout, key):
     return sg.pin(
@@ -570,7 +583,7 @@ pulse_shape_col_settings = sg.Column(
         [
             sg.Text("Pulse duration"),
             sg.Input(
-                600,
+                gui_start_vals["pulse_duration"][0],
                 size=(inpsize_w, inpsize_h),
                 key="pulse_duration",
                 # enable_events=True,
@@ -578,9 +591,9 @@ pulse_shape_col_settings = sg.Column(
             sg.T("μSec", size=(unit_h, unit_w)),
         ],
         [
-            sg.Text("Pulse delay"),
+            sg.Text("Prephase"),
             sg.Input(
-                0,
+                gui_start_vals["pulse_delay"][0],
                 size=(inpsize_w, inpsize_h),
                 key="pulse_delay",
                 # enable_events=True
@@ -590,7 +603,7 @@ pulse_shape_col_settings = sg.Column(
         [
             sg.Text("1st pulse phase width"),
             sg.Input(
-                170,
+                gui_start_vals["first_pulse_phase_width"][0],
                 size=(inpsize_w, inpsize_h),
                 key="first_pulse_phase_width",
                 # enable_events=True,
@@ -600,7 +613,7 @@ pulse_shape_col_settings = sg.Column(
         [
             sg.Text("Pulse interphase interval"),
             sg.Input(
-                60,
+                gui_start_vals["pulse_interphase_interval"][0],
                 size=(inpsize_w, inpsize_h),
                 key="pulse_interphase_interval",
                 # enable_events=True,
@@ -610,7 +623,7 @@ pulse_shape_col_settings = sg.Column(
         [
             sg.Text("2nd pulse phase width"),
             sg.Input(
-                170,
+                gui_start_vals["second_pulse_phase_width"][0],
                 size=(inpsize_w, inpsize_h),
                 key="second_pulse_phase_width",
                 # enable_events=True,
@@ -620,7 +633,7 @@ pulse_shape_col_settings = sg.Column(
         [
             sg.Text("Interpulse interval (discharge)"),
             sg.Input(
-                200,
+                gui_start_vals["discharge_time"][0],
                 size=(inpsize_w, inpsize_h),
                 key="discharge_time",
                 # enable_events=True,
@@ -630,7 +643,7 @@ pulse_shape_col_settings = sg.Column(
         [
             sg.Text("Pulse amplitude anode"),
             sg.Input(
-                5,
+                gui_start_vals["pulse_amplitude_anode"][0],
                 size=(inpsize_w, inpsize_h),
                 key="pulse_amplitude_anode",
                 # enable_events=True,
@@ -640,7 +653,7 @@ pulse_shape_col_settings = sg.Column(
         [
             sg.Text("Pulse amplitude cathode"),
             sg.Input(
-                5,
+                gui_start_vals["pulse_amplitude_cathode"][0],
                 size=(inpsize_w, inpsize_h),
                 key="pulse_amplitude_cathode",
                 # enable_events=True,
@@ -651,42 +664,6 @@ pulse_shape_col_settings = sg.Column(
     element_justification="r",
     expand_x=True,
 )
-pulse_shape_col_el_frame = [
-    [
-        sg.Text("Pulse amplitude anode"),
-        sg.Input(
-            5,
-            size=(inpsize_w, inpsize_h),
-            key="pulse_amplitude_anode",
-            # enable_events=True,
-        ),
-        sg.T("μA", size=(unit_h, unit_w)),
-    ],
-    [
-        sg.Text("Pulse amplitude cathode"),
-        sg.Input(
-            5,
-            size=(inpsize_w, inpsize_h),
-            key="pulse_amplitude_cathode",
-            # enable_events=True,
-        ),
-        sg.T("μA", size=(unit_h, unit_w)),
-    ],
-    # [
-    #     sg.T("Pulse amplitude equal"),
-    #     sg.Checkbox(
-    #         "",
-    #         key="pulse_amplitude_equal",
-    #         size=(inpsize_w - 4, inpsize_h),
-    #         enable_events=True,
-    #     ),
-    #     sg.T(
-    #         " ",
-    #         size=(unit_h, unit_w),
-    #     ),
-    # ],
-]
-
 pulse_shape_frame = sg.Frame(
     "Pulse shape parameters",
     [
@@ -707,7 +684,7 @@ pulse_train_frame = sg.Frame(
         [
             sg.Text("Number of pulses"),
             sg.Input(
-                20,
+                gui_start_vals["number_of_pulses"][0],
                 size=(inpsize_w, inpsize_h),
                 key="number_of_pulses",
                 # enable_events=True,
@@ -737,7 +714,7 @@ pulse_train_frame = sg.Frame(
         [
             sg.Text("Train interval (discharge)"),
             sg.Input(
-                1000,
+                gui_start_vals["discharge_time_extra"][0],
                 size=(inpsize_w, inpsize_h),
                 key="discharge_time_extra",
                 # enable_events=True,
@@ -926,7 +903,7 @@ elements_names = [
     "pulse_interphase_interval",
     "pulse_amplitude_cathode",
     "second_pulse_phase_width",
-    "pulse_interphase_interval",
+    "discharge_time",
     "pulse_duration",
     "discharge_time_extra",
 ]
@@ -961,10 +938,10 @@ if __name__ == "__main__":
         elif event == "button_connect":
             # window["led_connect_probe"].update("on")
             data = {"probe_list": "1", "emulation": "True", "boxless": "True"}
-            response = requests.post(url + "connect", json=data)
+            response = requests.post(url + "connect/", json=data)
             print(response.text)
         elif event == "button_disconnect":
-            response = requests.post(url + "disconnect")
+            response = requests.post(url + "disconnect/")
         elif event == "button_select_recording_folder":
             tmp_path = sg.popup_get_folder("Select recording folder")
             logger.info(f"Updated recordings file path to: {tmp_path}")
@@ -974,7 +951,7 @@ if __name__ == "__main__":
             else:
                 data = {"filename": f"{values['input_filename']}"}
             logger.info("Start recording button pressed")
-            response = requests.post(url + "start_recording", json=data)
+            response = requests.post(url + "start_recording/", json=data)
             response_dct = json.loads(response.text)
             print(response_dct)
             if response_dct["result"]:
@@ -984,7 +961,7 @@ if __name__ == "__main__":
                 sg.popup_ok(f"{response_dct['feedback']}")
         elif event == "button_stop":
             logger.info("Stop recording button pressed")
-            response = requests.post(url + "stop_recording")
+            response = requests.post(url + "stop_recording/")
             response_dct = json.loads(response.text)
             print(response_dct)
             if response_dct["result"]:
@@ -1049,7 +1026,7 @@ if __name__ == "__main__":
             }
             try:
                 response = requests.post(
-                    url + "upload_recording_settings", json=data, timeout=0.5
+                    url + "upload_recording_settings/", json=data, timeout=0.5
                 )
                 response_dct = json.loads(response.text)
                 print(response_dct)
@@ -1074,7 +1051,7 @@ if __name__ == "__main__":
                         "interphase": str(values["pulse_interphase_interval"]),
                         "amplitude2": str(values["pulse_amplitude_cathode"]),
                         "width2": str(values["second_pulse_phase_width"]),
-                        "discharge": str(values["pulse_interphase_interval"]),
+                        "discharge": str(values["discharge_time"]),
                         "duration": str(values["pulse_duration"]),
                         "aftertrain": str(values["discharge_time_extra"]),
                     },
@@ -1093,7 +1070,7 @@ if __name__ == "__main__":
             }
             try:
                 response = requests.post(
-                    url + "upload_stimulation_settings", json=data, timeout=0.5
+                    url + "upload_stimulation_settings/", json=data, timeout=0.5
                 )
                 response_dct = json.loads(response.text)
                 print(response_dct)
@@ -1103,38 +1080,34 @@ if __name__ == "__main__":
                     sg.popup_ok(f"{response_dct['feedback']}")
             except requests.exceptions.Timeout:
                 sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
-        elif event.endswith("+FOCUS OUT"):  # and event != last_event:
+        elif event.endswith("+FOCUS OUT"):
             event = event.split("+")[0]
             print("current event: ", event, window[event])
             settings_input = {
-                "Configuration": {
-                    "box": "-",
-                    "probe": "-",
-                    "stimunit": "-",
-                    "polarity": "1",
-                    "pulses": str(values["number_of_pulses"]),
-                    "prephase": str(values["pulse_delay"]),
-                    "amplitude1": str(values["pulse_amplitude_anode"]),
-                    "width1": str(values["first_pulse_phase_width"]),
-                    "interphase": str(values["pulse_interphase_interval"]),
-                    "amplitude2": str(values["pulse_amplitude_cathode"]),
-                    "width2": str(values["second_pulse_phase_width"]),
-                    "discharge": str(values["pulse_interphase_interval"]),
-                    "duration": str(values["pulse_duration"]),
-                    "aftertrain": str(values["discharge_time_extra"]),
-                }
+                gui_start_vals[event][1]: str(values[event]),
             }
-            check_xml = to_settings_xml_string(settings_input)
-            data = {"XML": check_xml}
-            print("check_xml: ", check_xml)
+            data = {"dictionary": settings_input, "XML": "", "check_topic": "all"}
             try:
-                response = requests.post(url + "verify_xml", json=data, timeout=2)
-                print("response: ", response)
-                response_dct = json.loads(response.text)
-                print(response_dct)
+                response = requests.post(url + "verify_xml/", json=data, timeout=0.5)
+                print(
+                    f"response: {response.content}, type: {type(response)}, status \
+code: {response.status_code}"
+                )
+                # if response.status_code == 500:
+                #     sg.popup_ok("Server error, please contact developer.")
+                # elif response.status_code == 422:
+                #     print(f"422 error with message: {response}")
+                # else:
+                #     response_dct = json.loads(response.text)
+                #     print(response_dct)
+
                 if response_dct["result"]:
                     print("stimulation settings uploaded")
                 else:
                     sg.popup_ok(f"{response_dct['feedback']}")
+                    window[event].update(value=gui_start_vals[event][0])
             except requests.exceptions.Timeout:
                 sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
+
+        else:
+            logger.info(f"Unknown handled event happened: {event}")
