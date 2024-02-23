@@ -26,6 +26,8 @@ from XML_handler import (
     check_xml_with_settings,
     create_empty_xml,
     update_checked_settings,
+    verify_params,
+    verify_step_min_max,
 )
 
 # TODO: implement rotation of logs to not hog up memory
@@ -79,6 +81,11 @@ class ViperBox:
                 )
 
         self.logger.info("ViperBox initialized")
+
+        # TODO take out this
+        # self.connect("1", True, True)
+        self.connect()
+
         return None
 
     def connect(
@@ -94,6 +101,7 @@ class ViperBox:
         The solution is to mention this in the docs and GUI.
         """
         self._time()
+        self.boxless = boxless
 
         # Checks if the ViperBox is connected and connects if not.
         self.logger.info("Connecting to ViperBox...")
@@ -102,7 +110,13 @@ class ViperBox:
             self.disconnect()
 
         # check if boxless mode is enabled
-        if boxless is True:
+        if self.boxless is True:
+            self.local_settings.boxes = {0: BoxSettings()}
+            self.local_settings.boxes[0].probes[0] = ProbeSettings()
+            self.recording_settings(default_values=True)
+            self.stimulation_settings(default_values=True)
+            self.logger.info(f"local settings: {self.local_settings}")
+            self.logger.info(f"connected probes: {self.local_settings.connected}")
             return True, "Boxless mode, no connection to ViperBox"
 
         # check if probes is a list of 4 elements and only containing ints 1 or 0
@@ -329,6 +343,8 @@ class ViperBox:
             self.logger.info("Resetting recording settings")
             tmp_local_settings.reset_recording_settings()
         self.logger.info("Updating supplied settings to local settings")
+        # add connected boxes and probes to tmp_local_settings
+
         updated_tmp_settings = update_checked_settings(
             XML_data, tmp_local_settings, "recording"
         )
@@ -402,7 +418,10 @@ class ViperBox:
         return True, "Stimulation settings wrote to stimrec file"
 
     def stimulation_settings(
-        self, xml_string: str, reset: bool = False, default_values: bool = True
+        self,
+        xml_string: str | None = None,
+        reset: bool = False,
+        default_values: bool = True,
     ) -> Tuple[bool, str]:
         """Loads the stimulation settings from an XML file."""
 
@@ -462,14 +481,31 @@ class ViperBox:
         return True, "Stimulation settings loaded"
 
     def verify_xml_with_local_settings(
-        self, XML_data: Any, check_topic: str = "all"
+        self, XML_dictionary: dict, XML_data: Any, check_topic: str = "all"
     ) -> Tuple[bool, str]:
         """API Verifies the XML string."""
 
         tmp_data = copy.deepcopy(self.local_settings)
 
-        result, feedback = check_xml_with_settings(XML_data, tmp_data, check_topic)
+        if XML_dictionary != {}:
+            params = [
+                tuple
+                for tuple in verify_params
+                if list(XML_dictionary.keys())[0] in tuple
+            ]
+            verify_step_min_max(*params[0], int(list(XML_dictionary.values())[0]))
+            result, feedback = (
+                True,
+                f"Verify xml call with dictionary: {XML_dictionary}",
+            )
+        elif XML_data != "":
+            result, feedback = check_xml_with_settings(
+                XML_data, tmp_data, check_topic, self.boxless
+            )
+        else:
+            result, feedback = False, "No XML data found"
 
+        # TODO:
         return result, feedback
 
     def default_settings(self) -> Tuple[bool, str]:
