@@ -153,10 +153,14 @@ async def verify_xml(api_verify_xml: apiVerifyXML):
     - feedback: More information on execution.
     """
     logging.info(f"/verify_xml called with {api_verify_xml.__dict__}")
-    result, feedback = VB.verify_xml_with_local_settings(
-        api_verify_xml.XML, api_verify_xml.check_topic
-    )
+    try:
+        result, feedback = VB.verify_xml_with_local_settings(
+            api_verify_xml.dictionary, api_verify_xml.XML, api_verify_xml.check_topic
+        )
+    except ValueError as e:
+        result, feedback = False, f"Incorrect value provided: {str(e)}"
     logging.info(f"/verify_xml returned with {result}; {feedback}")
+    # TODO: add default value to feedback
     return {"result": result, "feedback": feedback}
 
 
