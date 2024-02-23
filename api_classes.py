@@ -61,12 +61,12 @@ class apiStimSettings(BaseModel):
                 ET.fromstring(stimulation_XML)
             except ET.ParseError as e:
                 raise ValueError(f"stimulation_XML is not valid XML. Error: {e}")
-        elif values["default_values"] is False:
-            raise ValueError(
-                "recording_XML is empty and default_values is False. \
-                            Please provide a recording_XML or set default_values to \
-                            True."
-            )
+        # elif values["default_values"] is False:
+        #     raise ValueError(
+        #         "recording_XML is empty and default_values is False. \
+        #                     Please provide a recording_XML or set default_values to \
+        #                     True."
+        #     )
         return stimulation_XML
 
 
@@ -176,16 +176,27 @@ class apiTTLStop(BaseModel):
 
 @dataclass
 class apiVerifyXML(BaseModel):
+    dictionary: dict = {}
     XML: str = ""
     check_topic: str = "all"
+
+    @field_validator("dictionary")
+    @classmethod
+    def check_dictionary(cls, dictionary: dict) -> dict:
+        if not isinstance(dictionary, dict):
+            raise ValueError("dictionary must be a dictionary")
+        if len(dictionary) != 1:
+            raise ValueError("dictionary must contain exactly one key-value pair")
+        return dictionary
 
     @field_validator("XML")
     @classmethod
     def check_xml(cls, verify_XML: str) -> str:
-        try:
-            ET.fromstring(verify_XML)
-        except ET.ParseError as e:
-            raise ValueError(f"Input is not valid XML. Error: {e}") from e
+        if verify_XML != "":
+            try:
+                ET.fromstring(verify_XML)
+            except ET.ParseError as e:
+                raise ValueError(f"Input is not valid XML. Error: {e}") from e
         return verify_XML
 
     @field_validator("check_topic")
