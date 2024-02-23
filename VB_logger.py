@@ -13,7 +13,7 @@ def _init_logging(session_datetime: str):
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format="%(levelname)-8s - %(asctime)s - %(name)s - %(message)s",
         datefmt="%H:%M:%S",
         handlers=[
