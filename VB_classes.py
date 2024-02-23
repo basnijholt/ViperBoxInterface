@@ -1,6 +1,7 @@
 import json
+import logging
 from dataclasses import asdict, dataclass, field, is_dataclass
-from typing import Any, Dict, List
+from typing import Any, Dict, List, get_type_hints
 
 import numpy as np
 from lxml import etree
@@ -11,6 +12,8 @@ from lxml import etree
 # stimulation goes through the 8 SU's
 
 # Stack overflow nested data classes https://stackoverflow.com/questions/51564841/creating-nested-dataclass-objects-in-python
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -70,15 +73,26 @@ class SUSettings:
 
     @classmethod
     def from_dict(cls, env):
+        cls_fields = get_type_hints(cls)
         tmp_dct = {}
-        for k, v in cls.__annotations__.items():
-            if not isinstance(env[k], v):
-                tmp_dct[k] = int(env[k])
-            # if not isinstance(env[k], v):
+        for field_name, field_type in cls_fields.items():
+            if field_name in env:
+                value = env[field_name]
+                try:
+                    if issubclass(field_type, bool) and isinstance(value, str):
+                        print(f"handling field type bool for value: {value}")
+                        tmp_dct[field_name] = value.lower() in ("true", "1", "t", "yes")
+                    else:
+                        tmp_dct[field_name] = field_type(value)
+                except ValueError as e:
+                    logger.debug(f"Error converting {field_name} to {field_type}: {e}")
+                    raise ValueError(
+                        f"Error converting {field_name} to {field_type}, supplied type \
+was {type(value)}: {e}"
+                    )
             else:
-                tmp_dct[k] = str(env[k])
-            # else:
-            #     tmp_dct[k] = bool(env[k])
+                # tmp_dct[field_name] = env[field_name]
+                pass
         return cls(**tmp_dct)
 
     def SUConfig(self):
