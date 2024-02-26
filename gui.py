@@ -881,6 +881,34 @@ layout += [
     ]
 ]
 
+
+def to_settings_xml_string(settings_input: dict) -> str:
+    program = etree.Element("Program")
+    settings = etree.SubElement(program, "Settings")
+    settings_type = {
+        "Channel": "RecordingSettings",
+        "Configuration": "StimulationWaveformSettings",
+        "Mapping": "StimulationMappingSettings",
+    }
+    print(f"settings in to_setting fct: {settings}")
+
+    for sub_type, dct in settings_input.items():
+        recording_settings = etree.SubElement(settings, settings_type[sub_type])
+        _ = etree.SubElement(recording_settings, sub_type, attrib=dct)
+
+    return etree.tostring(program).decode("utf-8")
+
+
+def handle_response(response, message):
+    if not response.status_code == 200:
+        logger.debug(f"Server error: {response.__dict__}")
+        sg.popup_ok(f"Something went wrong: {response.__dict__}")
+        return True
+    else:
+        logger.info(message)
+        return False
+
+
 window = sg.Window(
     "ViperBox Control",
     layout,
@@ -913,35 +941,22 @@ for element in elements:
     element.bind("<FocusOut>", "+FOCUS OUT")
 
 
-def to_settings_xml_string(settings_input: dict) -> str:
-    program = etree.Element("Program")
-    settings = etree.SubElement(program, "Settings")
-    settings_type = {
-        "Channel": "RecordingSettings",
-        "Configuration": "StimulationWaveformSettings",
-        "Mapping": "StimulationMappingSettings",
-    }
-    print(f"settings in to_setting fct: {settings}")
-
-    for sub_type, dct in settings_input.items():
-        recording_settings = etree.SubElement(settings, settings_type[sub_type])
-        _ = etree.SubElement(recording_settings, sub_type, attrib=dct)
-
-    return etree.tostring(program).decode("utf-8")
-
-
 if __name__ == "__main__":
     while True:
         event, values = window.read()
         if event == sg.WIN_CLOSED or event == "Exit":
             break
         elif event == "button_connect":
-            # window["led_connect_probe"].update("on")
             data = {"probe_list": "1", "emulation": "True", "boxless": "True"}
             response = requests.post(url + "connect/", json=data)
-            print(response.text)
+            if handle_response(response, "Connected to ViperBox"):
+                window["led_connect_probe"].update("on")
+                window["led_rec"].update("off")
         elif event == "button_disconnect":
             response = requests.post(url + "disconnect/")
+            if handle_response(response, "Disconnected from ViperBox"):
+                window["led_connect_probe"].update("off")
+                window["led_rec"].update("off")
         elif event == "button_select_recording_folder":
             tmp_path = sg.popup_get_folder("Select recording folder")
             logger.info(f"Updated recordings file path to: {tmp_path}")
@@ -952,23 +967,13 @@ if __name__ == "__main__":
                 data = {"filename": f"{values['input_filename']}"}
             logger.info("Start recording button pressed")
             response = requests.post(url + "start_recording/", json=data)
-            response_dct = json.loads(response.text)
-            print(response_dct)
-            if response_dct["result"]:
-                print("recording started")
+            if handle_response(response, "Recording started"):
                 window["button_stim"].update(disabled=False)
-            else:
-                sg.popup_ok(f"{response_dct['feedback']}")
         elif event == "button_stop":
             logger.info("Stop recording button pressed")
             response = requests.post(url + "stop_recording/")
-            response_dct = json.loads(response.text)
-            print(response_dct)
-            if response_dct["result"]:
-                print("recording stopped")
-                window["button_stim"].update(disabled=True)
-            else:
-                sg.popup_ok(f"{response_dct['feedback']}")
+            if handle_response(response, "Recording stopped"):
+                pass
         elif event[:3] == "el_":
             window[event].update(
                 button_color=toggle_2d_color(event, electrode_switch_matrix)
@@ -1028,12 +1033,8 @@ if __name__ == "__main__":
                 response = requests.post(
                     url + "upload_recording_settings/", json=data, timeout=0.5
                 )
-                response_dct = json.loads(response.text)
-                print(response_dct)
-                if response_dct["result"]:
-                    print("recording settings uploaded")
-                else:
-                    sg.popup_ok(f"{response_dct['feedback']}")
+                if handle_response(response, "Recording settings uploaded"):
+                    pass
             except requests.exceptions.Timeout:
                 sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
         elif event == "upload_stimulation_settings":
@@ -1072,42 +1073,24 @@ if __name__ == "__main__":
                 response = requests.post(
                     url + "upload_stimulation_settings/", json=data, timeout=0.5
                 )
-                response_dct = json.loads(response.text)
-                print(response_dct)
-                if response_dct["result"]:
-                    print("stimulation settings uploaded")
-                else:
-                    sg.popup_ok(f"{response_dct['feedback']}")
+                if handle_response(response, "Stimulation settings uploaded"):
+                    pass
             except requests.exceptions.Timeout:
                 sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
         elif event.endswith("+FOCUS OUT"):
             event = event.split("+")[0]
-            print("current event: ", event, window[event])
             settings_input = {
                 gui_start_vals[event][1]: str(values[event]),
             }
             data = {"dictionary": settings_input, "XML": "", "check_topic": "all"}
             try:
                 response = requests.post(url + "verify_xml/", json=data, timeout=0.5)
-                print(
-                    f"response: {response.content}, type: {type(response)}, status \
-code: {response.status_code}"
-                )
-                # if response.status_code == 500:
-                #     sg.popup_ok("Server error, please contact developer.")
-                # elif response.status_code == 422:
-                #     print(f"422 error with message: {response}")
-                # else:
-                #     response_dct = json.loads(response.text)
-                #     print(response_dct)
-
-                if response_dct["result"]:
-                    print("stimulation settings uploaded")
-                else:
-                    sg.popup_ok(f"{response_dct['feedback']}")
+                if handle_response(
+                    response,
+                    f"Successfully checked waveform parameter {event}",
+                ):
                     window[event].update(value=gui_start_vals[event][0])
             except requests.exceptions.Timeout:
                 sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
-
         else:
-            logger.info(f"Unknown handled event happened: {event}")
+            logger.info(f"Unknown event happened: {event}")

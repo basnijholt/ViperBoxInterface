@@ -41,7 +41,7 @@ class ViperBox:
     FREQ = 20000
     OS_WRITE_TIME = 1
 
-    def __init__(self, _session_datetime: str, headless=True) -> None:
+    def __init__(self, _session_datetime: str, start_oe=True) -> None:
         """Initialize the ViperBox class."""
         self._working_directory = os.getcwd()
 
@@ -61,7 +61,7 @@ class ViperBox:
 
         self._rec_path: Path | None = None
 
-        self.headless = headless
+        self.start_oe = start_oe
 
         # for handler in logging.root.handlers[:]:
         #     logging.root.removeHandler(handler)
@@ -70,7 +70,7 @@ class ViperBox:
         # handler = logging.StreamHandler(sys.stdout)
         # self.logger.addHandler(handler)
 
-        if not self.headless:
+        if self.start_oe:
             try:
                 self.logger.info("Starting Open Ephys")
                 os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
@@ -83,7 +83,7 @@ class ViperBox:
         self.logger.info("ViperBox initialized")
 
         # TODO take out this
-        # self.connect("1", True, True)
+        self.connect("1", True, True)
         self.connect()
 
         return None
@@ -784,7 +784,7 @@ class ViperBox:
         self.logger.info(f"Created file: {folder.joinpath(file)}")
         return folder.joinpath(file)
 
-    def _start_eo_acquire(self, start_oe=False):
+    def _start_eo_acquire(self, startup_oe=False):
         self.logger.info(
             "Try to switch open ephys to acquire mode, otherwise start it."
         )
@@ -800,7 +800,7 @@ class ViperBox:
                     "http://localhost:37497/api/status", json={"mode": "ACQUIRE"}
                 )
         except Exception:
-            if start_oe:
+            if startup_oe:
                 try:
                     print("Starting Open Ephys")
                     os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
@@ -1194,6 +1194,6 @@ class ViperBox:
 
 
 if __name__ == "__main__":
-    VB = ViperBox(headless=True, _session_datetime="20210812_123456")
+    VB = ViperBox(start_oe=False, _session_datetime="20210812_123456")
     VB.connect()
     # VB.shutdown()

@@ -67,7 +67,7 @@ app = FastAPI(
         "url": "https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html",
     },
 )
-VB = ViperBox(_session_datetime=session_datetime, headless=True)
+VB = ViperBox(_session_datetime=session_datetime, start_oe=False)
 # multiprocessing.Process(target=gui).start()
 
 
