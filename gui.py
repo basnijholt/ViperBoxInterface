@@ -1,5 +1,6 @@
 import json
 import logging
+import logging.handlers
 from pathlib import Path
 
 import matplotlib
@@ -14,21 +15,13 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 visibility_swap = True
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(
-    level=logging.DEBUG,
-    handlers=[logging.FileHandler("logs/debug.log"), logging.StreamHandler()],
+logger = logging.getLogger("GUI")
+logger.setLevel(logging.DEBUG)
+socketHandler = logging.handlers.SocketHandler(
+    "localhost", logging.handlers.DEFAULT_TCP_LOGGING_PORT
 )
-logging.getLogger("matplotlib.font_manager").disabled = True
-# Create a file handler
-# handler = logging.FileHandler("log.txt")
+logger.addHandler(socketHandler)
 
-
-# stdout_handler = logging.StreamHandler(sys.stdout)
-# formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-# stdout_handler.setFormatter(formatter)
-# stdout_handler.setLevel(logging.DEBUG)  # Set the level for stdout logging
-# logger.addHandler(stdout_handler)
 
 gui_start_vals = {
     "number_of_pulses": (20, "pulses"),
@@ -901,12 +894,22 @@ def to_settings_xml_string(settings_input: dict) -> str:
 
 def handle_response(response, message):
     if not response.status_code == 200:
-        logger.debug(f"Server error: {response.__dict__}")
-        sg.popup_ok(f"Something went wrong: {response.__dict__}")
-        return True
-    else:
-        logger.info(message)
+        logger.debug(
+            f"Server error: {response.status_code}. Response: {response.__dict__}"
+        )
+        sg.popup_ok(
+            f"Something went wrong:  {response.status_code}. {response.__dict__}"
+        )
         return False
+    else:
+        print(f"ASDFASDF: {response.json()}{ response.json()['result']}")
+        if response.json()["result"] is False:
+            logger.debug(f"Server reply: {response.json()['feedback']}")
+            sg.popup_ok(f"{response.json()['feedback']}")
+            return False
+        else:
+            logger.info(message)
+            return True
 
 
 window = sg.Window(
@@ -945,18 +948,22 @@ if __name__ == "__main__":
     while True:
         event, values = window.read()
         if event == sg.WIN_CLOSED or event == "Exit":
+            logger.info("Closing GUI")
             break
         elif event == "button_connect":
             data = {"probe_list": "1", "emulation": "True", "boxless": "True"}
             response = requests.post(url + "connect/", json=data)
             if handle_response(response, "Connected to ViperBox"):
-                window["led_connect_probe"].update("on")
-                window["led_rec"].update("off")
+                SetLED(window, "led_connect_probe", True)
+                SetLED(window, "led_rec", False)
+            else:
+                SetLED(window, "led_connect_probe", False)
+                SetLED(window, "led_rec", False)
         elif event == "button_disconnect":
             response = requests.post(url + "disconnect/")
             if handle_response(response, "Disconnected from ViperBox"):
-                window["led_connect_probe"].update("off")
-                window["led_rec"].update("off")
+                SetLED(window, "led_connect_probe", False)
+                SetLED(window, "led_rec", False)
         elif event == "button_select_recording_folder":
             tmp_path = sg.popup_get_folder("Select recording folder")
             logger.info(f"Updated recordings file path to: {tmp_path}")

@@ -1,5 +1,6 @@
 import json
 import logging
+import logging.handlers
 from dataclasses import asdict, dataclass, field, is_dataclass
 from typing import Any, Dict, List, get_type_hints
 
@@ -13,7 +14,12 @@ from lxml import etree
 
 # Stack overflow nested data classes https://stackoverflow.com/questions/51564841/creating-nested-dataclass-objects-in-python
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("VB_classes")
+logger.setLevel(logging.DEBUG)
+socketHandler = logging.handlers.SocketHandler(
+    "localhost", logging.handlers.DEFAULT_TCP_LOGGING_PORT
+)
+logger.addHandler(socketHandler)
 
 
 @dataclass

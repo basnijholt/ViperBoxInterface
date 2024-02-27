@@ -1,5 +1,6 @@
 import json
 import logging
+import logging.handlers
 from pathlib import Path
 from typing import Any, Tuple
 
@@ -16,7 +17,13 @@ from VB_classes import (
     printable_dtd,
 )
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
+logger = logging.getLogger("XML_handler")
+logger.setLevel(logging.DEBUG)
+socketHandler = logging.handlers.SocketHandler(
+    "localhost", logging.handlers.DEFAULT_TCP_LOGGING_PORT
+)
+logger.addHandler(socketHandler)
 
 
 def check_boxes_exist(data, existing_boxes):

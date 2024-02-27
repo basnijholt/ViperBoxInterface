@@ -39,6 +39,7 @@
 
 import ctypes
 import logging
+import logging.handlers
 import os
 import re
 import sys
@@ -62,8 +63,13 @@ from sys import platform as _platform
 from types import FunctionType
 from typing import List, Tuple
 
-logger = logging.getLogger(__name__)
-
+# logger = logging.getLogger(__name__)
+logger = logging.getLogger("NVP")
+logger.setLevel(logging.DEBUG)
+socketHandler = logging.handlers.SocketHandler(
+    "localhost", logging.handlers.DEFAULT_TCP_LOGGING_PORT
+)
+logger.addHandler(socketHandler)
 
 if not (_platform.startswith("win32") or _platform.startswith("cygwin")):
     raise RuntimeError("Not supported on this platform")

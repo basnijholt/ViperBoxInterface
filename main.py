@@ -1,9 +1,13 @@
 import logging
+import logging.handlers
+import multiprocessing
 import time
 
+import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 
+import VB_logger
 from api_classes import (
     Connect,
     apiRecSettings,
@@ -12,15 +16,24 @@ from api_classes import (
     apiStimSettings,
     apiVerifyXML,
 )
-from VB_logger import _init_logging
 from ViperBox import ViperBox
 
 # TODO: all return values should be caught and logged
 
 session_datetime = time.strftime("%Y%m%d_%H%M%S")
-_init_logging(session_datetime=session_datetime)
-logger = logging.getLogger()
-logger.name = "API"
+
+multiprocessing.Process(
+    target=VB_logger.start_log_server,
+    args=(session_datetime,),
+    daemon=True,
+).start()
+
+logger = logging.getLogger("SERVER")
+logger.setLevel(logging.DEBUG)
+socketHandler = logging.handlers.SocketHandler(
+    "localhost", logging.handlers.DEFAULT_TCP_LOGGING_PORT
+)
+logger.addHandler(socketHandler)
 
 
 docs = """
@@ -68,6 +81,7 @@ app = FastAPI(
     },
 )
 VB = ViperBox(_session_datetime=session_datetime, start_oe=False)
+
 # multiprocessing.Process(target=gui).start()
 
 
@@ -93,13 +107,13 @@ async def init(connect: Connect):
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info(f"/connect called with {connect.__dict__}")
+    logger.info(f"/connect called with {connect.__dict__}")
     result, feedback = VB.connect(
         probe_list=connect.probes,
         emulation=connect.emulation,
         boxless=connect.boxless,
     )
-    logging.info(f"/connect returned with {result}; {feedback}")
+    logger.info(f"/connect returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -112,9 +126,9 @@ async def disconnect():
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info("/disconnect called")
+    logger.info("/disconnect called")
     result, feedback = VB.disconnect()
-    logging.info(f"/disconnect returned with {result}; {feedback}")
+    logger.info(f"/disconnect returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -128,9 +142,9 @@ async def shutdown():
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info("/shutdown called")
+    logger.info("/shutdown called")
     result, feedback = VB.shutdown()
-    logging.info(f"/shutdown returned with {result}; {feedback}")
+    logger.info(f"/shutdown returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -152,14 +166,14 @@ async def verify_xml(api_verify_xml: apiVerifyXML):
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info(f"/verify_xml called with {api_verify_xml.__dict__}")
+    logger.info(f"/verify_xml called with {api_verify_xml.__dict__}")
     try:
         result, feedback = VB.verify_xml_with_local_settings(
             api_verify_xml.dictionary, api_verify_xml.XML, api_verify_xml.check_topic
         )
     except ValueError as e:
         result, feedback = False, f"Incorrect value provided: {str(e)}"
-    logging.info(f"/verify_xml returned with {result}; {feedback}")
+    logger.info(f"/verify_xml returned with {result}; {feedback}")
     # TODO: add default value to feedback
     return {"result": result, "feedback": feedback}
 
@@ -181,13 +195,13 @@ async def recording_settings(api_rec_settings: apiRecSettings):
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info(f"/recording_settings called with {api_rec_settings.__dict__}")
+    logger.info(f"/recording_settings called with {api_rec_settings.__dict__}")
     result, feedback = VB.recording_settings(
         xml_string=api_rec_settings.recording_XML,
         reset=api_rec_settings.reset,
         default_values=api_rec_settings.default_values,
     )
-    logging.info(f"/recording_settings returned with {result}; {feedback}")
+    logger.info(f"/recording_settings returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -208,13 +222,13 @@ async def stimulation_settings(api_stim_settings: apiStimSettings):
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info(f"/stimulation_settings called with {api_stim_settings.__dict__}")
+    logger.info(f"/stimulation_settings called with {api_stim_settings.__dict__}")
     result, feedback = VB.stimulation_settings(
         xml_string=api_stim_settings.stimulation_XML,
         reset=api_stim_settings.reset,
         default_values=api_stim_settings.default_values,
     )
-    logging.info(f"/stimulation_settings returned with {result}; {feedback}")
+    logger.info(f"/stimulation_settings returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -232,9 +246,9 @@ async def start_recording(api_start_rec: apiStartRec):
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info(f"/start_recording called with {api_start_rec.__dict__}")
+    logger.info(f"/start_recording called with {api_start_rec.__dict__}")
     result, feedback = VB.start_recording(recording_name=api_start_rec.recording_name)
-    logging.info(f"/start_recording returned with {result}; {feedback}")
+    logger.info(f"/start_recording returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -247,9 +261,9 @@ async def stop_recording():
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info("/stop_recording called")
+    logger.info("/stop_recording called")
     result, feedback = VB.stop_recording()
-    logging.info(f"/stop_recording returned with {result}; {feedback}")
+    logger.info(f"/stop_recording returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -271,13 +285,13 @@ async def start_stimulation(api_start_stim: apiStartStim):
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
-    logging.info(f"/start_stimulation called with {api_start_stim.__dict__}")
+    logger.info(f"/start_stimulation called with {api_start_stim.__dict__}")
     result, feedback = VB.start_stimulation(
         boxes=api_start_stim.boxes,
         probes=api_start_stim.probes,
         SU_input=api_start_stim.SU_input,
     )
-    logging.info(f"/start_stimulation returned with {result}; {feedback}")
+    logger.info(f"/start_stimulation returned with {result}; {feedback}")
     return {"result": result, "feedback": feedback}
 
 
@@ -301,3 +315,8 @@ async def start_stimulation(api_start_stim: apiStartStim):
 async def root():
     return RedirectResponse(url="/docs")
     # return RedirectResponse(url="/redoc")
+
+
+if __name__ == "__main__":
+    print("##############################name is main done")
+    uvicorn.run(app, host="127.0.0.1", port=8000)

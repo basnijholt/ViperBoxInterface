@@ -1,5 +1,6 @@
 import copy
 import logging
+import logging.handlers
 import os
 import socket
 import threading
@@ -67,8 +68,15 @@ class ViperBox:
         #     logging.root.removeHandler(handler)
 
         self.logger = logging.getLogger(__name__)
-        # handler = logging.StreamHandler(sys.stdout)
-        # self.logger.addHandler(handler)
+        self.logger.setLevel(logging.DEBUG)
+        socketHandler = logging.handlers.SocketHandler(
+            "localhost", logging.handlers.DEFAULT_TCP_LOGGING_PORT
+        )
+        self.logger.addHandler(socketHandler)
+
+        # self.logger = logging.getLogger(__name__)
+        # # handler = logging.StreamHandler(sys.stdout)
+        # # self.logger.addHandler(handler)
 
         if self.start_oe:
             try:
@@ -80,11 +88,10 @@ class ViperBox:
                         Error: {self._er(e)}"
                 )
 
-        self.logger.info("ViperBox initialized")
-
         # TODO take out this
-        self.connect("1", True, True)
-        self.connect()
+        # self.connect("1", True, True)
+
+        self.logger.info("ViperBox initialized")
 
         return None
 
@@ -102,12 +109,17 @@ class ViperBox:
         """
         self._time()
         self.boxless = boxless
+        self.logger.info(
+            f"ViperBox connect: probe list: {probe_list}, emulation: \
+{emulation}, boxless: {boxless}."
+        )
 
         # Checks if the ViperBox is connected and connects if not.
-        self.logger.info("Connecting to ViperBox...")
-        if self.tracking.box_connected is True:
-            self.logger.info("Already connected to ViperBox, disconnecting first.")
-            self.disconnect()
+        if self.boxless is False:
+            self.logger.info("Connecting to ViperBox...")
+            if self.tracking.box_connected is True:
+                self.logger.info("Already connected to ViperBox, disconnecting first.")
+                self.disconnect()
 
         # check if boxless mode is enabled
         if self.boxless is True:
@@ -210,15 +222,29 @@ class ViperBox:
     def disconnect(self) -> Tuple[bool, str]:
         """Disconnects from the ViperBox and closes the API channel."""
 
+        if self.boxless is True:
+            return True, "Boxless mode, no connection to ViperBox"
+
         # TODO boxfix: also loop over boxes
-        box = 0
-        NVP.closeProbes(self._box_ptrs[box])
-        NVP.closeBS(self._box_ptrs[box])
-        NVP.destroyHandle(self._box_ptrs[box])
-        self._deviceId = 0
-        self.tracking.box_connected = False
-        self.tracking.probe_connected = False
-        self.uploaded_settings = GeneralSettings()
+        try:
+            box = 0
+            NVP.closeProbes(self._box_ptrs[box])
+            NVP.closeBS(self._box_ptrs[box])
+            NVP.destroyHandle(self._box_ptrs[box])
+            self._deviceId = 0
+            self.tracking.box_connected = False
+            self.tracking.probe_connected = False
+            self.uploaded_settings = GeneralSettings()
+        except KeyError as e:
+            self.logger.debug(
+                f"Can't disconnect from ViperBox, no ViperBox connection. \
+Error: {self._er(e)}"
+            )
+            return (
+                False,
+                "Can't disconnect from ViperBox, no ViperBox connection. \
+Please restart the ViperBox and the software and try again.",
+            )
 
         return True, "ViperBox disconnected"
 
@@ -1193,7 +1219,7 @@ class ViperBox:
     # TODO: implement gain_vec in vb classes for usage in recording settings
 
 
-if __name__ == "__main__":
-    VB = ViperBox(start_oe=False, _session_datetime="20210812_123456")
-    VB.connect()
-    # VB.shutdown()
+# if __name__ == "__main__":
+#     VB = ViperBox(start_oe=False, _session_datetime="20210812_123456")
+#     VB.connect()
+#     # VB.shutdown()
