@@ -5,7 +5,8 @@ __pycache__/*
 .pre-commit-config.yaml
 testing.ipynb
 
-start_app.bat
+*.bat
+
 gold_ui.py
 
 setup/installer.bat

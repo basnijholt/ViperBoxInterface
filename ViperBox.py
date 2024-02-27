@@ -115,11 +115,12 @@ class ViperBox:
         )
 
         # Checks if the ViperBox is connected and connects if not.
+        if self.tracking.box_connected is True:
+            self.logger.info("Already connected to ViperBox, disconnecting first.")
+            self.disconnect()
+
         if self.boxless is False:
             self.logger.info("Connecting to ViperBox...")
-            if self.tracking.box_connected is True:
-                self.logger.info("Already connected to ViperBox, disconnecting first.")
-                self.disconnect()
 
         # check if boxless mode is enabled
         if self.boxless is True:
