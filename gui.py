@@ -24,6 +24,7 @@ logger.addHandler(socketHandler)
 
 
 gui_start_vals = {
+    "anodic_cathodic": ("Anodic", "polarity"),
     "number_of_pulses": (20, "pulses"),
     "pulse_delay": (0, "prephase"),
     "pulse_amplitude_anode": (5, "amplitude1"),
@@ -78,6 +79,7 @@ sg.theme("SystemDefaultForReal")
 
 def generate_plot(
     # biphasic: int = 1,
+    anodic_cathodic: int = 0,
     pulse_delay: int = 0,
     first_pulse_phase_width: int = 170,
     pulse_interphase_interval: int = 60,
@@ -92,6 +94,9 @@ def generate_plot(
     #     pulse_amplitude_cathode = pulse_amplitude_anode
     # if not bool(biphasic):
     #     pulse_amplitude_cathode = 0
+    if anodic_cathodic == 1:
+        pulse_amplitude_anode *= -1
+        pulse_amplitude_cathode *= -1
     time = np.linspace(0, pulse_duration, pulse_duration)
     current = np.zeros_like(time)
     tp1 = pulse_delay
@@ -574,6 +579,18 @@ pulse_shape_col_settings = sg.Column(
         #     sg.T(" ", size=(unit_h, unit_w)),
         # ],
         [
+            sg.Text("Anodic / cathodic first"),
+            sg.Drop(
+                key="anodic_cathodic",
+                size=(inpsize_w - 2, inpsize_h),
+                values=("Anodic", "Cathodic"),
+                auto_size_text=True,
+                default_value="Anodic",
+                # enable_events=True,
+            ),
+            sg.T(" ", size=(unit_h, unit_w)),
+        ],
+        [
             sg.Text("Pulse duration"),
             sg.Input(
                 gui_start_vals["pulse_duration"][0],
@@ -733,56 +750,56 @@ pulse_train_frame = sg.Frame(
 # ------------------------------------------------------------------
 # CF: PARAMETER SWEEP FRAME
 
-parameter_sweep = sg.Frame(
-    "Stimulation sweep parameters",
-    [
-        [
-            sg.Text("Pulse amplitude min"),
-            sg.Input(
-                1,
-                size=(inpsize_w, inpsize_h),
-                key="pulse_amplitude_min",
-                # enable_events=True,
-            ),
-            sg.T("μA", size=(unit_h, unit_w)),
-        ],
-        [
-            sg.Text("Pulse amplitude max"),
-            sg.Input(
-                20,
-                size=(inpsize_w, inpsize_h),
-                key="pulse_amplitude_max",
-                # enable_events=True,
-            ),
-            sg.T("μA", size=(unit_h, unit_w)),
-        ],
-        [
-            sg.Text("Pulse amplitude step"),
-            sg.Input(
-                1,
-                size=(inpsize_w, inpsize_h),
-                key="pulse_amplitude_step",
-                # enable_events=True,
-            ),
-            sg.T("μA", size=(unit_h, unit_w)),
-        ],
-        [
-            sg.Text("Repetitions"),
-            sg.Input(
-                1,
-                size=(inpsize_w, inpsize_h),
-                key="repetitions",
-                # enable_events=True
-            ),
-            sg.T(" ", size=(unit_h, unit_w)),
-        ],
-        [sg.Checkbox("Randomize", key="randomize")],
-    ],
-    element_justification="r",
-    expand_x=True,
-    visible=not manual_stim,
-    key="key_parameter_sweep",
-)
+# parameter_sweep = sg.Frame(
+#     "Stimulation sweep parameters",
+#     [
+#         [
+#             sg.Text("Pulse amplitude min"),
+#             sg.Input(
+#                 1,
+#                 size=(inpsize_w, inpsize_h),
+#                 key="pulse_amplitude_min",
+#                 # enable_events=True,
+#             ),
+#             sg.T("μA", size=(unit_h, unit_w)),
+#         ],
+#         [
+#             sg.Text("Pulse amplitude max"),
+#             sg.Input(
+#                 20,
+#                 size=(inpsize_w, inpsize_h),
+#                 key="pulse_amplitude_max",
+#                 # enable_events=True,
+#             ),
+#             sg.T("μA", size=(unit_h, unit_w)),
+#         ],
+#         [
+#             sg.Text("Pulse amplitude step"),
+#             sg.Input(
+#                 1,
+#                 size=(inpsize_w, inpsize_h),
+#                 key="pulse_amplitude_step",
+#                 # enable_events=True,
+#             ),
+#             sg.T("μA", size=(unit_h, unit_w)),
+#         ],
+#         [
+#             sg.Text("Repetitions"),
+#             sg.Input(
+#                 1,
+#                 size=(inpsize_w, inpsize_h),
+#                 key="repetitions",
+#                 # enable_events=True
+#             ),
+#             sg.T(" ", size=(unit_h, unit_w)),
+#         ],
+#         [sg.Checkbox("Randomize", key="randomize")],
+#     ],
+#     element_justification="r",
+#     expand_x=True,
+#     visible=not manual_stim,
+#     key="key_parameter_sweep",
+# )
 
 
 menu_def = [["&Application"]]
@@ -812,7 +829,11 @@ col_el_frame = sg.Column(
 )
 
 col_params = sg.Column(
-    [[pulse_shape_frame], [pulse_train_frame], [parameter_sweep]],
+    [
+        [pulse_shape_frame],
+        [pulse_train_frame],
+        # [parameter_sweep]
+    ],
     k="col_params",
     vertical_alignment="t",
     visible=visibility_swap,
@@ -902,7 +923,7 @@ def handle_response(response, message):
         )
         return False
     else:
-        print(f"ASDFASDF: {response.json()}{ response.json()['result']}")
+        logger.debug(f"Server reply: {response.json()}")
         if response.json()["result"] is False:
             logger.debug(f"Server reply: {response.json()['feedback']}")
             sg.popup_ok(f"{response.json()['feedback']}")
@@ -910,6 +931,14 @@ def handle_response(response, message):
         else:
             logger.info(message)
             return True
+
+
+def convert_anodic_cathodic(values):
+    if values["anodic_cathodic"] == "Anodic":
+        values["anodic_cathodic"] = 0
+    else:
+        values["anodic_cathodic"] = 1
+    return values
 
 
 window = sg.Window(
@@ -927,6 +956,7 @@ fig = generate_plot()
 figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
 
 elements_names = [
+    "anodic_cathodic",
     "number_of_pulses",
     "pulse_delay",
     "pulse_amplitude_anode",
@@ -1015,6 +1045,7 @@ if __name__ == "__main__":
             # master/DemoPrograms/Demo_Matplotlib_Browser.py
             if figure_agg:
                 delete_figure_agg(figure_agg)
+            values = convert_anodic_cathodic(values)
             plot_vals = {k: int(values[k]) for k in generate_plot.__annotations__}
             fig = generate_plot(**plot_vals)
             figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
@@ -1045,13 +1076,14 @@ if __name__ == "__main__":
             except requests.exceptions.Timeout:
                 sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
         elif event == "upload_stimulation_settings":
+            values = convert_anodic_cathodic(values)
             stimulation_xml = to_settings_xml_string(
                 settings_input={
                     "Configuration": {
                         "box": "-",
                         "probe": "-",
                         "stimunit": "-",
-                        "polarity": "1",
+                        "polarity": str(values["anodic_cathodic"]),
                         "pulses": str(values["number_of_pulses"]),
                         "prephase": str(values["pulse_delay"]),
                         "amplitude1": str(values["pulse_amplitude_anode"]),
@@ -1086,6 +1118,7 @@ if __name__ == "__main__":
                 sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
         elif event.endswith("+FOCUS OUT"):
             event = event.split("+")[0]
+            values = convert_anodic_cathodic(values)
             settings_input = {
                 gui_start_vals[event][1]: str(values[event]),
             }
@@ -1096,6 +1129,8 @@ if __name__ == "__main__":
                     response,
                     f"Successfully checked waveform parameter {event}",
                 ):
+                    pass
+                else:
                     window[event].update(value=gui_start_vals[event][0])
             except requests.exceptions.Timeout:
                 sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")

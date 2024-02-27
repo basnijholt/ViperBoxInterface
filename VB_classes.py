@@ -64,7 +64,6 @@ class ChanSettings:
 
 @dataclass
 class SUSettings:
-    # stim_unit: int = 0
     polarity: bool = False
     pulses: int = 20
     prephase: int = 0
@@ -86,7 +85,10 @@ class SUSettings:
                 value = env[field_name]
                 try:
                     if issubclass(field_type, bool) and isinstance(value, str):
-                        print(f"handling field type bool for value: {value}")
+                        logger.debug(
+                            f'handling field type bool for value: {value}, interpreted \
+as {value.lower() in ("true", "1", "t", "yes")}'
+                        )
                         tmp_dct[field_name] = value.lower() in ("true", "1", "t", "yes")
                     else:
                         tmp_dct[field_name] = field_type(value)

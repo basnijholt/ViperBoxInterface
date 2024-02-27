@@ -476,6 +476,7 @@ Please restart the ViperBox and the software and try again.",
 
         if reset:
             tmp_local_settings.reset_stimulation_settings()
+
         updated_tmp_settings = update_checked_settings(
             XML_data, tmp_local_settings, "stimulation"
         )
