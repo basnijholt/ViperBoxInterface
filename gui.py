@@ -1064,12 +1064,12 @@ if __name__ == "__main__":
             )
             data = {
                 "recording_XML": recording_xml,
-                "reset": False,
-                "default_values": False,
+                "reset": "False",
+                "default_values": "False",
             }
             try:
                 response = requests.post(
-                    url + "upload_recording_settings/", json=data, timeout=0.5
+                    url + "recording_settings/", json=data, timeout=0.5
                 )
                 if handle_response(response, "Recording settings uploaded"):
                     pass
@@ -1105,12 +1105,12 @@ if __name__ == "__main__":
             )
             data = {
                 "stimulation_XML": stimulation_xml,
-                "reset": False,
-                "default_values": False,
+                "reset": "False",
+                "default_values": "False",
             }
             try:
                 response = requests.post(
-                    url + "upload_stimulation_settings/", json=data, timeout=0.5
+                    url + "stimulation_settings/", json=data, timeout=0.5
                 )
                 if handle_response(response, "Stimulation settings uploaded"):
                     pass

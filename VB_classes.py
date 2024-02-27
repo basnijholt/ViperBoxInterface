@@ -229,7 +229,7 @@ def printable_dtd(obj: Any) -> None:
     print(json.dumps(dataclass_to_dict(obj), indent=4, sort_keys=True))
 
 
-def readable_dtd(obj: Any) -> json:
+def readable_dtd(obj: Any) -> Any:
     """
     Recursively convert dataclass instances to dictionaries.
     """
@@ -407,8 +407,8 @@ def parse_references(refstr: str) -> str:
             f"Invalid references; following instances are not connected. Set of \
                 input: {set(result)}, set of available instances: {set(all_values)}."
         )
-    result = "".join(["1" if i in result else "0" for i in all_values])
-    return result
+    string_result = "".join(["1" if i in result else "0" for i in all_values])
+    return string_result
 
 
 def get_boxes(settings):

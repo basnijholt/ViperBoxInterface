@@ -278,7 +278,7 @@ def create_empty_xml(path: Path):
 
 
 def add_to_stimrec(
-    path: Path,
+    path: Path | None,
     main_type: str,
     sub_type: str,
     settings_dict: dict,
@@ -309,6 +309,10 @@ def add_to_stimrec(
 
 
     """
+    if path is None:
+        logger.error("Path to stimrec file is not defined.")
+        raise ValueError("Path to stimrec file is not defined.")
+
     plus_one_list = ["box", "probe", "channel", "stimunit"]
     for key in plus_one_list:
         if key in settings_dict.keys():
@@ -467,6 +471,6 @@ if __name__ == "__main__":
         for probe in connected_boxes_probes[key]:
             local_settings.boxes[key].probes[probe] = ProbeSettings()
 
-    check_xml_with_settings(data, local_settings)
-    local_settings = update_checked_settings(data, local_settings)
+    check_xml_with_settings(data, local_settings, "all")
+    local_settings = update_checked_settings(data, local_settings, "all")
     printable_dtd(local_settings)

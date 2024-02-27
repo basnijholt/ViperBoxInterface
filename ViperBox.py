@@ -58,7 +58,7 @@ class ViperBox:
         log_file = f"log_{self._session_datetime}.log"
         log_folder.mkdir(parents=True, exist_ok=True)
         self._log = log_folder.joinpath(log_file)
-        self.stim_file_path: None | Path = None
+        self.stim_file_path: Path | None = None
 
         self._rec_path: Path | None = None
 
@@ -580,25 +580,26 @@ Please restart the ViperBox and the software and try again.",
 
         for box in updated_tmp_settings.boxes.keys():
             for probe in updated_tmp_settings.boxes[box].probes.keys():
-                for channel in (
-                    self.uploaded_settings.boxes[box].probes[probe].channel.keys()
-                ):
-                    add_to_stimrec(
-                        self.stim_file_path,
-                        "Settings",
-                        "Channel",
-                        {
-                            "box": box,
-                            "probe": probe,
-                            "channel": channel,
-                            **self.uploaded_settings.boxes[box]
-                            .probes[probe]
-                            .channel[channel]
-                            .__dict__,
-                        },
-                        start_time,
-                        dt_time,
-                    )
+                if self.stim_file_path is not None:
+                    for channel in (
+                        self.uploaded_settings.boxes[box].probes[probe].channel.keys()
+                    ):
+                        add_to_stimrec(
+                            self.stim_file_path,
+                            "Settings",
+                            "Channel",
+                            {
+                                "box": box,
+                                "probe": probe,
+                                "channel": channel,
+                                **self.uploaded_settings.boxes[box]
+                                .probes[probe]
+                                .channel[channel]
+                                .__dict__,
+                            },
+                            start_time,
+                            dt_time,
+                        )
                 for configuration in (
                     updated_tmp_settings.boxes[box].probes[probe].stim_unit_sett.keys()
                 ):
