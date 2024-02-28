@@ -85,8 +85,8 @@ def generate_plot(
     pulse_interphase_interval: int = 60,
     second_pulse_phase_width: int = 170,
     discharge_time: int = 200,
-    pulse_amplitude_anode: int = 1,
-    pulse_amplitude_cathode: int = 1,
+    pulse_amplitude_anode: int = 5,
+    pulse_amplitude_cathode: int = 5,
     # pulse_amplitude_equal: int = 0,
     pulse_duration: int = 600,
 ):
@@ -137,7 +137,7 @@ def delete_figure_agg(figure_agg):
     try:
         draw_figure.canvas_packed.pop(figure_agg.get_tk_widget())
     except Exception as e:
-        print(f"Error removing {figure_agg} from list", e)
+        logger.info(f"Error removing {figure_agg} from list", e)
     plt.close("all")
 
 
@@ -164,7 +164,7 @@ viperbox_control_frame = sg.Column(
             sg.Column(
                 [
                     [
-                        sg.Text("ViperBox connected", size=(20, 0)),
+                        sg.Text("ViperBox connected"),  # , size=(10, 0)),
                         LEDIndicator("led_connect_probe"),
                     ],
                     [
@@ -297,6 +297,10 @@ upload_stim_button = sg.Button(
     "Stimulation settings", key="upload_stimulation_settings", disabled=False
 )
 
+upload_defaults_button = sg.Button(
+    "Upload defaults", key="upload_defaults", disabled=False
+)
+
 recording_settings_frame = sg.Frame(
     "Recording settings",
     [
@@ -309,7 +313,11 @@ recording_settings_frame = sg.Frame(
 
 upload_settings_frame = sg.Column(
     # "Upload settings to ViperBox",
-    [[sg.Text("Upload settings to ViperBox")], [upload_rec_button, upload_stim_button]],
+    [
+        [sg.Text("Upload settings to ViperBox")],
+        [upload_rec_button, upload_stim_button],
+        [upload_defaults_button],
+    ],
     expand_x=True,
     element_justification="c",
 )
@@ -317,17 +325,12 @@ upload_settings_frame = sg.Column(
 
 def toggle_1d_color(event, reference_switch_matrix):
     row = int(event[-1])
-    # print(reference_switch_matrix)
 
     if reference_switch_matrix[row] == "off":
         reference_switch_matrix[row] = "on"
         return "red"
     else:
         reference_switch_matrix[row] = "off"
-        # print(
-        #     "reference_switch_matrix.count('off') :",
-        #     reference_switch_matrix.count("off"),
-        # )
         if reference_switch_matrix.count("off") == 9:
             logger.warning("At least one reference needs to be selected.")
             reference_switch_matrix[row] = "on"
@@ -374,9 +377,8 @@ electrode_button_matrix = [
     for j in range(MAX_ROWS)
 ]
 electrode_button_matrix = electrode_button_matrix[::-1]
-print(type(electrode_button_matrix))
 electrode_frame = sg.Frame(
-    "Stimulation electrode selection",
+    "Stimulation mapping",
     [
         [sg.Column(electrode_button_matrix)],
         [
@@ -670,12 +672,33 @@ pulse_shape_col_settings = sg.Column(
             ),
             sg.T("μA", size=(unit_h, unit_w)),
         ],
+        [sg.HorizontalSeparator()],
+        [
+            sg.Text("Number of pulses"),
+            sg.Input(
+                gui_start_vals["number_of_pulses"][0],
+                size=(inpsize_w, inpsize_h),
+                key="number_of_pulses",
+                # enable_events=True,
+            ),
+            sg.T(" ", size=(unit_h, unit_w)),
+        ],
+        [
+            sg.Text("Train interval (discharge)"),
+            sg.Input(
+                gui_start_vals["discharge_time_extra"][0],
+                size=(inpsize_w, inpsize_h),
+                key="discharge_time_extra",
+                # enable_events=True,
+            ),
+            sg.T("mSec", size=(unit_h, unit_w)),
+        ],
     ],
     element_justification="r",
     expand_x=True,
 )
 pulse_shape_frame = sg.Frame(
-    "Pulse shape parameters",
+    "Waveform settings",
     [
         [pulse_shape_col_settings],
         # [collapse(pulse_shape_col_el_frame, "pulse_shape_col_el_frame")],
@@ -688,63 +711,63 @@ pulse_shape_frame = sg.Frame(
 # ------------------------------------------------------------------
 # CF: PULSE TRAIN FRAME
 
-pulse_train_frame = sg.Frame(
-    "Pulse train parameters",
-    [
-        [
-            sg.Text("Number of pulses"),
-            sg.Input(
-                gui_start_vals["number_of_pulses"][0],
-                size=(inpsize_w, inpsize_h),
-                key="number_of_pulses",
-                # enable_events=True,
-            ),
-            sg.T(" ", size=(unit_h, unit_w)),
-        ],
-        # [
-        #     sg.Text("Frequency of pulses"),
-        #     sg.Input(
-        #         200,
-        #         size=(inpsize_w, inpsize_h),
-        #         key="frequency_of_pulses",
-        #         # enable_events=True,
-        #     ),
-        #     sg.T("Hz", size=(unit_h, unit_w)),
-        # ],
-        # [
-        #     sg.Text("Number of trains"),
-        #     sg.Input(
-        #         5,
-        #         size=(inpsize_w, inpsize_h),
-        #         key="number_of_trains",
-        #         # enable_events=True,
-        #     ),
-        #     sg.T(" ", size=(unit_h, unit_w)),
-        # ],
-        [
-            sg.Text("Train interval (discharge)"),
-            sg.Input(
-                gui_start_vals["discharge_time_extra"][0],
-                size=(inpsize_w, inpsize_h),
-                key="discharge_time_extra",
-                # enable_events=True,
-            ),
-            sg.T("mSec", size=(unit_h, unit_w)),
-        ],
-        # [
-        #     sg.Text("On-set onset_jitter"),
-        #     sg.Input(
-        #         0,
-        #         size=(inpsize_w, inpsize_h),
-        #         key="onset_jitter",
-        #         # enable_events=True
-        #     ),
-        #     sg.T("Sec", size=(unit_h, unit_w)),
-        # ],
-    ],
-    element_justification="r",
-    expand_x=True,
-)
+# pulse_train_frame = sg.Frame(
+#     "Pulse train parameters",
+#     [
+#         [
+#             sg.Text("Number of pulses"),
+#             sg.Input(
+#                 gui_start_vals["number_of_pulses"][0],
+#                 size=(inpsize_w, inpsize_h),
+#                 key="number_of_pulses",
+#                 # enable_events=True,
+#             ),
+#             sg.T(" ", size=(unit_h, unit_w)),
+#         ],
+#         # [
+#         #     sg.Text("Frequency of pulses"),
+#         #     sg.Input(
+#         #         200,
+#         #         size=(inpsize_w, inpsize_h),
+#         #         key="frequency_of_pulses",
+#         #         # enable_events=True,
+#         #     ),
+#         #     sg.T("Hz", size=(unit_h, unit_w)),
+#         # ],
+#         # [
+#         #     sg.Text("Number of trains"),
+#         #     sg.Input(
+#         #         5,
+#         #         size=(inpsize_w, inpsize_h),
+#         #         key="number_of_trains",
+#         #         # enable_events=True,
+#         #     ),
+#         #     sg.T(" ", size=(unit_h, unit_w)),
+#         # ],
+#         [
+#             sg.Text("Train interval (discharge)"),
+#             sg.Input(
+#                 gui_start_vals["discharge_time_extra"][0],
+#                 size=(inpsize_w, inpsize_h),
+#                 key="discharge_time_extra",
+#                 # enable_events=True,
+#             ),
+#             sg.T("mSec", size=(unit_h, unit_w)),
+#         ],
+#         # [
+#         #     sg.Text("On-set onset_jitter"),
+#         #     sg.Input(
+#         #         0,
+#         #         size=(inpsize_w, inpsize_h),
+#         #         key="onset_jitter",
+#         #         # enable_events=True
+#         #     ),
+#         #     sg.T("Sec", size=(unit_h, unit_w)),
+#         # ],
+#     ],
+#     element_justification="r",
+#     expand_x=True,
+# )
 
 
 # ------------------------------------------------------------------
@@ -831,7 +854,7 @@ col_el_frame = sg.Column(
 col_params = sg.Column(
     [
         [pulse_shape_frame],
-        [pulse_train_frame],
+        # [pulse_train_frame],
         # [parameter_sweep]
     ],
     k="col_params",
@@ -848,15 +871,16 @@ col_plot = sg.Column(
 col_log = sg.Column(
     [[log_frame]], k="col_log", vertical_alignment="t", expand_x=True, expand_y=True
 )
-for sublayout in [
-    viperbox_control_frame,
-    upload_settings_frame,
-    viperbox_recording_settings_frame,
-    col_el_frame,
-    col_params,
-    col_plot,
-]:
-    print(sublayout)
+# for sublayout in [
+#     viperbox_control_frame,
+#     upload_settings_frame,
+#     viperbox_recording_settings_frame,
+#     col_el_frame,
+#     col_params,
+#     col_plot,
+# ]:
+#     print(sublayout)
+
 layout += [
     [
         sg.Column(
@@ -904,7 +928,7 @@ def to_settings_xml_string(settings_input: dict) -> str:
         "Configuration": "StimulationWaveformSettings",
         "Mapping": "StimulationMappingSettings",
     }
-    print(f"settings in to_setting fct: {settings}")
+    logger.info(f"settings in to_setting fct: {settings}")
 
     for sub_type, dct in settings_input.items():
         recording_settings = etree.SubElement(settings, settings_type[sub_type])
@@ -1069,7 +1093,7 @@ if __name__ == "__main__":
             }
             try:
                 response = requests.post(
-                    url + "recording_settings/", json=data, timeout=0.5
+                    url + "recording_settings/", json=data, timeout=5
                 )
                 if handle_response(response, "Recording settings uploaded"):
                     pass
@@ -1110,12 +1134,20 @@ if __name__ == "__main__":
             }
             try:
                 response = requests.post(
-                    url + "stimulation_settings/", json=data, timeout=0.5
+                    url + "stimulation_settings/", json=data, timeout=5
                 )
                 if handle_response(response, "Stimulation settings uploaded"):
                     pass
             except requests.exceptions.Timeout:
                 sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
+        elif event == "upload_defaults":
+            try:
+                response = requests.post(url + "default_settings/", timeout=5)
+                if handle_response(response, "Default settings uploaded"):
+                    pass
+            except requests.exceptions.Timeout:
+                sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
+
         elif event.endswith("+FOCUS OUT"):
             event = event.split("+")[0]
             values = convert_anodic_cathodic(values)

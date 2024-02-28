@@ -89,7 +89,7 @@ class ViperBox:
                 )
 
         # TODO take out this
-        # self.connect("1", True, True)
+        self.connect("1", True, True)
 
         self.logger.info("ViperBox initialized")
 
@@ -258,7 +258,7 @@ Please restart the ViperBox and the software and try again.",
         #         json={"mode": "ACQUIRE"},
         #         timeout=2,
         #     )
-        # except Exception:
+        # except Exception as e:
         #     pass
         # try:
         #     _ = requests.put(
@@ -266,11 +266,17 @@ Please restart the ViperBox and the software and try again.",
         #         json={"command": "quit"},
         #         timeout=5,
         #     )
-        # except Exception:
+        # except Exception as e:
         #     pass
         return True, "ViperBox shutdown"
 
-    def _write_recording_settings(self, updated_tmp_settings):
+    def _upload_recording_settings(self, updated_tmp_settings):
+        if self.boxless is True:
+            self.logger.info(
+                "No box connected, skipping uploading recording settings \
+to ViperBox"
+            )
+            return
         self.logger.info(
             f"Writing recording settings to ViperBox: {updated_tmp_settings}"
         )
@@ -304,10 +310,16 @@ Please restart the ViperBox and the software and try again.",
 
                 NVP.writeChannelConfiguration(self._box_ptrs[box], probe, False)
 
-    def _write_stimulation_settings_to_viperbox(self, updated_tmp_settings):
+    def _upload_stimulation_settings(self, updated_tmp_settings):
         self.logger.info(
             f"Writing stimulation settings to ViperBox: {updated_tmp_settings}"
         )
+        if self.boxless is True:
+            self.logger.info(
+                "No box connected, skipping uploading stimulation \
+settings to ViperBox"
+            )
+            return
         for box in updated_tmp_settings.boxes.keys():
             for probe in updated_tmp_settings.boxes[box].probes.keys():
                 # Always set settings for entire probe at once.
@@ -379,12 +391,12 @@ Please restart the ViperBox and the software and try again.",
         try:
             # Always set settings for entire probe at once.
             # TODO boxfix: also loop over boxes
-            self._write_recording_settings(updated_tmp_settings)
+            self._upload_recording_settings(updated_tmp_settings)
         except Exception as e:
             return (
                 False,
-                f"""Error in uploading recording settings, settings not applied and 
-                reverted to previous settings. Error: {self._er(e)}""",
+                f"Error in uploading recording settings, settings not applied and \
+reverted to previous settings. Error: {self._er(e)}",
             )
         self.tracking.recording_settings_uploaded = True
         self.local_settings = updated_tmp_settings
@@ -392,7 +404,35 @@ Please restart the ViperBox and the software and try again.",
         self.uploaded_settings = copy.deepcopy(self.local_settings)
         return True, "Recording settings loaded"
 
-    def _write_stimulation_settings_to_stimrec(
+    def _stimrec_write_recording_settings(self, settings_to_write, start_time, dt_time):
+        self.logger.info(
+            f"Writing recording settings to stimrec file: {settings_to_write}"
+        )
+
+        # for box in updated_tmp_settings.boxes.keys():
+        #     for probe in updated_tmp_settings.boxes[box].probes.keys():
+        #         if self.stim_file_path is not None:
+        #             for channel in (
+        #                 self.uploaded_settings.boxes[box].probes[probe].channel.keys()
+        #             ):
+        #                 add_to_stimrec(
+        #                     self.stim_file_path,
+        #                     "Settings",
+        #                     "Channel",
+        #                     {
+        #                         "box": box,
+        #                         "probe": probe,
+        #                         "channel": channel,
+        #                         **self.uploaded_settings.boxes[box]
+        #                         .probes[probe]
+        #                         .channel[channel]
+        #                         .__dict__,
+        #                     },
+        #                     start_time,
+        #                     dt_time,
+        #                 )
+
+    def _stimrec_write_stimulation_settings(
         self, updated_tmp_settings, start_time, dt_time
     ):
         self.logger.info(
@@ -484,13 +524,13 @@ Please restart the ViperBox and the software and try again.",
         # TODO boxfix: also loop over boxes
         start_time = self._time()
         try:
-            self._write_stimulation_settings_to_viperbox(updated_tmp_settings)
+            self._upload_stimulation_settings(updated_tmp_settings)
             self.uploaded_settings = copy.deepcopy(updated_tmp_settings)
-        except Exception:
+        except Exception as e:
             return (
                 False,
-                """Error in uploading stimulation settings, settings not applied and
-                reverted to previous settings""",
+                f"Error in uploading stimulation settings, settings not applied and \
+reverted to previous settings. Error: {self._er(e)}",
             )
         dt_time = self._time() - start_time
 
@@ -498,9 +538,9 @@ Please restart the ViperBox and the software and try again.",
         self.local_settings = copy.deepcopy(updated_tmp_settings)
 
         # if stim_file_path doesn't exist, the recording hasn't started yet
-        # settings will be written to stimrec at start
+        # settings will be written to stimrec at recording start
         if self.stim_file_path:
-            result, feedback = self._write_stimulation_settings_to_stimrec(
+            result, feedback = self._stimrec_write_stimulation_settings(
                 updated_tmp_settings, start_time, dt_time
             )
             if result is False:
@@ -537,19 +577,20 @@ Please restart the ViperBox and the software and try again.",
         return result, feedback
 
     def default_settings(self) -> Tuple[bool, str]:
-        """Loads the stimulation settings from an XML file."""
+        """Loads the default settings from an XML file."""
 
-        if self.tracking.box_connected is False:
+        if self.boxless is True:
+            pass
+        elif self.tracking.box_connected is False:
             return False, "Not connected to ViperBox"
-
-        XML_data = etree.parse("defaults/default_stimulation_settings.xml")
+        XML_data = etree.parse("defaults/default_settings.xml")
 
         tmp_local_settings = copy.deepcopy(self.local_settings)
         result, feedback = check_xml_with_settings(XML_data, tmp_local_settings, "all")
         if result is False:
             return result, feedback
 
-        tmp_local_settings.reset_stimulation_settings()
+        tmp_local_settings.reset_probe_settings()
 
         updated_tmp_settings = update_checked_settings(
             XML_data, tmp_local_settings, "recording"
@@ -561,20 +602,23 @@ Please restart the ViperBox and the software and try again.",
         # TODO boxfix: also loop over boxes
         start_time = self._time()
         try:
-            self._write_recording_settings(updated_tmp_settings)
-        except Exception:
-            return (
-                False,
-                """Error in uploading recording settings, settings not applied and 
-                reverted to previous settings""",
-            )
+            self._upload_recording_settings(updated_tmp_settings)
+        except Exception as e:
+            if e == KeyError and self.boxless is True:
+                self.logger.info("No box connected, skipping recording settings")
+            else:
+                return (
+                    False,
+                    f"Error in uploading recording settings, settings not applied and \
+    reverted to previous settings. Error: {self._er(e)}",
+                )
         try:
-            self._write_stimulation_settings_to_viperbox(updated_tmp_settings)
-        except Exception:
+            self._upload_stimulation_settings(updated_tmp_settings)
+        except Exception as e:
             return (
                 False,
-                """Error in uploading stimulation settings, settings not applied and 
-                reverted to previous settings""",
+                f"Error in uploading stimulation settings, settings not applied and \
+reverted to previous settings. Error: {self._er(e)}",
             )
         dt_time = self._time() - start_time
 
@@ -643,7 +687,7 @@ Please restart the ViperBox and the software and try again.",
         self.local_settings = updated_tmp_settings
         self.uploaded_settings = copy.deepcopy(self.local_settings)
 
-        return True, "Stimulation settings loaded"
+        return True, "Default recording and stimulation settings loaded"
 
     def start_recording(self, recording_name: str = "") -> Tuple[bool, str]:
         """Start recording.
@@ -737,6 +781,8 @@ Please restart the ViperBox and the software and try again.",
         self.logger.info(
             f"Writing recording settings to stimrec file: {self.uploaded_settings}"
         )
+
+        # Write recording settings to stimrec
         for box in self.uploaded_settings.boxes.keys():
             for probe in self.uploaded_settings.boxes[box].probes.keys():
                 for channel in (
@@ -760,7 +806,7 @@ Please restart the ViperBox and the software and try again.",
                     )
 
         # Try to write stimulation settings to stimrec if they are available.
-        self._write_stimulation_settings_to_stimrec(self.local_settings, -1.0, -1.0)
+        self._stimrec_write_stimulation_settings(self.local_settings, -1.0, -1.0)
 
         add_to_stimrec(
             self.stim_file_path,
@@ -820,15 +866,16 @@ Please restart the ViperBox and the software and try again.",
         acquiring = False
         try:
             r = requests.get("http://localhost:37497/api/status")
-            _ = requests.put(
-                "http://localhost:37497/api/recording",
-                json={"parent_directory": os.path.abspath("setup\\oesettings.xml")},
-            )
+            # _ = requests.put(
+            #     "http://localhost:37497/api/recording",
+            #     json={"parent_directory": os.path.abspath("setup\\oesettings.xml")},
+            # )
             if r.json()["mode"] != "ACQUIRE":
                 r = requests.put(
                     "http://localhost:37497/api/status", json={"mode": "ACQUIRE"}
                 )
-        except Exception:
+        except Exception as e:
+            self.logger.info(f"Couldn't get OE status. Error: {self._er(e)}")
             if startup_oe:
                 try:
                     print("Starting Open Ephys")

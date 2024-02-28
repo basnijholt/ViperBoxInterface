@@ -232,6 +232,21 @@ async def stimulation_settings(api_stim_settings: apiStimSettings):
     return {"result": result, "feedback": feedback}
 
 
+@app.post("/default_settings/")
+async def default_settings():
+    """
+    Upload default settings.
+
+    Returns:
+    - boolean: true if correctly executed, otherwise false.
+    - feedback: More information on execution.
+    """
+    logger.info("/default_settings called")
+    result, feedback = VB.default_settings()
+    logger.info(f"/default_settings returned with {result}; {feedback}")
+    return {"result": result, "feedback": feedback}
+
+
 @app.post("/start_recording")  # , tags=["start_recording"])
 async def start_recording(api_start_rec: apiStartRec):
     """
