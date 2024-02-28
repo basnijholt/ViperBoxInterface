@@ -25,8 +25,11 @@ logger.addHandler(socketHandler)
 @dataclass
 class StatusTracking:
     recording: bool = False
-    recording_settings_uploaded: bool = False
+    # recording_settings_uploaded: bool = False
+    # recording_upload_times: tuple[float, float] | None = None
     stimulation_settings_uploaded: bool = False
+    stimulation_settings_written_to_stimrec: bool = False
+    stimset_upload_times: tuple[float, float] = (0.0, 0.0)
     test_mode: bool = False
     BIST_number: int | None = None
     box_connected: bool = False
@@ -221,6 +224,16 @@ class GeneralSettings:
                 self.boxes[box].probes[probe].stim_unit_elec = {}
 
 
+@dataclass
+class ConnectedProbes:
+    probes: Dict[int, bool] = field(default_factory=dict)
+
+
+@dataclass
+class ConnectedBoxes:
+    boxes: Dict[int, ConnectedProbes] = field(default_factory=dict)
+
+
 def printable_dtd(obj: Any) -> None:
     """
     Recursively convert dataclass instances to dictionaries.
@@ -290,8 +303,8 @@ def parse_numbers(numstr: str, all_values: list[int]) -> list[int]:
     These are inputs like: '1,2,3,4-6,8' or '-' for all possible values.
 
     Arguments:
-    - numstr {str} -- string of numbers to parse
-    - all_values {list[int]} -- list of all possible values for the numbers
+    - numstr: str. 1 indexed; string of numbers to parse
+    - all_values: list[int]. 0 indexed; list of all possible values
 
     Returns:
     - result {numpy.ndarray} -- numpy array of parsed integers in sequential order

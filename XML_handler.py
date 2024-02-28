@@ -10,6 +10,8 @@ from lxml import etree
 from VB_classes import (
     BoxSettings,
     ChanSettings,
+    ConnectedBoxes,
+    ConnectedProbes,
     GeneralSettings,
     ProbeSettings,
     SUSettings,
@@ -26,23 +28,23 @@ socketHandler = logging.handlers.SocketHandler(
 logger.addHandler(socketHandler)
 
 
-def check_boxes_exist(data, existing_boxes):
-    """Check if xml boxes are in existing boxes. If not, throw ValueError, else pass
+# def check_boxes_exist(data, existing_boxes):
+#     """Check if xml boxes are in existing boxes. If not, throw ValueError, else pass
 
-    Arguments:
-    - data: xml data of type lxml.etree._ElementTree
-    - existing_boxes: list of existing boxes
-    TODO: existing boxes should be changed to something that comes from the local
-    settings.
+#     Arguments:
+#     - data: xml data of type lxml.etree._ElementTree
+#     - existing_boxes: list of existing boxes
+#     TODO: existing boxes should be changed to something that comes from the local
+#     settings.
 
-    test cases:
-    - xml box is not in existing boxes
+#     test cases:
+#     - xml box is not in existing boxes
 
-    """
-    for element in data.xpath(".//*[@box]"):
-        setting_boxes = element.attrib["box"]
-        _ = parse_numbers(setting_boxes, existing_boxes)
-    return True
+#     """
+#     for element in data.xpath(".//*[@box]"):
+#         setting_boxes = element.attrib["box"]
+#         _ = parse_numbers(setting_boxes, existing_boxes)
+#     return True
 
 
 # def check_references_format(references: str) -> bool:
@@ -131,7 +133,39 @@ multiple of {step}. It is now {value}."
     return True
 
 
-def overwrite_settings(
+def get_required_boxes_probes_from_xml(data_xml):
+    """
+    Read XML and summarize all connected boxes and respective probes into ConnectedBoxes
+
+    Arguments:
+    - data_xml: xml data of type lxml.etree._ElementTree
+
+    """
+    if not isinstance(data_xml, type(etree.fromstring("<a />"))):
+        raise ValueError("data_xml is not of type lxml.etree._Element")
+
+    required = ConnectedBoxes()
+    tags = [
+        "RecordingSettings",
+        "StimulationWaveformSettings",
+        "StimulationMappingSettings",
+    ]
+
+    for XML_element in data_xml.iter():
+        # goes through all XML_elements
+        if XML_element.tag in tags:
+            # if XML_element contains recording settings, add these settings
+            for XML_settings in XML_element:
+                boxes = parse_numbers(XML_settings.attrib["box"], [0, 1, 2])
+                for box in boxes:
+                    required.boxes[box] = ConnectedProbes()
+                    probes = parse_numbers(XML_settings.attrib["probe"], [0, 1, 2, 3])
+                    for probe in probes:
+                        required.boxes[box].probes[probe] = True
+    return required
+
+
+def update_settings_with_XML(
     data_xml: Any, local_settings: GeneralSettings, check_topic: str = "all"
 ):
     """Write xml data_xml to local settings, only if the respective boxes and probes
@@ -145,6 +179,8 @@ def overwrite_settings(
     - local_settings: local settings of type GeneralSettings
     - check_topic: string, either "all", "recording" or "stimulation"
 
+    Test cases:
+    - data_xml has attributes that do not exist in classes
     """
 
     # TODO deal with overwriting all settings.
@@ -215,41 +251,129 @@ def overwrite_settings(
     return local_settings
 
 
-def update_checked_settings(
-    data: Any, settings: GeneralSettings, check_topic: str
-) -> GeneralSettings:
+# def update_checked_settings(
+#     data: Any, settings: GeneralSettings, check_topic: str
+# ) -> GeneralSettings:
+#     """
+#     Adds the xml to the settings dictionary.
+#     """
+
+#     settings = update_settings_with_XML(data, settings, check_topic)
+#     return settings
+
+
+# def check_XML_boxes_probes_exist(XML_data: Any) -> bool:
+#     """Check if xml boxes are in existing boxes. If not, throw ValueError, else pass
+
+#     Arguments:
+#     - data: xml data of type lxml.etree._ElementTree
+
+#     test cases:
+#     - xml box is not in existing boxes
+#     - xml probe is not in existing probes
+
+#     """
+#     for element in data.xpath(".//*[@box]"):
+#         setting_boxes = element.attrib["box"]
+#         _ = parse_numbers(setting_boxes, list(self.connected.keys()))
+
+#     return True
+
+
+def check_required_boxes_probes_connected(
+    required: ConnectedBoxes, connected: ConnectedBoxes
+) -> list:
     """
-    Adds the xml to the settings dictionary.
+    Compares required boxes with connected boxes and returns list of not connected \
+boxes and probes.
     """
+    not_connected = []
+    for box in required.boxes:
+        for probe in required.boxes[box].probes:
+            if not connected.boxes[box].probes[probe]:
+                not_connected.append((box, probe))
+    return not_connected
 
-    settings = overwrite_settings(data, settings, check_topic)
-    return settings
 
-
-def check_xml_with_settings(
-    data: Any, settings: GeneralSettings, check_topic: str, boxless: bool = False
+def check_xml_boxprobes_exist_and_verify_data_with_settings(
+    XML_data: Any,
+    settings: GeneralSettings,
+    connected: ConnectedBoxes,
+    check_topic: str = "all",
 ) -> Tuple[bool, str]:
     """
-    Checks if settings are valid with existing local_settings.
+    - boxes and probes are available
+    - possible settings are valid with existing local_settings.
+
+    Arguments:
+    - XML_data: xml of type string
+    - settings: settings of type GeneralSettings
+
+    TODO: accept only one type of XML_data
     """
-    if isinstance(data, str):
-        logger.debug("XML is supplied as string")
-        data = etree.fromstring(data)
-    else:
-        logger.debug(f"XML is supplied as {type(data)}")
-    if not boxless:
-        logger.debug("Checking XML with boxless = False, so box should be attached.")
+    logger.debug("Checking if boxes and probes exist and verify validity of settings")
+
+    # Check if XML is parseable
+    if isinstance(XML_data, str):
         try:
-            check_boxes_exist(data, list(settings.connected.keys()))
-        except ValueError as e:
-            return False, f"Requested box is not connected. Error: {e}"
+            XML_data = etree.fromstring(XML_data)
+            logger.debug("XML is supplied as string")
+        except Exception as e:
+            return False, f"XML is provided as string, but not valid xml. Error: {e}"
     else:
-        logger.debug("Check XML with boxless = True.")
+        if isinstance(XML_data, type(etree.fromstring("<a />"))):
+            logger.debug(f"XML is supplied as {type(XML_data)}")
+        else:
+            raise ValueError(f"XML is supplied as {type(XML_data)}")
+
+    # Check if required boxes and probes are actually connected
+    required = get_required_boxes_probes_from_xml(XML_data)
+    not_connected = check_required_boxes_probes_connected(required, connected)
+    if not_connected != []:
+        substring = ", ".join(
+            [f"box {box} probe {probe}" for box, probe in not_connected]
+        )
+        return False, f"{substring} are not connected to ViperBox"
+
+    # Check if required boxes are connected
     try:
-        _ = overwrite_settings(data, settings, check_topic)
+        _ = update_settings_with_XML(XML_data, settings, check_topic)
     except ValueError as e:
         return False, f"Settings aren't valid. Error: {e}"
     return True, "XML is valid."
+
+
+# def check_xml_with_settings_old(
+#     data: Any, settings: GeneralSettings, check_topic: str, boxless: bool = False
+# ) -> Tuple[bool, str]:
+#     """
+#     - boxes and probes are available
+#     - possible settings are valid with existing local_settings.
+
+#     Arguments:
+#     - data: xml of type string
+#     - settings: settings of type GeneralSettings
+#     """
+#     if isinstance(data, str):
+#         logger.debug("XML is supplied as string")
+#         data = etree.fromstring(data)
+#     else:
+#         logger.debug(f"XML is supplied as {type(data)}")
+
+#     # Check if required boxes are connected
+#     if not boxless:
+#         logger.debug("Checking XML with boxless = False, so box should be attached.")
+#         try:
+#             check_boxes_exist(data, list(settings.connected.keys()))
+#         except ValueError as e:
+#             return False, f"Requested box is not connected. Error: {e}"
+#     else:
+#         logger.debug("Check XML with boxless = True.")
+#     try:
+#         _ = overwrite_settings(data, settings, check_topic)
+#     except ValueError as e:
+#         return False, f"Settings aren't valid. Error: {e}"
+#     return True, "XML is valid."
 
 
 def create_empty_xml(path: Path):
@@ -470,6 +594,8 @@ if __name__ == "__main__":
         for probe in connected_boxes_probes[key]:
             local_settings.boxes[key].probes[probe] = ProbeSettings()
 
-    check_xml_with_settings(data, local_settings, "all")
-    local_settings = update_checked_settings(data, local_settings, "all")
+    # check_xml_boxprobes_exist_and_verify_data_with_settings(
+    #     data, local_settings, "all"
+    #     )
+    # local_settings = update_settings_with_XML(data, local_settings, "all")
     printable_dtd(local_settings)

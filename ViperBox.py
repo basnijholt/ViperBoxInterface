@@ -17,6 +17,8 @@ import NeuraviperPy as NVP
 from defaults.defaults import OS2chip
 from VB_classes import (
     BoxSettings,
+    ConnectedBoxes,
+    ConnectedProbes,
     GeneralSettings,
     ProbeSettings,
     StatusTracking,
@@ -24,9 +26,9 @@ from VB_classes import (
 )
 from XML_handler import (
     add_to_stimrec,
-    check_xml_with_settings,
+    check_xml_boxprobes_exist_and_verify_data_with_settings,
     create_empty_xml,
-    update_checked_settings,
+    update_settings_with_XML,
     verify_params,
     verify_step_min_max,
 )
@@ -47,9 +49,10 @@ class ViperBox:
         self._working_directory = os.getcwd()
 
         self.local_settings = GeneralSettings()
+        self.connected = ConnectedBoxes()
         self.uploaded_settings = GeneralSettings()
         self.tracking = StatusTracking()
-        self._box_ptrs = {}
+        self._box_ptrs: Any = {}
 
         self._session_datetime = _session_datetime
         self._rec_start_time: float | None = None
@@ -110,8 +113,8 @@ class ViperBox:
         self._time()
         self.boxless = boxless
         self.logger.info(
-            f"ViperBox connect: probe list: {probe_list}, emulation: \
-{emulation}, boxless: {boxless}."
+            f"ViperBox connect: probe list: {probe_list}, emulation: {emulation}, \
+boxless: {boxless}."
         )
 
         # Checks if the ViperBox is connected and connects if not.
@@ -124,8 +127,9 @@ class ViperBox:
 
         # check if boxless mode is enabled
         if self.boxless is True:
-            self.local_settings.boxes = {0: BoxSettings()}
-            self.local_settings.boxes[0].probes[0] = ProbeSettings()
+            # Boxless mode connects 1 box and 1 probe
+            self.connected.boxes[0] = ConnectedProbes()
+            self.connected.boxes[0].probes[0] = True
             self.recording_settings(default_values=True)
             self.stimulation_settings(default_values=True)
             self.logger.info(f"local settings: {self.local_settings}")
@@ -157,7 +161,8 @@ class ViperBox:
         elif number_of_devices == 1:
             self.logger.info(f"Device found: {devices[0]}")
             # TODO add box settings and info and stuffff
-            self.local_settings.boxes = {0: BoxSettings()}
+            self.local_settings.boxes[0] = BoxSettings()
+            self.connected.boxes[0] = ConnectedProbes()
             pass
         else:
             self.logger.info(
@@ -205,6 +210,7 @@ class ViperBox:
                 NVP.init(self._box_ptrs[box], int(probe))  # Initialize all probes
                 self.logger.info(f"Probe {probe} initialized: {self._box_ptrs[box]}")
                 self.local_settings.boxes[0].probes[probe] = ProbeSettings()
+                self.connected.boxes[0].probes[probe] = True
             except Exception as error:
                 self.logger.warning(
                     f"!! Init() exception error, probe {probe}: {self._er(error)}"
@@ -355,7 +361,11 @@ settings to ViperBox"
             return False, "Not connected to ViperBox"
 
         if self.tracking.recording is True:
-            return False, "Recording in progress, cannot change settings"
+            return (
+                False,
+                "Recording in progress, cannot change settings. To verify \
+custom XML settings, use the verify_xml API call.",
+            )
 
         if default_values is True:
             XML_data = etree.parse("defaults/default_recording_settings.xml")
@@ -371,10 +381,13 @@ settings to ViperBox"
         # make temporary copy of settings
         tmp_local_settings = copy.deepcopy(self.local_settings)
 
-        self.logger.info(f"Checking XML with settings: {tmp_local_settings}")
-        result, feedback = check_xml_with_settings(
-            XML_data, tmp_local_settings, "recording"
+        self.logger.debug(f"Checking XML with settings: {tmp_local_settings}")
+        result, feedback = check_xml_boxprobes_exist_and_verify_data_with_settings(
+            XML_data, tmp_local_settings, self.connected, "recording"
         )
+        # result, feedback = check_xml_with_settings(
+        #     XML_data, tmp_local_settings, "recording"
+        # )
         if result is False:
             return result, feedback
 
@@ -384,7 +397,7 @@ settings to ViperBox"
         self.logger.info("Updating supplied settings to local settings")
         # add connected boxes and probes to tmp_local_settings
 
-        updated_tmp_settings = update_checked_settings(
+        updated_tmp_settings = update_settings_with_XML(
             XML_data, tmp_local_settings, "recording"
         )
 
@@ -398,8 +411,8 @@ settings to ViperBox"
                 f"Error in uploading recording settings, settings not applied and \
 reverted to previous settings. Error: {self._er(e)}",
             )
-        self.tracking.recording_settings_uploaded = True
-        self.local_settings = updated_tmp_settings
+
+        self.local_settings = updated_tmp_settings  # Why not deepcopy??
         self.logger.info("uploaded_settings = local_settings")
         self.uploaded_settings = copy.deepcopy(self.local_settings)
         return True, "Recording settings loaded"
@@ -508,16 +521,20 @@ reverted to previous settings. Error: {self._er(e)}",
 
         tmp_local_settings = copy.deepcopy(self.local_settings)
 
-        result, feedback = check_xml_with_settings(
-            XML_data, tmp_local_settings, "stimulation"
+        result, feedback = check_xml_boxprobes_exist_and_verify_data_with_settings(
+            XML_data, tmp_local_settings, self.connected, "stimulation"
         )
+        # result, feedback = check_xml_with_settings(
+        #     XML_data, tmp_local_settings, "stimulation"
+        # )
+
         if result is False:
             return result, feedback
 
         if reset:
             tmp_local_settings.reset_stimulation_settings()
 
-        updated_tmp_settings = update_checked_settings(
+        updated_tmp_settings = update_settings_with_XML(
             XML_data, tmp_local_settings, "stimulation"
         )
 
@@ -526,6 +543,8 @@ reverted to previous settings. Error: {self._er(e)}",
         try:
             self._upload_stimulation_settings(updated_tmp_settings)
             self.uploaded_settings = copy.deepcopy(updated_tmp_settings)
+            self.tracking.stimulation_settings_uploaded = True
+            self.tracking.stimulation_settings_written_to_stimrec = False
         except Exception as e:
             return (
                 False,
@@ -534,17 +553,17 @@ reverted to previous settings. Error: {self._er(e)}",
             )
         dt_time = self._time() - start_time
 
-        self.tracking.stimulation_settings_uploaded = True
+        self.tracking.stimset_upload_times = (start_time, dt_time)
         self.local_settings = copy.deepcopy(updated_tmp_settings)
 
-        # if stim_file_path doesn't exist, the recording hasn't started yet
-        # settings will be written to stimrec at recording start
-        if self.stim_file_path:
-            result, feedback = self._stimrec_write_stimulation_settings(
-                updated_tmp_settings, start_time, dt_time
-            )
-            if result is False:
-                return result, feedback
+        # # if stim_file_path doesn't exist, the recording hasn't started yet
+        # # settings will be written to stimrec at recording start
+        # if self.stim_file_path:
+        #     result, feedback = self._stimrec_write_stimulation_settings(
+        #         updated_tmp_settings, start_time, dt_time
+        #     )
+        #     if result is False:
+        #         return result, feedback
 
         return True, "Stimulation settings loaded"
 
@@ -567,9 +586,12 @@ reverted to previous settings. Error: {self._er(e)}",
                 f"Verify xml call with dictionary: {XML_dictionary}",
             )
         elif XML_data != "":
-            result, feedback = check_xml_with_settings(
-                XML_data, tmp_data, check_topic, self.boxless
+            result, feedback = check_xml_boxprobes_exist_and_verify_data_with_settings(
+                XML_data, tmp_data, self.connected, "all"
             )
+            # result, feedback = check_xml_with_settings(
+            #     XML_data, tmp_data, check_topic, self.boxless
+            # )
         else:
             result, feedback = False, "No XML data found"
 
@@ -583,24 +605,37 @@ reverted to previous settings. Error: {self._er(e)}",
             pass
         elif self.tracking.box_connected is False:
             return False, "Not connected to ViperBox"
+
+        if self.tracking.recording is True:
+            return (
+                False,
+                """Recording in progress, cannot change settings. First stop recording \
+to load default settings""",
+            )
+
         XML_data = etree.parse("defaults/default_settings.xml")
 
         tmp_local_settings = copy.deepcopy(self.local_settings)
-        result, feedback = check_xml_with_settings(XML_data, tmp_local_settings, "all")
+
+        result, feedback = check_xml_boxprobes_exist_and_verify_data_with_settings(
+            XML_data, tmp_local_settings, self.connected, "all"
+        )
+        # result, feedback =
+        # check_xml_with_settings(XML_data, tmp_local_settings, "all")
+
         if result is False:
             return result, feedback
 
         tmp_local_settings.reset_probe_settings()
 
-        updated_tmp_settings = update_checked_settings(
+        updated_tmp_settings = update_settings_with_XML(
             XML_data, tmp_local_settings, "recording"
         )
-        updated_tmp_settings = update_checked_settings(
+        updated_tmp_settings = update_settings_with_XML(
             XML_data, updated_tmp_settings, "stimulation"
         )
 
         # TODO boxfix: also loop over boxes
-        start_time = self._time()
         try:
             self._upload_recording_settings(updated_tmp_settings)
         except Exception as e:
@@ -612,78 +647,22 @@ reverted to previous settings. Error: {self._er(e)}",
                     f"Error in uploading recording settings, settings not applied and \
     reverted to previous settings. Error: {self._er(e)}",
                 )
+
+        start_time = self._time()
         try:
             self._upload_stimulation_settings(updated_tmp_settings)
+            self.tracking.stimulation_settings_uploaded = True
+            self.tracking.stimulation_settings_written_to_stimrec = False
         except Exception as e:
             return (
                 False,
                 f"Error in uploading stimulation settings, settings not applied and \
 reverted to previous settings. Error: {self._er(e)}",
             )
+
         dt_time = self._time() - start_time
+        self.tracking.stimset_upload_times = (start_time, dt_time)
 
-        for box in updated_tmp_settings.boxes.keys():
-            for probe in updated_tmp_settings.boxes[box].probes.keys():
-                if self.stim_file_path is not None:
-                    for channel in (
-                        self.uploaded_settings.boxes[box].probes[probe].channel.keys()
-                    ):
-                        add_to_stimrec(
-                            self.stim_file_path,
-                            "Settings",
-                            "Channel",
-                            {
-                                "box": box,
-                                "probe": probe,
-                                "channel": channel,
-                                **self.uploaded_settings.boxes[box]
-                                .probes[probe]
-                                .channel[channel]
-                                .__dict__,
-                            },
-                            start_time,
-                            dt_time,
-                        )
-                for configuration in (
-                    updated_tmp_settings.boxes[box].probes[probe].stim_unit_sett.keys()
-                ):
-                    add_to_stimrec(
-                        self.stim_file_path,
-                        "Settings",
-                        "Configuration",
-                        {
-                            "box": box,
-                            "probe": probe,
-                            "stimunit": configuration,
-                            **updated_tmp_settings.boxes[box]
-                            .probes[probe]
-                            .stim_unit_sett[configuration]
-                            .__dict__,
-                        },
-                        start_time,
-                        dt_time,
-                    )
-                for mapping in (
-                    updated_tmp_settings.boxes[box].probes[probe].stim_unit_elec.keys()
-                ):
-                    add_to_stimrec(
-                        self.stim_file_path,
-                        "Settings",
-                        "Mapping",
-                        {
-                            "box": box,
-                            "probe": probe,
-                            "stimunit": mapping,
-                            "electrodes": updated_tmp_settings.boxes[box]
-                            .probes[probe]
-                            .stim_unit_elec[mapping],
-                        },
-                        start_time,
-                        dt_time,
-                    )
-
-        self.tracking.recording_settings_uploaded = True
-        self.tracking.stimulation_settings_uploaded = True
         self.local_settings = updated_tmp_settings
         self.uploaded_settings = copy.deepcopy(self.local_settings)
 
@@ -805,8 +784,9 @@ reverted to previous settings. Error: {self._er(e)}",
                         -1.0,
                     )
 
-        # Try to write stimulation settings to stimrec if they are available.
-        self._stimrec_write_stimulation_settings(self.local_settings, -1.0, -1.0)
+        # Not necessary because will be written at stimulation start
+        # # Try to write stimulation settings to stimrec if they are available.
+        # self._stimrec_write_stimulation_settings(self.local_settings, -1.0, -1.0)
 
         add_to_stimrec(
             self.stim_file_path,
@@ -1055,9 +1035,9 @@ reverted to previous settings. Error: {self._er(e)}",
         # TODO: not implemented
         pass
 
-    def _convert_SU_list(self, SU_list: List[int]) -> int:
+    def _SU_list_to_bitmask(self, SU_list: List[int]) -> int:
         # convert SUs to NVP format
-        SU_string = "".join(["1" if i in SU_list else "0" for i in range(1, 9)])
+        SU_string = "".join(["1" if i in SU_list else "0" for i in range(8)])
         return int(SU_string, 2)
 
     def start_stimulation(
@@ -1085,7 +1065,20 @@ reverted to previous settings. Error: {self._er(e)}",
                     start recording first""",
             )
 
-        # SU_dict = {box1: {probe1: [1,2,5], probe2: [3,4,6]}}
+        if self.tracking.stimulation_settings_uploaded is False:
+            return (
+                False,
+                """Stimulation settings not uploaded, please upload stimulation \
+settings first""",
+            )
+
+        # Create a trigger dict
+        # fill the trigger dict with values that are configured
+        # trigger SUs and store time and dt
+        # write stim settings to stimrec if not changed since last time
+        # write triggers to stimrec
+
+        # SU_dict = {0: {0: [0,1,2], 1: [3,4,6]}}
         SU_dict: Any = {}
         # Check if boxes, probes and SUs are in right format and properly configured
         # i.e, have waveform configured
@@ -1097,14 +1090,17 @@ reverted to previous settings. Error: {self._er(e)}",
                 probes,
                 list(self.uploaded_settings.boxes[box].probes.keys()),
             ):
-                SU_dict[box][probe] = parse_numbers(
-                    SU_input,
-                    list(
-                        self.uploaded_settings.boxes[box]
-                        .probes[probe]
-                        .stim_unit_sett.keys()
-                    ),
+                SU_dict[box][probe] = self._SU_list_to_bitmask(
+                    parse_numbers(
+                        SU_input,
+                        list(
+                            self.uploaded_settings.boxes[box]
+                            .probes[probe]
+                            .stim_unit_sett.keys()
+                        ),
+                    )
                 )
+
         #                 except ValueError as e:
         #                     return_statement = "SU settings not available on probe "
         #                     f"{probe}, on box {box} are not available:
@@ -1122,17 +1118,21 @@ reverted to previous settings. Error: {self._er(e)}",
         #     return False, f"Box {box} doesn't seem to be connected:
         # {self._er(e)}"
 
-        SU_dict = {
-            int(box): {
-                int(probe): self._convert_SU_list(sulist)
-                for probe, sulist in probes.items()
-            }
-            for box, probes in SU_dict.items()
-        }
+        # # Convert SU list into bitmask
+        # SU_dict = {
+        #     int(box): {
+        #         int(probe): self._SU_list_to_bitmask(sulist)
+        #         for probe, sulist in probes.items()
+        #     }
+        #     for box, probes in SU_dict.items()
+        # }
+
+        start_dt_times: Any = {}
 
         # Trigger SUs
         self.logger.info(f"Triggering SUs: {SU_dict}")
         for box in SU_dict.keys():
+            start_dt_times[box] = {}
             for probe in SU_dict[box].keys():
                 tmp_counter = self._time()
                 # TODO could be faster by not having to do this converstion here
@@ -1142,7 +1142,19 @@ reverted to previous settings. Error: {self._er(e)}",
                     SU_dict[box][probe],
                 )
                 tmp_delta = self._time() - tmp_counter
+                start_dt_times[box][probe] = (tmp_counter, tmp_delta)
 
+        # Write stimulation settings to stimrec if not changed since last upload
+        if self.tracking.stimulation_settings_written_to_stimrec is False:
+            self._stimrec_write_stimulation_settings(
+                self.uploaded_settings,
+                self.tracking.stimset_upload_times[0],
+                self.tracking.stimset_upload_times[1],
+            )
+            self.tracking.stimulation_settings_written_to_stimrec = True
+
+        for box in start_dt_times.keys():
+            for probe in start_dt_times[box].keys():
                 add_to_stimrec(
                     self.stim_file_path,
                     "Instructions",
@@ -1150,18 +1162,16 @@ reverted to previous settings. Error: {self._er(e)}",
                     {
                         "filename": self.recording_name,
                         "instruction_type": "stimulation_start",
-                        "boxes": SU_dict.keys(),
-                        "probes": {
-                            box: probes.keys() for box, probes in SU_dict.items()
-                        },
-                        "SU_dict": SU_dict,
+                        "box": box,
+                        "probe": probe,
+                        "SU_bitmask": SU_dict[box][probe],
                     },
-                    tmp_counter,
-                    tmp_delta,
+                    start_dt_times[box][probe][0],
+                    start_dt_times[box][probe][1],
                 )
 
         return_statement = f"Stimulation started on boxes {boxes} probe {probes} \
-            for SU's {SU_dict[box][probe]}"
+            for SU's {SU_dict}"
         return True, return_statement
 
     def _er(self, error):
