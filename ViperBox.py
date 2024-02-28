@@ -217,7 +217,6 @@ boxless: {boxless}."
                 )
         self.logger.info(f"API channel opened: {devices[0]}")
         self._deviceId = devices[0].ID
-        self.tracking.probe_connected = True
         # print(self.local_settings)
         self.uploaded_settings = copy.deepcopy(self.local_settings)
 
@@ -240,7 +239,6 @@ boxless: {boxless}."
             NVP.destroyHandle(self._box_ptrs[box])
             self._deviceId = 0
             self.tracking.box_connected = False
-            self.tracking.probe_connected = False
             self.uploaded_settings = GeneralSettings()
         except KeyError as e:
             self.logger.debug(

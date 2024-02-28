@@ -33,7 +33,7 @@ class StatusTracking:
     test_mode: bool = False
     BIST_number: int | None = None
     box_connected: bool = False
-    probe_connected: bool = False
+    # probe_connected: bool = False
     active_TTLs: List[bool] = field(default_factory=list)
     _SU_busy = "0" * 16
 
