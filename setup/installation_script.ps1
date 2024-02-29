@@ -79,7 +79,7 @@ foreach ($s in $software.GetEnumerator()) {
 
 # Update the conda base environment and create a new environment
 $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-$envYamlPath = Join-Path -Path $scriptPath -ChildPath "viperboxV0_0_1.yaml"
+$envYamlPath = Join-Path -Path $scriptPath -ChildPath "viperbox.yaml"
 Write-Host "Updating base conda and creating a new environment for ViperBox, this, again, might take a while." -ForegroundColor Yellow
 # Start-Process -FilePath "$anacondaLocation\Scripts\conda.exe" -ArgumentList "info --envs" -Wait
 Start-Process -FilePath "$anacondaLocation\Scripts\conda.exe" -ArgumentList "update -n base conda -y" -Wait
@@ -88,7 +88,7 @@ Start-Process -FilePath "$anacondaLocation\Scripts\conda.exe" -ArgumentList "env
 # Create a startup file called start_app.bat that always starts in the right location
 $mainFolderPath = Split-Path -Parent $scriptPath
 $batchFilePath = Join-Path -Path $mainFolderPath -ChildPath "start_app.bat"
-$batchContent = "@echo off`ncd /d `"%~dp0`"`ncall conda activate vb311`nuvicorn main:app --reload`n"
+$batchContent = "@echo off`ncd /d `"%~dp0`"`ncall conda activate viperbox`nuvicorn main:app --reload`n"
 Set-Content -Path $batchFilePath -Value $batchContent
 
 # Create shortcut on the desktop
