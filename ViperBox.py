@@ -67,6 +67,7 @@ class ViperBox:
 
         self.start_oe = start_oe
         self.boxless = False
+        self.emulation = False
 
         # for handler in logging.root.handlers[:]:
         #     logging.root.removeHandler(handler)
@@ -103,6 +104,7 @@ class ViperBox:
         """
         self._time()
         self.boxless = boxless
+        self.emulation = emulation
         self.logger.info(
             f"ViperBox connect: probe list: {probe_list}, emulation: {emulation}, \
 boxless: {boxless}."
@@ -691,7 +693,7 @@ reverted to previous settings. Error: {self._er(e)}",
         Tests:
         - start recording with incomplete settings uploaded
         """
-        if self.boxless is True:
+        if self.boxless is True or self.emulation is True:
             pass
         elif self.tracking.box_connected is False:
             return False, "Not connected to ViperBox"
@@ -705,16 +707,20 @@ reverted to previous settings. Error: {self._er(e)}",
 
         # TODO this should check if recording settings are available for all
         # connected boxes
-        self.logger.debug("Check if uploaded settings has all recording settings")
-        for box in self.uploaded_settings.boxes.keys():
-            for probe in self.uploaded_settings.boxes[box].probes.keys():
-                if len(self.uploaded_settings.boxes[box].probes[probe].channel) != 64:
-                    return (
-                        False,
-                        f"""No recording settings available for all channels on box \
-{box}, probe {probe}. First upload default settings for all channels, then \
+        if not self.emulation:
+            self.logger.debug("Check if uploaded settings has all recording settings")
+            for box in self.uploaded_settings.boxes.keys():
+                for probe in self.uploaded_settings.boxes[box].probes.keys():
+                    if (
+                        len(self.uploaded_settings.boxes[box].probes[probe].channel)
+                        != 64
+                    ):
+                        return (
+                            False,
+                            f"""No recording settings available for all channels on box\
+ {box}, probe {probe}. First upload default settings for all channels, then \
 upload your custom settings and then try again.""",
-                    )
+                        )
 
         self._recording_datetime = time.strftime("%Y%m%d_%H%M%S")
 
@@ -745,7 +751,9 @@ upload your custom settings and then try again.""",
                 f"unnamed_recording_{self._recording_datetime}.bin"
             )
 
+        self.logger.debug(self._box_ptrs)
         self.logger.debug("NVP.setFileStream")
+        box = 0
         NVP.setFileStream(self._box_ptrs[box], str(self._rec_path))
         self.logger.debug("NVP.enableFileStream")
         NVP.enableFileStream(self._box_ptrs[box], str(self._rec_path))
@@ -820,10 +828,14 @@ upload your custom settings and then try again.""",
         self.oe_socket = True
         probe = 0
         self.logger.debug("Start sending data")
-        threading.Thread(target=self._send_data_to_socket, args=(probe,)).start()
+        threading.Thread(
+            target=self._send_data_to_socket, args=(probe,), daemon=True
+        ).start()
 
         if self.start_oe:
-            threading.Thread(target=self._start_eo_acquire, args=(True,)).start()
+            threading.Thread(
+                target=self._start_eo_acquire, args=(True,), daemon=True
+            ).start()
 
         self.logger.info(f"Recording started: {recording_name}")
         return True, f"Recording started: {recording_name}"
@@ -951,7 +963,8 @@ Error: {e2}"
         self.logger.info("Started sending data to Open Ephys")
         mtx = self._os2chip_mat()
         counter = 0
-        t0 = time.time_ns() // 1e9
+        # t0 = time.time_ns() // 1e9
+        t0 = self._time()
         while self.oe_socket is True:
             counter += 1
 
@@ -970,9 +983,11 @@ Error: {e2}"
             databuffer = databuffer.copy(order="C")
             UDPClientSocket.sendto(databuffer, serverAddressPort)
 
-            t2 = time.time_ns() // 1e9
+            # t2 = time.time_ns() // 1e9
+            t2 = self._time()
             while (t2 - t0) < counter * bufferInterval:
-                t2 = time.time_ns() // 1e9
+                # t2 = time.time_ns() // 1e9
+                t2 = self._time()
 
         NVP.streamClose(send_data_read_handle)
 

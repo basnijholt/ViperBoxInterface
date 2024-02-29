@@ -88,10 +88,6 @@ class SUSettings:
                 value = env[field_name]
                 try:
                     if issubclass(field_type, bool) and isinstance(value, str):
-                        logger.debug(
-                            f'handling field type bool for value: {value}, interpreted \
-as {value.lower() in ("true", "1", "t", "yes")}'
-                        )
                         tmp_dct[field_name] = value.lower() in ("true", "1", "t", "yes")
                     else:
                         tmp_dct[field_name] = field_type(value)

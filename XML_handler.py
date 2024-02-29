@@ -197,9 +197,6 @@ def update_settings_with_XML(
     """
 
     # TODO deal with overwriting all settings.
-    logger.info(
-        "THIS IS A TEST FROM XML_HANDLER, also deal with overwriting all settings"
-    )
     if check_topic == "all":
         tags = [
             "RecordingSettings",

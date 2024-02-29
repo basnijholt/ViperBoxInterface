@@ -255,7 +255,6 @@ reference_button_matrix = [reference_button_matrix]
 gain_MAX_COL = 4
 gain_switch_matrix = ["off" for _ in range(gain_MAX_COL)]
 gain_switch_matrix[0] = "on"
-gain = 0
 gain_dict = {
     "x60": 0,
     "x16": 1,
@@ -970,6 +969,8 @@ def convert_anodic_cathodic(values):
 def run_gui():
     logger.debug("Starting GUI")
 
+    gain = 0
+
     window = sg.Window(
         "ViperBox Control",
         layout,
@@ -1011,7 +1012,7 @@ def run_gui():
             break
         elif event == "button_connect":
             data = {"probe_list": "1", "emulation": "False", "boxless": "False"}
-            response = requests.post(url + "connect/", json=data)
+            response = requests.post(url + "connect", json=data)
             if handle_response(response, "Connected to ViperBox"):
                 SetLED(window, "led_connect_probe", True)
                 SetLED(window, "led_rec", False)
@@ -1019,7 +1020,7 @@ def run_gui():
                 SetLED(window, "led_connect_probe", False)
                 SetLED(window, "led_rec", False)
         elif event == "button_disconnect":
-            response = requests.post(url + "disconnect/")
+            response = requests.post(url + "disconnect")
             if handle_response(response, "Disconnected from ViperBox"):
                 SetLED(window, "led_connect_probe", False)
                 SetLED(window, "led_rec", False)
@@ -1033,7 +1034,7 @@ def run_gui():
                 data = {"recording_name": f"{values['input_filename']}"}
             logger.info("Start recording button pressed")
             try:
-                response = requests.post(url + "start_recording/", json=data, timeout=5)
+                response = requests.post(url + "start_recording", json=data, timeout=5)
             except requests.exceptions.Timeout:
                 sg.popup_ok(
                     "ViperBox is hanging when trying to restart recording?\
@@ -1048,14 +1049,14 @@ Please do the following: \n\
             SetLED(window, "led_rec", True)
         elif event == "button_stop":
             logger.info("Stop recording button pressed")
-            response = requests.post(url + "stop_recording/")
+            response = requests.post(url + "stop_recording")
             if handle_response(response, "Recording stopped"):
                 pass
             SetLED(window, "led_rec", False)
         elif event == "button_stim":
             logger.info("Stimulate button pressed")
             data = {"boxes": "1", "probes": "-", "stimunits": "-"}
-            response = requests.post(url + "start_stimulation/", json=data, timeout=5)
+            response = requests.post(url + "start_stimulation", json=data, timeout=5)
             if handle_response(response, "Stimulation started"):
                 pass
         elif event[:3] == "el_":
@@ -1116,7 +1117,7 @@ Please do the following: \n\
             }
             try:
                 response = requests.post(
-                    url + "recording_settings/", json=data, timeout=5
+                    url + "recording_settings", json=data, timeout=5
                 )
                 if handle_response(response, "Recording settings uploaded"):
                     pass
@@ -1161,7 +1162,7 @@ Please do the following: \n\
             }
             try:
                 response = requests.post(
-                    url + "stimulation_settings/", json=data, timeout=5
+                    url + "stimulation_settings", json=data, timeout=5
                 )
                 if handle_response(response, "Stimulation settings uploaded"):
                     pass
@@ -1169,7 +1170,7 @@ Please do the following: \n\
                 sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
         elif event == "upload_defaults":
             try:
-                response = requests.post(url + "default_settings/", timeout=5)
+                response = requests.post(url + "default_settings", timeout=5)
                 if handle_response(response, "Default settings uploaded"):
                     pass
             except requests.exceptions.Timeout:
@@ -1182,7 +1183,7 @@ Please do the following: \n\
             }
             data = {"dictionary": settings_input, "XML": "", "check_topic": "all"}
             try:
-                response = requests.post(url + "verify_xml/", json=data, timeout=0.5)
+                response = requests.post(url + "verify_xml", json=data, timeout=0.5)
                 if handle_response(
                     response,
                     f"Successfully checked waveform parameter {event}",
