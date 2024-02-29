@@ -1,12 +1,16 @@
 import logging
 import logging.handlers
 import multiprocessing
+import os
+import threading
 import time
 
+import psutil
 import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 
+import gui
 import VB_logger
 from api_classes import (
     Connect,
@@ -27,6 +31,8 @@ multiprocessing.Process(
     args=(session_datetime,),
     daemon=True,
 ).start()
+
+multiprocessing.Process(target=gui.run_gui, daemon=True).start()
 
 logger = logging.getLogger("SERVER")
 logger.setLevel(logging.DEBUG)
@@ -81,8 +87,6 @@ app = FastAPI(
     },
 )
 VB = ViperBox(_session_datetime=session_datetime, start_oe=True)
-
-# multiprocessing.Process(target=gui).start()
 
 
 # @app.get("/test")#, tags=["test"])
@@ -330,6 +334,18 @@ async def start_stimulation(api_start_stim: apiStartStim):
 async def root():
     return RedirectResponse(url="/docs")
     # return RedirectResponse(url="/redoc")
+
+
+def self_terminate():
+    time.sleep(2)
+    parent = psutil.Process(psutil.Process(os.getpid()).ppid())
+    parent.kill()
+
+
+@app.post("/kill")
+async def kill():
+    threading.Thread(target=self_terminate, daemon=True).start()
+    return {"success": True}
 
 
 if __name__ == "__main__":

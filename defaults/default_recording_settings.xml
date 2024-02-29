@@ -2,7 +2,7 @@
 <Program>
     <Settings>
         <RecordingSettings>
-            <Channel box="-" probe="-" channel="-" references="-" gain="0" input="0" />
+            <Channel box="-" probe="-" channel="-" references="b" gain="0" input="0" />
         </RecordingSettings>
     </Settings>
 </Program>

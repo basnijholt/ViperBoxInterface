@@ -716,8 +716,6 @@ reverted to previous settings. Error: {self._er(e)}",
 upload your custom settings and then try again.""",
                     )
 
-        if self.start_oe:
-            threading.Thread(target=self._start_eo_acquire, args=(True,)).start()
         self._recording_datetime = time.strftime("%Y%m%d_%H%M%S")
 
         rec_folder = Path.cwd() / "Recordings"
@@ -824,6 +822,9 @@ upload your custom settings and then try again.""",
         self.logger.debug("Start sending data")
         threading.Thread(target=self._send_data_to_socket, args=(probe,)).start()
 
+        if self.start_oe:
+            threading.Thread(target=self._start_eo_acquire, args=(True,)).start()
+
         self.logger.info(f"Recording started: {recording_name}")
         return True, f"Recording started: {recording_name}"
 
@@ -858,6 +859,7 @@ upload your custom settings and then try again.""",
         return folder.joinpath(file)
 
     def _start_eo_acquire(self, startup_oe=False):
+        time.sleep(0.5)
         self.logger.info(
             "Try to switch open ephys to acquire mode, otherwise start it."
         )

@@ -967,44 +967,46 @@ def convert_anodic_cathodic(values):
     return values
 
 
-window = sg.Window(
-    "ViperBox Control",
-    layout,
-    finalize=False,
-)
+def run_gui():
+    logger.debug("Starting GUI")
 
-url = "http://127.0.0.1:8000/"
-tmp_path = ""
-_, values = window.read(timeout=0)
-SetLED(window, "led_connect_probe", False)
-SetLED(window, "led_rec", False)
-fig = generate_plot()
-figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
+    window = sg.Window(
+        "ViperBox Control",
+        layout,
+        finalize=False,
+    )
 
-elements_names = [
-    "anodic_cathodic",
-    "number_of_pulses",
-    "pulse_delay",
-    "pulse_amplitude_anode",
-    "first_pulse_phase_width",
-    "pulse_interphase_interval",
-    "pulse_amplitude_cathode",
-    "second_pulse_phase_width",
-    "discharge_time",
-    "pulse_duration",
-    "discharge_time_extra",
-]
-elements = [window[key] for key in elements_names]
+    url = "http://127.0.0.1:8000/"
+    tmp_path = ""
+    _, values = window.read(timeout=0)
+    SetLED(window, "led_connect_probe", False)
+    SetLED(window, "led_rec", False)
+    fig = generate_plot()
+    figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
 
-for element in elements:
-    element.bind("<FocusOut>", "+FOCUS OUT")
+    elements_names = [
+        "anodic_cathodic",
+        "number_of_pulses",
+        "pulse_delay",
+        "pulse_amplitude_anode",
+        "first_pulse_phase_width",
+        "pulse_interphase_interval",
+        "pulse_amplitude_cathode",
+        "second_pulse_phase_width",
+        "discharge_time",
+        "pulse_duration",
+        "discharge_time_extra",
+    ]
+    elements = [window[key] for key in elements_names]
 
-logger.debug("Starting GUI")
+    for element in elements:
+        element.bind("<FocusOut>", "+FOCUS OUT")
 
-if __name__ == "__main__":
     while True:
         event, values = window.read()
         if event == sg.WIN_CLOSED or event == "Exit":
+            _ = response = requests.post(url + "disconnect")
+            _ = response = requests.post(url + "kill")
             logger.info("Closing GUI")
             break
         elif event == "button_connect":
@@ -1026,9 +1028,9 @@ if __name__ == "__main__":
             logger.info(f"Updated recordings file path to: {tmp_path}")
         elif event == "button_rec":
             if tmp_path:
-                data = {"filename": f"{tmp_path}/{values['input_filename']}"}
+                data = {"recording_name": f"{tmp_path}/{values['input_filename']}"}
             else:
-                data = {"filename": f"{values['input_filename']}"}
+                data = {"recording_name": f"{values['input_filename']}"}
             logger.info("Start recording button pressed")
             try:
                 response = requests.post(url + "start_recording/", json=data, timeout=5)
@@ -1043,11 +1045,13 @@ Please do the following: \n\
                 continue
             if handle_response(response, "Recording started"):
                 window["button_stim"].update(disabled=False)
+            SetLED(window, "led_rec", True)
         elif event == "button_stop":
             logger.info("Stop recording button pressed")
             response = requests.post(url + "stop_recording/")
             if handle_response(response, "Recording stopped"):
                 pass
+            SetLED(window, "led_rec", False)
         elif event == "button_stim":
             logger.info("Stimulate button pressed")
             data = {"boxes": "1", "probes": "-", "stimunits": "-"}
@@ -1074,7 +1078,7 @@ Please do the following: \n\
             window[event].update(
                 button_color=toggle_1d_color(event, reference_switch_matrix)
             )
-        elif event[:3] == "gain_":
+        elif event[:3] == "gai":
             window["gain_0"].update(button_color="light grey")
             window["gain_1"].update(button_color="light grey")
             window["gain_2"].update(button_color="light grey")
@@ -1170,7 +1174,6 @@ Please do the following: \n\
                     pass
             except requests.exceptions.Timeout:
                 sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
-
         elif event.endswith("+FOCUS OUT"):
             event = event.split("+")[0]
             values = convert_anodic_cathodic(values)
@@ -1191,3 +1194,7 @@ Please do the following: \n\
                 sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
         else:
             logger.info(f"Unknown event happened: {event}")
+
+
+if __name__ == "__main__":
+    run_gui()
