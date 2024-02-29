@@ -1006,6 +1006,9 @@ def run_gui():
     while True:
         event, values = window.read()
         if event == sg.WIN_CLOSED or event == "Exit":
+            _ = requests.put(
+                "http://localhost:37497/api/window", json={"command": "quit"}
+            )
             _ = response = requests.post(url + "disconnect")
             _ = response = requests.post(url + "kill")
             logger.info("Closing GUI")

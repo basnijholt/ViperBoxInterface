@@ -90,6 +90,26 @@ class ViperBox:
 
         return None
 
+    def empty_socket(self, time=5) -> None:
+        serverAddressPort = ("127.0.0.1", 9001)
+        MULTICAST_TTL = 2
+        UDPClientSocket: socket.socket = socket.socket(
+            socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
+        )
+
+        UDPClientSocket.setsockopt(
+            socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL
+        )
+        databuffer = np.ones((60, 500), dtype="uint16")
+        i = 0
+        while i < 10 * time:
+            # global stop_threads
+            UDPClientSocket.sendto(databuffer, serverAddressPort)
+            time.sleep(0.1)
+            i += 1
+            # if stop_threads:
+            #     break
+
     def connect(
         self,
         probe_list: str = "1",
@@ -137,6 +157,8 @@ boxless: {boxless}."
                 False,
                 f"Invalid probe list: {self._er(e)}",
             )
+
+        threading.Thread(target=self.empty_socket, daemon=True).start()
 
         if self.start_oe:
             try:
@@ -221,6 +243,7 @@ Error: {self._er(e)}"
         self.logger.info(f"API channel opened: {devices[0]}")
         self._deviceId = devices[0].ID
         # print(self.local_settings)
+
         self.uploaded_settings = copy.deepcopy(self.local_settings)
 
         # TODO boxfix: also loop over boxes
