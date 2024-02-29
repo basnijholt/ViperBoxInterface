@@ -6,6 +6,7 @@ __pycache__/*
 testing.ipynb
 
 *.bat
+*.log
 
 gold_ui.py
 

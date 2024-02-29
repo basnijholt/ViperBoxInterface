@@ -80,7 +80,7 @@ app = FastAPI(
         "url": "https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html",
     },
 )
-VB = ViperBox(_session_datetime=session_datetime, start_oe=False)
+VB = ViperBox(_session_datetime=session_datetime, start_oe=True)
 
 # multiprocessing.Process(target=gui).start()
 
@@ -333,5 +333,5 @@ async def root():
 
 
 if __name__ == "__main__":
-    print("##############################name is main done")
+    print("##############################you shouldn't see this")
     uvicorn.run(app, host="127.0.0.1", port=8000)

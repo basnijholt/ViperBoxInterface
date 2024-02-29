@@ -295,7 +295,9 @@ def dict_to_dataclass(cls: Any, dict_obj: Any) -> Any:
         return dict_obj
 
 
-def parse_numbers(numstr: str, all_values: list[int]) -> list[int]:
+def parse_numbers(
+    numstr: str, all_values: list[int], treat_dash: list[int] = []
+) -> list[int]:
     """Parse a string of numbers, converts to 0 indexed and compare to an
     available list.
 
@@ -320,9 +322,12 @@ def parse_numbers(numstr: str, all_values: list[int]) -> list[int]:
         raise ValueError("Invalid input, can't have double dashes")
     result = np.array([], dtype=int)
     if numstr == "-":
-        if all_values is None:
+        if treat_dash != []:
+            result = np.asarray(treat_dash)
+        elif all_values is None:
             raise ValueError("all_values not known")
-        result = np.asarray(all_values)
+        else:
+            result = np.asarray(all_values)
     elif len(numstr) == 1:
         # - 1 because xml is 1 indexed and code is 0 indexed
         result = np.array([int(numstr) - 1])
@@ -352,7 +357,7 @@ def parse_numbers(numstr: str, all_values: list[int]) -> list[int]:
         result = np.unique(result)
         # - 1 because xml is 1 indexed and code is 0 indexed
         result = result - 1
-    if not set(result).issubset(set(all_values)):
+    if numstr != "-" and not set(result).issubset(set(all_values)):
         raise ValueError(
             "Invalid values; following instances are not connected"
             f":{set(result) - set(all_values)}."
@@ -417,8 +422,8 @@ def parse_references(refstr: str) -> str:
         result = np.unique(result)
     if not set(result).issubset(set(all_values)):
         raise ValueError(
-            f"Invalid references; following instances are not connected. Set of \
-                input: {set(result)}, set of available instances: {set(all_values)}."
+            f"Invalid references; following instances are not connected. Set of input: \
+{set(result)}, set of available instances: {set(all_values)}. Input was: {refstr}"
         )
     string_result = "".join(["1" if i in result else "0" for i in all_values])
     return string_result

@@ -71,16 +71,15 @@ def check_gain_input_format(gain: int) -> bool:
     """Check if gain or input is in the correct format
 
     Arguments:
-    - gain or nput: integer between 1 and 4
+    - gain or input: integer between 0 and 3
 
     test cases:
-    - gain is 5
+    - gain is 4
     """
     gain = int(gain)
-    gain += 1
-    if gain not in [1, 2, 3, 4]:
+    if gain not in [0, 1, 2, 3]:
         raise ValueError(
-            f"Gain/input is {gain} or input should be an integer between 1 and 4"
+            f"Gain/input is {gain}. Value should be an integer between 0 and 3"
         )
     return True
 
@@ -133,16 +132,22 @@ multiple of {step}. It is now {value}."
     return True
 
 
-def get_required_boxes_probes_from_xml(data_xml):
+def get_required_boxes_probes_from_xml(data_xml, connected: ConnectedBoxes):
     """
     Read XML and summarize all connected boxes and respective probes into ConnectedBoxes
 
     Arguments:
     - data_xml: xml data of type lxml.etree._ElementTree
+    - connected: connected boxes and probes, used if XML contains '-' for box or probe
 
     """
-    if not isinstance(data_xml, type(etree.fromstring("<a />"))):
-        raise ValueError("data_xml is not of type lxml.etree._Element")
+    logger.debug(f"connected: {connected}")
+    tmp_xml = etree.fromstring("<a />")
+    if not (
+        isinstance(data_xml, type(tmp_xml))
+        or isinstance(data_xml, type(etree.ElementTree(tmp_xml)))
+    ):
+        raise ValueError(f"data_xml is of type {type(data_xml)}")
 
     required = ConnectedBoxes()
     tags = [
@@ -151,15 +156,23 @@ def get_required_boxes_probes_from_xml(data_xml):
         "StimulationMappingSettings",
     ]
 
+    logger.debug(f"connected: {connected}")
+
     for XML_element in data_xml.iter():
         # goes through all XML_elements
         if XML_element.tag in tags:
             # if XML_element contains recording settings, add these settings
             for XML_settings in XML_element:
-                boxes = parse_numbers(XML_settings.attrib["box"], [0, 1, 2])
+                boxes = parse_numbers(
+                    XML_settings.attrib["box"], [0, 1, 2], list(connected.boxes.keys())
+                )
                 for box in boxes:
                     required.boxes[box] = ConnectedProbes()
-                    probes = parse_numbers(XML_settings.attrib["probe"], [0, 1, 2, 3])
+                    probes = parse_numbers(
+                        XML_settings.attrib["probe"],
+                        [0, 1, 2, 3],
+                        list(connected.boxes[box].probes.keys()),
+                    )
                     for probe in probes:
                         required.boxes[box].probes[probe] = True
     return required
@@ -287,10 +300,13 @@ def check_required_boxes_probes_connected(
     Compares required boxes with connected boxes and returns list of not connected \
 boxes and probes.
     """
+    logger.debug(f"required: {required}, connected: {connected}")
     not_connected = []
     for box in required.boxes:
         for probe in required.boxes[box].probes:
-            if not connected.boxes[box].probes[probe]:
+            try:
+                connected.boxes[box].probes[probe] = True
+            except Exception:
                 not_connected.append((box, probe))
     return not_connected
 
@@ -321,13 +337,16 @@ def check_xml_boxprobes_exist_and_verify_data_with_settings(
         except Exception as e:
             return False, f"XML is provided as string, but not valid xml. Error: {e}"
     else:
-        if isinstance(XML_data, type(etree.fromstring("<a />"))):
+        tmp_xml = etree.fromstring("<a />")
+        if isinstance(XML_data, type(tmp_xml)) or isinstance(
+            XML_data, type(etree.ElementTree(tmp_xml))
+        ):
             logger.debug(f"XML is supplied as {type(XML_data)}")
         else:
             raise ValueError(f"XML is supplied as {type(XML_data)}")
 
     # Check if required boxes and probes are actually connected
-    required = get_required_boxes_probes_from_xml(XML_data)
+    required = get_required_boxes_probes_from_xml(XML_data, connected)
     not_connected = check_required_boxes_probes_connected(required, connected)
     if not_connected != []:
         substring = ", ".join(

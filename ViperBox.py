@@ -66,6 +66,7 @@ class ViperBox:
         self._rec_path: Path | None = None
 
         self.start_oe = start_oe
+        self.boxless = False
 
         # for handler in logging.root.handlers[:]:
         #     logging.root.removeHandler(handler)
@@ -81,20 +82,10 @@ class ViperBox:
         # # handler = logging.StreamHandler(sys.stdout)
         # # self.logger.addHandler(handler)
 
-        if self.start_oe:
-            try:
-                self.logger.info("Starting Open Ephys")
-                os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
-            except Exception as e:
-                self.logger.warning(
-                    f"Can't start Open Ephys, please start it manually. \
-                        Error: {self._er(e)}"
-                )
-
         # TODO take out this
-        self.connect("1", True, True)
+        # self.connect("1", True, True)
 
-        self.logger.info("ViperBox initialized")
+        # self.logger.info("ViperBox initialized")
 
         return None
 
@@ -144,6 +135,16 @@ boxless: {boxless}."
                 False,
                 f"Invalid probe list: {self._er(e)}",
             )
+
+        if self.start_oe:
+            try:
+                self.logger.info("Starting Open Ephys")
+                os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
+            except Exception as e:
+                self.logger.warning(
+                    f"Can't start Open Ephys, please start it manually. \
+Error: {self._er(e)}"
+                )
 
         # Scan for devices
         NVP.scanBS()
@@ -230,6 +231,8 @@ boxless: {boxless}."
 
         if self.boxless is True:
             return True, "Boxless mode, no connection to ViperBox"
+        elif self.tracking.box_connected is False:
+            return True, "Not connected to ViperBox"
 
         # TODO boxfix: also loop over boxes
         try:
@@ -314,7 +317,7 @@ to ViperBox"
 
                 NVP.writeChannelConfiguration(self._box_ptrs[box], probe, False)
 
-    def _upload_stimulation_settings(self, updated_tmp_settings):
+    def _upload_stimulation_settings(self, updated_tmp_settings: GeneralSettings):
         self.logger.info(
             f"Writing stimulation settings to ViperBox: {updated_tmp_settings}"
         )
@@ -355,7 +358,9 @@ settings to ViperBox"
     ) -> Tuple[bool, str]:
         """Loads the recording settings from an XML string or default file."""
 
-        if self.tracking.box_connected is False:
+        if self.boxless is True:
+            pass
+        elif self.tracking.box_connected is False:
             return False, "Not connected to ViperBox"
 
         if self.tracking.recording is True:
@@ -503,7 +508,9 @@ reverted to previous settings. Error: {self._er(e)}",
     ) -> Tuple[bool, str]:
         """Loads the stimulation settings from an XML file."""
 
-        if self.tracking.box_connected is False:
+        if self.boxless is True:
+            pass
+        elif self.tracking.box_connected is False:
             return False, "Not connected to ViperBox"
 
         if default_values is True:
@@ -578,11 +585,15 @@ reverted to previous settings. Error: {self._er(e)}",
                 for tuple in verify_params
                 if list(XML_dictionary.keys())[0] in tuple
             ]
+            try:
+                int(list(XML_dictionary.values())[0])
+            except ValueError:
+                return (
+                    False,
+                    "Input value should be an integer",
+                )
             verify_step_min_max(*params[0], int(list(XML_dictionary.values())[0]))
-            result, feedback = (
-                True,
-                f"Verify xml call with dictionary: {XML_dictionary}",
-            )
+            return True, f"Verify xml call with dictionary: {XML_dictionary}"
         elif XML_data != "":
             result, feedback = check_xml_boxprobes_exist_and_verify_data_with_settings(
                 XML_data, tmp_data, self.connected, "all"
@@ -591,7 +602,7 @@ reverted to previous settings. Error: {self._er(e)}",
             #     XML_data, tmp_data, check_topic, self.boxless
             # )
         else:
-            result, feedback = False, "No XML data found"
+            return False, "No XML data found"
 
         # TODO:
         return result, feedback
@@ -680,7 +691,9 @@ reverted to previous settings. Error: {self._er(e)}",
         Tests:
         - start recording with incomplete settings uploaded
         """
-        if self.tracking.box_connected is False:
+        if self.boxless is True:
+            pass
+        elif self.tracking.box_connected is False:
             return False, "Not connected to ViperBox"
 
         if self.tracking.recording is True:
@@ -692,18 +705,19 @@ reverted to previous settings. Error: {self._er(e)}",
 
         # TODO this should check if recording settings are available for all
         # connected boxes
+        self.logger.debug("Check if uploaded settings has all recording settings")
         for box in self.uploaded_settings.boxes.keys():
             for probe in self.uploaded_settings.boxes[box].probes.keys():
                 if len(self.uploaded_settings.boxes[box].probes[probe].channel) != 64:
                     return (
                         False,
-                        """Recording settings not available for all channels on 
-                        box {box}, probe {probe}. Consider first uploading 
-                        default settings for all channels, then upload your custom 
-                        settings and then try again.""",
+                        f"""No recording settings available for all channels on box \
+{box}, probe {probe}. First upload default settings for all channels, then \
+upload your custom settings and then try again.""",
                     )
 
-        threading.Thread(target=self._start_eo_acquire, args=(True,)).start()
+        if self.start_oe:
+            threading.Thread(target=self._start_eo_acquire, args=(True,)).start()
         self._recording_datetime = time.strftime("%Y%m%d_%H%M%S")
 
         rec_folder = Path.cwd() / "Recordings"
@@ -733,10 +747,14 @@ reverted to previous settings. Error: {self._er(e)}",
                 f"unnamed_recording_{self._recording_datetime}.bin"
             )
 
+        self.logger.debug("NVP.setFileStream")
         NVP.setFileStream(self._box_ptrs[box], str(self._rec_path))
+        self.logger.debug("NVP.enableFileStream")
         NVP.enableFileStream(self._box_ptrs[box], str(self._rec_path))
+        self.logger.debug("NVP.arm")
         NVP.arm(self._box_ptrs[box])
 
+        self.logger.debug("NVP.setSWTrigger")
         self._rec_start_time = self._time()
         NVP.setSWTrigger(self._box_ptrs[box])
         dt_rec_start = self._time()
@@ -759,6 +777,7 @@ reverted to previous settings. Error: {self._er(e)}",
             f"Writing recording settings to stimrec file: {self.uploaded_settings}"
         )
 
+        self.logger.debug("Write recording settings to stimrec")
         # Write recording settings to stimrec
         for box in self.uploaded_settings.boxes.keys():
             for probe in self.uploaded_settings.boxes[box].probes.keys():
@@ -785,7 +804,7 @@ reverted to previous settings. Error: {self._er(e)}",
         # Not necessary because will be written at stimulation start
         # # Try to write stimulation settings to stimrec if they are available.
         # self._stimrec_write_stimulation_settings(self.local_settings, -1.0, -1.0)
-
+        self.logger.debug("Write recording start to stimrec")
         add_to_stimrec(
             self.stim_file_path,
             "Instructions",
@@ -802,6 +821,7 @@ reverted to previous settings. Error: {self._er(e)}",
         # switch between them
         self.oe_socket = True
         probe = 0
+        self.logger.debug("Start sending data")
         threading.Thread(target=self._send_data_to_socket, args=(probe,)).start()
 
         self.logger.info(f"Recording started: {recording_name}")
@@ -843,14 +863,16 @@ reverted to previous settings. Error: {self._er(e)}",
         )
         acquiring = False
         try:
-            r = requests.get("http://localhost:37497/api/status")
+            r = requests.get("http://localhost:37497/api/status", timeout=1)
             # _ = requests.put(
             #     "http://localhost:37497/api/recording",
             #     json={"parent_directory": os.path.abspath("setup\\oesettings.xml")},
             # )
             if r.json()["mode"] != "ACQUIRE":
                 r = requests.put(
-                    "http://localhost:37497/api/status", json={"mode": "ACQUIRE"}
+                    "http://localhost:37497/api/status",
+                    json={"mode": "ACQUIRE"},
+                    timeout=1,
                 )
         except Exception as e:
             self.logger.info(f"Couldn't get OE status. Error: {self._er(e)}")
@@ -858,12 +880,13 @@ reverted to previous settings. Error: {self._er(e)}",
                 try:
                     print("Starting Open Ephys")
                     os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
-                    r = requests.get("http://localhost:37497/api/status", timeout=5)
+                    r = requests.get("http://localhost:37497/api/status", timeout=1)
                     _ = requests.put(
                         "http://localhost:37497/api/recording",
                         json={
                             "parent_directory": os.path.abspath("setup\\oesettings.xml")
                         },
+                        timeout=1,
                     )
                     if r.json()["mode"] != "ACQUIRE":
                         while not acquiring:
@@ -871,18 +894,18 @@ reverted to previous settings. Error: {self._er(e)}",
                                 r = requests.put(
                                     "http://localhost:37497/api/status",
                                     json={"mode": "ACQUIRE"},
-                                    timeout=5,
+                                    timeout=1,
                                 )
                                 acquiring = True
                             except Exception as e:
                                 self.logger.warning(
                                     f"Can't start Open Ephys, please start it \
-                                        manually. Error: {self._er(e)}"
+manually. Error: {self._er(e)}"
                                 )
                 except Exception as e2:
                     self.logger.warning(
                         f"Can't start Open Ephys, please start it manually. \
-                            Error: {e2}"
+Error: {e2}"
                     )
             else:
                 self.logger.warning(
@@ -926,7 +949,7 @@ reverted to previous settings. Error: {self._er(e)}",
         self.logger.info("Started sending data to Open Ephys")
         mtx = self._os2chip_mat()
         counter = 0
-        t0 = self._time()
+        t0 = time.time_ns() // 1e9
         while self.oe_socket is True:
             counter += 1
 
@@ -945,9 +968,9 @@ reverted to previous settings. Error: {self._er(e)}",
             databuffer = databuffer.copy(order="C")
             UDPClientSocket.sendto(databuffer, serverAddressPort)
 
-            t2 = self._time()
+            t2 = time.time_ns() // 1e9
             while (t2 - t0) < counter * bufferInterval:
-                t2 = self._time()
+                t2 = time.time_ns() // 1e9
 
         NVP.streamClose(send_data_read_handle)
 
@@ -967,12 +990,15 @@ reverted to previous settings. Error: {self._er(e)}",
         self.logger.info("Stopping recording")
         start_time = self._time()
         box = 0
+        self.logger.debug("Run NVP.arm")
         NVP.arm(self._box_ptrs[box])
         # Close file
+        self.logger.debug("Run NVP.setFileStream to no name")
         NVP.setFileStream(self._box_ptrs[box], "")
         dt_time = self._time() - start_time
         self.oe_socket = False
 
+        self.logger.debug("Write to stimrec")
         add_to_stimrec(
             self.stim_file_path,
             "Instructions",

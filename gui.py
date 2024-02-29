@@ -351,7 +351,7 @@ def get_references(reference_switch_matrix):
         ["1" if item == "on" else "0" for item in reference_switch_matrix]
     )
     # ref_integer = int(bin_input_list, 2)
-    ref_list = [str(i + 1) for i in range(9) if bin_input_list[i] == "1"]
+    ref_list = [str(i) for i in range(9) if bin_input_list[i] == "1"]
     ref_string = ", ".join(ref_list)
     return ref_string
 
@@ -428,6 +428,8 @@ def get_electrodes(electrode_switch_matrix, save_purpose=False):
         electrode_list = [i * MAX_ROWS + j + 1 for i, j in zip(cols, rows)]
         electrode_list.sort()
         electrode_list = [str(i) for i in electrode_list]
+        if electrode_list == []:
+            return None
         return ", ".join(electrode_list)
 
 
@@ -997,6 +999,7 @@ elements = [window[key] for key in elements_names]
 for element in elements:
     element.bind("<FocusOut>", "+FOCUS OUT")
 
+logger.debug("Starting GUI")
 
 if __name__ == "__main__":
     while True:
@@ -1005,7 +1008,7 @@ if __name__ == "__main__":
             logger.info("Closing GUI")
             break
         elif event == "button_connect":
-            data = {"probe_list": "1", "emulation": "True", "boxless": "True"}
+            data = {"probe_list": "1", "emulation": "False", "boxless": "False"}
             response = requests.post(url + "connect/", json=data)
             if handle_response(response, "Connected to ViperBox"):
                 SetLED(window, "led_connect_probe", True)
@@ -1027,13 +1030,29 @@ if __name__ == "__main__":
             else:
                 data = {"filename": f"{values['input_filename']}"}
             logger.info("Start recording button pressed")
-            response = requests.post(url + "start_recording/", json=data)
+            try:
+                response = requests.post(url + "start_recording/", json=data, timeout=5)
+            except requests.exceptions.Timeout:
+                sg.popup_ok(
+                    "ViperBox is hanging when trying to restart recording?\
+Please do the following: \n\
+1. restart the Viperbox\
+2. install ViperBox driver patch located in setup>DowngradeFTDI>downgrade.bat\
+3. restart the Viperbox"
+                )
+                continue
             if handle_response(response, "Recording started"):
                 window["button_stim"].update(disabled=False)
         elif event == "button_stop":
             logger.info("Stop recording button pressed")
             response = requests.post(url + "stop_recording/")
             if handle_response(response, "Recording stopped"):
+                pass
+        elif event == "button_stim":
+            logger.info("Stimulate button pressed")
+            data = {"boxes": "1", "probes": "-", "stimunits": "-"}
+            response = requests.post(url + "start_stimulation/", json=data, timeout=5)
+            if handle_response(response, "Stimulation started"):
                 pass
         elif event[:3] == "el_":
             window[event].update(
@@ -1055,7 +1074,7 @@ if __name__ == "__main__":
             window[event].update(
                 button_color=toggle_1d_color(event, reference_switch_matrix)
             )
-        elif event[:3] == "gai":
+        elif event[:3] == "gain_":
             window["gain_0"].update(button_color="light grey")
             window["gain_1"].update(button_color="light grey")
             window["gain_2"].update(button_color="light grey")
@@ -1101,6 +1120,10 @@ if __name__ == "__main__":
                 sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
         elif event == "upload_stimulation_settings":
             values = convert_anodic_cathodic(values)
+            electrode_list = get_electrodes(electrode_switch_matrix)
+            if electrode_list is None:
+                sg.popup_ok("At least one electrode needs to be selected")
+                continue
             stimulation_xml = to_settings_xml_string(
                 settings_input={
                     "Configuration": {
@@ -1123,7 +1146,7 @@ if __name__ == "__main__":
                         "box": "-",
                         "probe": "-",
                         "stimunit": "-",
-                        "electrodes": get_electrodes(electrode_switch_matrix),
+                        "electrodes": electrode_list,
                     },
                 },
             )
