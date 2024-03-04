@@ -19,3 +19,4 @@ logs/
 Stimulations/
 untracked/
 defaults/__pycache__/
+setup/DowngradeFTDI/log*

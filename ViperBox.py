@@ -90,7 +90,7 @@ class ViperBox:
 
         return None
 
-    def empty_socket(self, time=5) -> None:
+    def empty_socket(self, lifetime=5) -> None:
         serverAddressPort = ("127.0.0.1", 9001)
         MULTICAST_TTL = 2
         UDPClientSocket: socket.socket = socket.socket(
@@ -102,7 +102,7 @@ class ViperBox:
         )
         databuffer = np.ones((60, 500), dtype="uint16")
         i = 0
-        while i < 10 * time:
+        while i < 10 * lifetime:
             # global stop_threads
             UDPClientSocket.sendto(databuffer, serverAddressPort)
             time.sleep(0.1)
@@ -161,14 +161,9 @@ boxless: {boxless}."
         threading.Thread(target=self.empty_socket, daemon=True).start()
 
         if self.start_oe:
-            try:
-                self.logger.info("Starting Open Ephys")
-                os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
-            except Exception as e:
-                self.logger.warning(
-                    f"Can't start Open Ephys, please start it manually. \
-Error: {self._er(e)}"
-                )
+            threading.Thread(
+                target=self._start_eo_acquire, args=(True,), daemon=True
+            ).start()
 
         # Scan for devices
         NVP.scanBS()
@@ -224,7 +219,12 @@ Error: {self._er(e)}"
         #     f"""{self._time()-start_time} finished setting emulation, starting \
         #     opening probes"""
         # )
-        NVP.openProbes(self._box_ptrs[box])
+        try:
+            NVP.openProbes(self._box_ptrs[box])
+        except Exception as e:
+            self.logger.warning(f"!! openProbes() exception error: {self._er(e)}")
+            self.disconnect()
+            return False, "Please connect asic to ViperBox and try again."
         self.logger.info(f"Probes opened: {self._box_ptrs[box]}")
 
         # print(f"{self._time()-start_time} opened probes, starting initialization")
@@ -247,9 +247,11 @@ Error: {self._er(e)}"
         self.uploaded_settings = copy.deepcopy(self.local_settings)
 
         # TODO boxfix: also loop over boxes
-        continue_statement = f"""ViperBox initialized successfully with probes 
-        {self.local_settings.connected}"""
-        return True, continue_statement
+        return (
+            True,
+            f"""ViperBox initialized successfully with probes \
+{self.local_settings.connected}""",
+        )
 
     def disconnect(self) -> Tuple[bool, str]:
         """Disconnects from the ViperBox and closes the API channel."""
@@ -309,9 +311,6 @@ Please restart the ViperBox and the software and try again.",
 to ViperBox"
             )
             return
-        self.logger.info(
-            f"Writing recording settings to ViperBox: {updated_tmp_settings}"
-        )
         for box in updated_tmp_settings.boxes.keys():
             for probe in updated_tmp_settings.boxes[box].probes.keys():
                 for channel in (
@@ -340,6 +339,10 @@ to ViperBox"
                         self._box_ptrs[box], probe, channel, False
                     )  # see email Patrick 08/01/2024
 
+                self.logger.debug(
+                    f"Writing Channel config: \
+{updated_tmp_settings.boxes[box].probes[probe]}"
+                )
                 NVP.writeChannelConfiguration(self._box_ptrs[box], probe, False)
 
     def _upload_stimulation_settings(self, updated_tmp_settings: GeneralSettings):
@@ -894,17 +897,14 @@ upload your custom settings and then try again.""",
         return folder.joinpath(file)
 
     def _start_eo_acquire(self, startup_oe=False):
-        time.sleep(0.5)
+        # time.sleep(0.5)
         self.logger.info(
             "Try to switch open ephys to acquire mode, otherwise start it."
         )
         acquiring = False
+        # check if open ephys is running
         try:
             r = requests.get("http://localhost:37497/api/status", timeout=1)
-            # _ = requests.put(
-            #     "http://localhost:37497/api/recording",
-            #     json={"parent_directory": os.path.abspath("setup\\oesettings.xml")},
-            # )
             if r.json()["mode"] != "ACQUIRE":
                 r = requests.put(
                     "http://localhost:37497/api/status",
