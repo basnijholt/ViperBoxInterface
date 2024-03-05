@@ -1,6 +1,8 @@
 import json
 import logging
 import logging.handlers
+import os
+import subprocess
 import time
 from pathlib import Path
 
@@ -24,6 +26,8 @@ def run_gui():
         "localhost", logging.handlers.DEFAULT_TCP_LOGGING_PORT
     )
     logger.addHandler(socketHandler)
+
+    batch_script_path = os.getcwd() + "\\setup\\update.bat"
 
     gui_start_vals = {
         "anodic_cathodic": ("Anodic", "polarity"),
@@ -808,7 +812,7 @@ press OK'
     #     key="key_parameter_sweep",
     # )
 
-    menu_def = [["&Application"]]
+    menu_def = [["&Application", ["&Update"]]]
     layout = [[sg.Menu(menu_def, key="-MENU-", tearoff=False)]]
 
     # ------------------------------------------------------------------
@@ -1198,6 +1202,37 @@ Please do the following: \n\
                     window[event].update(value=gui_start_vals[event][0])
             except requests.exceptions.Timeout:
                 sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
+        elif event == "Update":
+            if sg.popup_ok_cancel("Are you sure? This will close the application."):
+                if not os.path.exists("update_blocker"):
+                    logger.error("Update requested")
+                    subprocess.Popen(
+                        batch_script_path,
+                        shell=True,
+                        stdin=None,
+                        stdout=None,
+                        stderr=None,
+                        close_fds=True,
+                        creationflags=subprocess.DETACHED_PROCESS,
+                    )
+                    try:
+                        _ = requests.put(
+                            "http://localhost:37497/api/status", json={"mode": "IDLE"}
+                        )
+                        _ = requests.put(
+                            "http://localhost:37497/api/window",
+                            json={"command": "quit"},
+                            timeout=1,
+                        )
+                    except requests.exceptions.RequestException:
+                        pass
+                    _ = response = requests.post(url + "disconnect")
+                    time.sleep(5)
+                    _ = response = requests.post(url + "kill")
+                    logger.info("Closing GUI")
+                    break
+                else:
+                    sg.popup_ok("Update is blocked")
         else:
             logger.info(f"Unknown event happened: {event}")
 

@@ -7,6 +7,8 @@ testing.ipynb
 
 *.log
 
+update_blocker
+
 gold_ui.py
 
 setup/installer.bat

@@ -6,3 +6,6 @@ foreach ($file in $fileList) {
     $fileDestination = Join-Path -Path $mainFolderPath -ChildPath $file
     Invoke-WebRequest -Uri $fileUrl -OutFile $fileDestination
 }
+Write-Host "ViperBox updated!" -ForegroundColor Green
+
+Read-Host -Prompt "Press Enter to exit"
