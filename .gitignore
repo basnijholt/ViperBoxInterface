@@ -5,7 +5,6 @@ __pycache__/*
 .pre-commit-config.yaml
 testing.ipynb
 
-*.bat
 *.log
 
 gold_ui.py

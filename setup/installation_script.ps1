@@ -88,7 +88,7 @@ Start-Process -FilePath "$anacondaLocation\Scripts\conda.exe" -ArgumentList "env
 # Create a startup file called start_app.bat that always starts in the right location
 $mainFolderPath = Split-Path -Parent $scriptPath
 $batchFilePath = Join-Path -Path $mainFolderPath -ChildPath "start_app.bat"
-$batchContent = "@echo off`ncd /d `"%~dp0`"`ncall conda activate viperbox`nuvicorn main:app --reload`n"
+$batchContent = "@echo off`ncd /d `"%~dp0`"`ncall conda activate viperbox`nuvicorn main:app --reload < nul`n"
 Set-Content -Path $batchFilePath -Value $batchContent
 
 # Create shortcut on the desktop
