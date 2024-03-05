@@ -220,12 +220,12 @@ def run_gui():
 
     ref_MAX_COL = 8
     reference_switch_matrix = ["off" for _ in range(ref_MAX_COL + 1)]
-    reference_switch_matrix[8] = "on"
+    reference_switch_matrix[0] = "on"
     reference_button_matrix = [
         sg.Button(
             "B",
             size=(10, 1),
-            key=(f"reference_{8}"),
+            key=(f"reference_{0}"),
             pad=(1, 1),
             button_color="red",
             disabled=False,
@@ -236,7 +236,7 @@ def run_gui():
             sg.Button(
                 f"{i+1}",
                 size=(2, 1),
-                key=(f"reference_{i}"),
+                key=(f"reference_{i+1}"),
                 pad=(1, 1),
                 button_color="light gray",
                 disabled=False,
