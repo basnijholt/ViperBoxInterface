@@ -11,6 +11,7 @@ from typing import Any, List, Tuple
 
 import numpy as np
 import requests
+import urllib3
 from lxml import etree
 
 import NeuraviperPy as NVP
@@ -904,15 +905,22 @@ upload your custom settings and then try again.""",
         acquiring = False
         # check if open ephys is running
         try:
-            r = requests.get("http://localhost:37497/api/status", timeout=1)
+            r = requests.get("http://localhost:37497/api/status", timeout=0.1)
             if r.json()["mode"] != "ACQUIRE":
                 r = requests.put(
                     "http://localhost:37497/api/status",
                     json={"mode": "ACQUIRE"},
                     timeout=1,
                 )
-        except Exception as e:
-            self.logger.info(f"Couldn't get OE status. Error: {self._er(e)}")
+        except (
+            TimeoutError,
+            requests.exceptions.Timeout,
+            urllib3.exceptions.ConnectTimeoutError,
+            urllib3.exceptions.MaxRetryError,
+            requests.exceptions.ConnectTimeout,
+            requests.exceptions.RequestException,
+        ):
+            self.logger.info("Couldn't get OE status")
             if startup_oe:
                 try:
                     print("Starting Open Ephys")
