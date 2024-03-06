@@ -6,6 +6,16 @@ foreach ($file in $fileList) {
     $fileDestination = Join-Path -Path $mainFolderPath -ChildPath $file
     Invoke-WebRequest -Uri $fileUrl -OutFile $fileDestination
 }
+# defaults.py
+$fileUrl = "https://raw.githubusercontent.com/sbalk/viperboxinterface/dev/defaults/defaults.py"
+$fileDestination = Join-Path -Path $mainFolderPath -ChildPath "defaults/defaults.py"
+Invoke-WebRequest -Uri $fileUrl -OutFile $fileDestination
+
+# update.ps1
+$fileUrl = "https://raw.githubusercontent.com/sbalk/viperboxinterface/dev/setup/update.ps1"
+$fileDestination = Join-Path -Path $mainFolderPath -ChildPath "setup/update.ps1"
+Invoke-WebRequest -Uri $fileUrl -OutFile $fileDestination
+
 Write-Host "ViperBox updated!" -ForegroundColor Green
 
 Read-Host -Prompt "Press Enter to exit"
