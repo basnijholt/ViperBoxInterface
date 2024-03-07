@@ -16,6 +16,19 @@ $fileUrl = "https://raw.githubusercontent.com/sbalk/viperboxinterface/dev/setup/
 $fileDestination = Join-Path -Path $mainFolderPath -ChildPath "setup/update.ps1"
 Invoke-WebRequest -Uri $fileUrl -OutFile $fileDestination
 
+# viperbox.yaml
+$fileUrl = "https://raw.githubusercontent.com/sbalk/viperboxinterface/dev/setup/viperbox.yaml"
+$fileDestination = Join-Path -Path $mainFolderPath -ChildPath "setup/viperbox.yaml"
+Invoke-WebRequest -Uri $fileUrl -OutFile $fileDestination
+
+
+$userFolder = [Environment]::GetFolderPath("UserProfile")
+$anacondaLocation = "$userFolder\anaconda3" 
+$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+# how can you start-process but leave the 
+Start-Process -FilePath "$anacondaLocation\Scripts\conda.exe" -ArgumentList "env update --name viperbox --file .\setup\viperbox.yaml --prune" -Wait -NoNewWindow
+
+
 Write-Host "ViperBox updated!" -ForegroundColor Green
 
 Read-Host -Prompt "Press Enter to exit"
