@@ -313,6 +313,11 @@ Please restart the ViperBox and the software and try again.",
 to ViperBox"
             )
             return
+
+        # TODO multibox this should be added to general settings and loaded if the
+        # instructions do not come from XML but from probably the GUI.
+        self.mapping = Mappings()
+
         for box in updated_tmp_settings.boxes.keys():
             for probe in updated_tmp_settings.boxes[box].probes.keys():
                 for channel in (
@@ -393,6 +398,7 @@ settings to ViperBox"
         xml_string: str | None = None,
         reset: bool = False,
         default_values: bool = False,
+        read_mapping_xlsx: bool = False,
     ) -> Tuple[bool, str]:
         """Loads the recording settings from an XML string or default file."""
 

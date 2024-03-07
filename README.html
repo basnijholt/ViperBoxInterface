@@ -382,6 +382,9 @@ It streams data through <a href="#open-ephys">Open Ephys</a>.</p>
 <li><a href="#-installation">📦 Installation</a>
 <ul>
 <li><a href="#starting-up">Starting up</a></li>
+<li><a href="#gain-settings">Gain settings</a></li>
+<li><a href="#references-and-input-settings">References and input settings</a></li>
+<li><a href="#choosing-probe-electrodes">Choosing probe electrodes</a></li>
 </ul>
 </li>
 <li><a href="#-using-the-gui">🖥️ Using the GUI</a></li>
@@ -397,8 +400,6 @@ It streams data through <a href="#open-ephys">Open Ephys</a>.</p>
 <li><a href="#%E2%80%8D-related-software">👨‍💻 Related software</a>
 <ul>
 <li><a href="#open-ephys">Open Ephys</a></li>
-<li><a href="#anaconda">Anaconda</a></li>
-<li><a href="#git">Git</a></li>
 </ul>
 </li>
 </ul>
@@ -414,15 +415,88 @@ It streams data through <a href="#open-ephys">Open Ephys</a>.</p>
 <li>the script will install the necessary software and drivers, this might take more than 20 minutes. If any problems arise, please take up contact.</li>
 </ol>
 <h2 id="starting-up">Starting up</h2>
-<p>The script creates a shortcut on the desktop called &quot;ViperBoxAPI&quot;, this will start the server. The server can then be reached from http://127.0.0.1:8000.</p>
-<p>Alternatively, you can start the software by navigating to the folder where the software is downloaded and double-click start_app.bat.</p>
-<h1 id="%F0%9F%96%A5%EF%B8%8F-using-the-gui">🖥️ Using the GUI</h1>
-<p>The GUI can be used to control the ViperBox directly. After starting up the software as described above in <a href="#starting-up">Starting up</a>, do the following steps:</p>
+<p>The script creates a shortcut on the desktop called &quot;ViperBoxAPI&quot;, this will start the server. The server can then be reached from http://127.0.0.1:8000. You can also start the software by navigating to the folder where the software is downloaded and double-click start_app.bat.</p>
+<p>If that doesn't work (see <a href="#faq">FAQ</a>), you can start the software by following these steps (also make sure you have the latest version of the software):</p>
+<ol>
+<li>Open Anaconda Prompt (you can find it by searching for it in the start menu)</li>
+<li>Type <code>conda activate viperbox</code> and press enter</li>
+<li>Navigate to the folder where the software is downloaded by typing <code>cd &lt;path to the folder&gt;</code></li>
+<li>Type <code>uvicorn main:app --reload</code> and press enter</li>
+</ol>
+<figure align="center">
+    <img src="imgs\viperbox_gui.png" style="width: 80%; height: auto;">
+    <figcaption>ViperBox GUI</figcaption>
+</figure>
+<p>In <em>ViperBox control</em>, you can</p>
 <ul>
-<li>Click <code>Connect</code> to initialize the ViperBox</li>
-<li>Click <code>Upload default</code> to upload the default recording and stimulation settings, these are stored in the defaults folder.</li>
-<li>Click <code>Start</code> to start recording.</li>
+<li>Connect and disconnect to the ViperBox</li>
+<li>Change recording file and location and start and stop the recording. You can also stimulate if you are recording.</li>
+<li>Upload settings to the ViperBox. You can either upload the recording or stimulation settings you set in the GUI or you can upload default settings.</li>
 </ul>
+<p>In <em>Recording settings</em>, you can change the recording settings. In the IMTEK probes, only the body <a href="#references-and-input-settings">reference</a> is connected to the ASIC. To use the correct gain, please refer to <a href="#gain-settings">Gain settings</a>. To change from which electrode you want to record, refer to <a href="#choosing-probe-electrodes">Choosing probe electrodes</a>.</p>
+<p>In <em>Waveform settings</em>, you can change the stimulation waveform.</p>
+<p>In <em>Pulse preview</em>, you can preview the stimulation waveform after you press <code>Reload</code>.</p>
+<p>In <em>Stimulation mapping</em>, you can select from which electrodes you want to stimulate.</p>
+<h2 id="gain-settings">Gain settings</h2>
+<blockquote>
+<p>[!WARNING]
+To correctly view the voltage levels in Open Ephys, the following scaling and offset numbers need to be supplied to the Ephys Socket in Open ephys:</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Gain</th>
+<th>Scale</th>
+<th>Offset</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>60</td>
+<td>5.617</td>
+<td>2048</td>
+</tr>
+<tr>
+<td>24</td>
+<td>11.23</td>
+<td>2048</td>
+</tr>
+<tr>
+<td>12</td>
+<td>19.78</td>
+<td>2048</td>
+</tr>
+<tr>
+<td>0.16</td>
+<td>879.1</td>
+<td>2048</td>
+</tr>
+</tbody>
+</table>
+<figure align="center">
+    <img src="imgs\ephys_socket_scale_offset.png" style="width: 30%; height: auto;">
+    <figcaption>Screenshot of Ephys Socket in Open Ephys</figcaption>
+</figure>
+<h2 id="references-and-input-settings">References and input settings</h2>
+<p>Reference settings are wired in the chip in the following way. For each of the 64 channels (or amplifiers), one electrode can be chosen from a set of 4 electrodes. This set is hardwired and cannot be changed.</p>
+<p>This signal is compared to any or all of the references (which you can select in the GUI). In principle, the body reference should always be used.</p>
+<figure align="center">
+    <img src="imgs\references.png" style="width: 50%; height: auto;">
+    <figcaption>Connection of recording channel (left) with recording electrodes (top right) and references (bottom right)</figcaption>
+</figure>
+<h2 id="choosing-probe-electrodes">Choosing probe electrodes</h2>
+<p>With the IMTEK probe and the short wired MZIPA, it is not possible to record from all the 60 electrodes at the same time. However, it is possible to select from which electrode you want to record.</p>
+<p>To change from which of the 4 electrodes you want to record (as mentioned in <a href="#references-and-input-settings">References and input settings</a>), edit the Excel file in the <code>defaults</code> folder, called <code>electrode_mapping_short_cables.xlsx</code>.</p>
+<p>This mapping is specifically designed for the 4 shank IMTEK probe. The first column is the electrode on the IMTEK probe. You can choose the value in the 'Channel taken' column, it has to be set equal to a value in one of the 'input # channel' columns.</p>
+<p>For example, you want Probe electrode 1 to be connected to channel 50, then in 'Channel taken', you change the value to <code>=E2</code>. This will update the sheet and but you will see that Probe electrode 2 now has 'Duplicate' in the 'Duplicate' column. This means that it won't be possible to record from Probe electrode 2 and the recording will be set to 0.</p>
+<p>Only edit the 'Channel taken' column. Whenever the software starts or new settings are uploaded to the ViperBox, the Excel file will be read and the settings will be updated.</p>
+<p>Note that in the resulting recording in Open Ephys, the 'Duplicate' channels will be set to an empty signal but their order is the same as on the IMTEK probe.</p>
+<figure align="center">
+    <img src="imgs\electrode_mapping_short_cables.png" style="width: 100%; height: auto;">
+    <figcaption>Changing which Probe electrodes will be read out.</figcaption>
+</figure>
+<h1 id="%F0%9F%96%A5%EF%B8%8F-using-the-gui">🖥️ Using the GUI</h1>
+<p>The GUI can be used to control the ViperBox directly. After starting up the software as described above in <a href="#starting-up">Starting up</a></p>
 <p>Recording settings can only be changed when you are not recording.</p>
 <h1 id="%E2%9D%93-faq">❓ (F)AQ</h1>
 <ul>
@@ -484,7 +558,7 @@ The typical workflow to do a recording and stimulation is to run the following c
 <li><code>/connect</code>: to connect to the ViperBox</li>
 </ul>
 <figure align="center">
-    <img src="imgs\connect.gif" style="width: 100%; height: auto;">
+    <img src="imgs\connect.gif" style="width: 80%; height: auto;">
     <!-- <figcaption>Overview of all the settings for one ViperBox</figcaption> -->
 </figure>
 <ul>
@@ -495,7 +569,7 @@ The typical workflow to do a recording and stimulation is to run the following c
 </li>
 </ul>
 <figure align="center">
-    <img src="imgs\recording_settings.gif" style="width: 100%; height: auto;">
+    <img src="imgs\recording_settings.gif" style="width: 80%; height: auto;">
     <!-- <figcaption>Overview of all the settings for one ViperBox</figcaption> -->
 </figure>
 <ul>
@@ -517,7 +591,7 @@ The typical workflow to do a recording and stimulation is to run the following c
 </blockquote>
 <h1 id="%F0%9F%9B%A0%EF%B8%8F-overview-of-viperbox-settings">🛠️ Overview of ViperBox settings</h1>
 <figure align="center">
-    <img src="imgs\settings_mindmap.png" style="width: 100%; height: auto;">
+    <img src="imgs\settings_mindmap.png" style="width: 80%; height: auto;">
     <figcaption>Overview of all the settings for one ViperBox</figcaption>
 </figure>
 <ul>
@@ -545,8 +619,8 @@ The typical workflow to do a recording and stimulation is to run the following c
 <li><code>box=&quot;-&quot;</code> means for all boxes that are connected.</li>
 <li><code>probe=&quot;-&quot;</code> means for all probes that are connected.</li>
 <li><code>channel=&quot;-&quot;</code> means for all recording channels (always 64).</li>
-<li><code>references=&quot;-&quot;</code> means all reference, this means the Body reference and references 1-8.</li>
-<li><code>gain=&quot;1&quot;</code> means the channel gain. The possible values are:
+<li><code>references=&quot;-&quot;</code> means all <a href="#references-and-input-settings">reference</a>, this means the Body reference and references 1-8.</li>
+<li><code>gain=&quot;1&quot;</code> means the channel <a href="#gain-settings">gain</a>. The possible values are:
 <ul>
 <li>&quot;0&quot;: x 60</li>
 <li>&quot;1&quot;: x 24</li>
@@ -554,53 +628,8 @@ The typical workflow to do a recording and stimulation is to run the following c
 <li>&quot;3&quot;: x 0.16</li>
 </ul>
 </li>
+<li><code>input=&quot;0&quot;</code> means which <a href="#choosing-probe-electrodes">input</a> electrode should be connected to the recording channel.</li>
 </ul>
-<blockquote>
-<p>[!WARNING]
-To correctly view the voltage levels in Open Ephys, the following scaling and offset numbers need to be supplied to the Ephys Socket in Open ephys:</p>
-</blockquote>
-<table>
-<thead>
-<tr>
-<th>Gain</th>
-<th>Scale</th>
-<th>Offset</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>60</td>
-<td>5.617</td>
-<td>2048</td>
-</tr>
-<tr>
-<td>24</td>
-<td>11.23</td>
-<td>2048</td>
-</tr>
-<tr>
-<td>12</td>
-<td>19.78</td>
-<td>2048</td>
-</tr>
-<tr>
-<td>0.16</td>
-<td>879.1</td>
-<td>2048</td>
-</tr>
-</tbody>
-</table>
-<figure align="center">
-    <img src="imgs\ephys_socket_scale_offset.png" style="width: 50%; height: auto;">
-    <figcaption>Screenshot of Ephys Socket in Open Ephys</figcaption>
-</figure>
-<ul>
-<li><code>input=&quot;0&quot;</code> means which electrode should be connected to the recording channel. Each of the 64 channels can be connected to 1 electrode. Furthermore, this electrode can be chosen from a subset of 4 of the total 128 electrodes. An updated mapping should be added to this repository for the use of the MZIPA.</li>
-</ul>
-<figure align="center">
-    <img src="imgs\references.png" style="width: 50%; height: auto;">
-    <figcaption>Connection of recording channel (left) with recording electrodes (top right) and references (bottom right)</figcaption>
-</figure>
 <p>You can also specify the settings more precisely. For example, if you want recording channels 1, 6, 7 and 8 to have fewer references, namely only reference 'b' (body) and '3':</p>
 <pre class="hljs"><code><div><span class="hljs-meta">&lt;?xml version="1.0" encoding="UTF-8"?&gt;</span>
 <span class="hljs-tag">&lt;<span class="hljs-name">Program</span>&gt;</span>
@@ -768,11 +797,12 @@ As can be seen from the sample, at the highest level there is the program elemen
 <p>ViperBoxInterface uses Open Ephys to show the recorded data. Please refer to the documentation
 of Open Ephys for instructions on how to use it. It has various possibilities to visualize and
 analyze the data. The documentation can be found <a href="https://open-ephys.github.io/gui-docs/User-Manual/Exploring-the-user-interface.html">here</a>.</p>
-<h2 id="anaconda">Anaconda</h2>
-<p>Anaconda is used to set up and run the Python environment that is needed for the
-ViperBoxInterface to run.</p>
-<h2 id="git">Git</h2>
-<p>Git is used to download the latest version of the software.</p>
+<!-- ## Anaconda
+Anaconda is used to set up and run the Python environment that is needed for the 
+ViperBoxInterface to run.
+
+## Git
+Git is used to download the latest version of the software. -->
 
 </body>
 </html>
