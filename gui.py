@@ -953,9 +953,7 @@ press OK'
     gain = 0
 
     window = sg.Window(
-        "ViperBox Control",
-        layout,
-        finalize=False,
+        "ViperBox Control", layout, finalize=False, icon=r".\\setup\\logo.ico"
     )
 
     url = "http://127.0.0.1:8000/"
