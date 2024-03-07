@@ -15,7 +15,7 @@ import urllib3
 from lxml import etree
 
 import NeuraviperPy as NVP
-from defaults.defaults import OS2chip
+from defaults.defaults import Mappings
 from VB_classes import (
     BoxSettings,
     ConnectedBoxes,
@@ -54,6 +54,7 @@ class ViperBox:
         self.uploaded_settings = GeneralSettings()
         self.tracking = StatusTracking()
         self._box_ptrs: Any = {}
+        self.mapping = Mappings()
 
         self._session_datetime = _session_datetime
         self._rec_start_time: float | None = None
@@ -317,7 +318,15 @@ to ViperBox"
                 for channel in (
                     updated_tmp_settings.boxes[box].probes[probe].channel.keys()
                 ):
-                    NVP.selectElectrode(self._box_ptrs[box], probe, channel, 0)
+                    try:
+                        NVP.selectElectrode(
+                            self._box_ptrs[box],
+                            probe,
+                            channel,
+                            self.mapping.channel_input[channel],
+                        )
+                    except KeyError:
+                        NVP.selectElectrode(self._box_ptrs[box], probe, channel, 0)
                     NVP.setReference(
                         self._box_ptrs[box],
                         probe,
@@ -1006,7 +1015,6 @@ Error: {e2}"
                 self.logger.warning("Out of packets")
                 break
 
-            # TODO: Rearrange data depening on selected gain
             databuffer = np.asarray(
                 [packets[i].data for i in range(self.BUFFER_SIZE)], dtype="uint16"
             )
@@ -1024,7 +1032,8 @@ Error: {e2}"
 
     def _os2chip_mat(self):
         mtx = np.zeros((64, 60), dtype="uint16")
-        for k, v in OS2chip.items():
+        for k, v in self.mapping.electrode_mapping.items():
+            # both are 1 indexed
             mtx[k - 1][v - 1] = 1
         return mtx
 
