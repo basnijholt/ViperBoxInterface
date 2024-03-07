@@ -15,6 +15,8 @@ gold_ui.py
 
 setup/installer.bat
 
+start_app.bat
+
 docs/
 Recordings/
 Settings/
