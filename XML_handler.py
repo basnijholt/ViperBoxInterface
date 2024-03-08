@@ -19,52 +19,12 @@ from VB_classes import (
     printable_dtd,
 )
 
-# logger = logging.getLogger(__name__)
 logger = logging.getLogger("XML_handler")
 logger.setLevel(logging.DEBUG)
 socketHandler = logging.handlers.SocketHandler(
     "localhost", logging.handlers.DEFAULT_TCP_LOGGING_PORT
 )
 logger.addHandler(socketHandler)
-
-
-# def check_boxes_exist(data, existing_boxes):
-#     """Check if xml boxes are in existing boxes. If not, throw ValueError, else pass
-
-#     Arguments:
-#     - data: xml data of type lxml.etree._ElementTree
-#     - existing_boxes: list of existing boxes
-#     TODO: existing boxes should be changed to something that comes from the local
-#     settings.
-
-#     test cases:
-#     - xml box is not in existing boxes
-
-#     """
-#     for element in data.xpath(".//*[@box]"):
-#         setting_boxes = element.attrib["box"]
-#         _ = parse_numbers(setting_boxes, existing_boxes)
-#     return True
-
-
-# def check_references_format(references: str) -> bool:
-#     """Check if references are in the correct format
-
-#     Arguments:
-#     - references: string of 9 digits, only 1s and 0s
-
-#     test cases:
-#     - references are 10 digits
-#     - references contains a 2
-#     - references contains a letter
-#     """
-#     if len(references) != 9:
-#         print("References should be a 9 digit string")
-#         raise ValueError("References should be a 9 digit string")
-#     if not all([i in ["0", "1", "b"] for i in references]):
-#         print("References should only contain 0s and 1s")
-#         raise ValueError("References should only contain 0s and 1s")
-#     return True
 
 
 def check_gain_input_format(gain: int) -> bool:
