@@ -915,7 +915,7 @@ upload your custom settings and then try again.""",
     def _start_eo_acquire(self, startup_oe=False):
         # time.sleep(0.5)
         self.logger.info(
-            "Try to switch open ephys to acquire mode, otherwise start it."
+            "If OE has been started, try to switch to acquire mode, otherwise start it."
         )
         acquiring = False
         # check if open ephys is running
@@ -935,19 +935,12 @@ upload your custom settings and then try again.""",
             requests.exceptions.ConnectTimeout,
             requests.exceptions.RequestException,
         ):
-            self.logger.info("Couldn't get OE status")
             if startup_oe:
+                self.logger.info("OE not running, trying to start it")
                 try:
-                    print("Starting Open Ephys")
                     os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
+                    time.sleep(2)
                     r = requests.get("http://localhost:37497/api/status", timeout=1)
-                    _ = requests.put(
-                        "http://localhost:37497/api/recording",
-                        json={
-                            "parent_directory": os.path.abspath("setup\\oesettings.xml")
-                        },
-                        timeout=1,
-                    )
                     if r.json()["mode"] != "ACQUIRE":
                         while not acquiring:
                             try:
@@ -959,12 +952,12 @@ upload your custom settings and then try again.""",
                                 acquiring = True
                             except Exception as e:
                                 self.logger.warning(
-                                    f"Can't start Open Ephys, please start it \
-manually. Error: {self._er(e)}"
+                                    f"Couldn't start acquiring data. \
+Error: {self._er(e)}"
                                 )
                 except Exception as e2:
                     self.logger.warning(
-                        f"Can't start Open Ephys, please start it manually. \
+                        f"Couldn't get OE status, maybe still starting. \
 Error: {e2}"
                     )
             else:
@@ -1053,7 +1046,7 @@ Error: {e2}"
         self.logger.info("Stopping recording")
         start_time = self._time()
         box = 0
-        self.logger.debug("Run NVP.arm")
+        self.logger.debug("Run NVP.arm to stop recording")
         NVP.arm(self._box_ptrs[box])
         # Close file
         self.logger.debug("Run NVP.setFileStream to no name")

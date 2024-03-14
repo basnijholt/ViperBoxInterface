@@ -37,8 +37,10 @@ class Mappings:
             self.electrode_mapping = self.mapping.set_index("Resulting channel")[
                 "Resulting electrode"
             ].to_dict()
+            self.defaults = False
             logger.info("Mappings read from excel file")
         except FileNotFoundError:
+            logger.warning("Couldn't read mappings from excel file, using defaults")
             self.channel_input = {k: 0 for k in range(64)}
             self.electrode_mapping = {
                 54: 1,
@@ -86,7 +88,7 @@ class Mappings:
                 34: 54,
                 59: 56,
             }
-            logger.info("Couldn't read mappings from excel file, using defaults")
+            self.defaults = True
 
 
 # OS2chip = {
