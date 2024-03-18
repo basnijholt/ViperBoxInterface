@@ -255,7 +255,7 @@ def run_gui():
     gain_switch_matrix[0] = "on"
     gain_dict = {
         "x60": 0,
-        "x16": 1,
+        "x24": 1,
         "x12": 2,
         "x0.16": 3,
     }
