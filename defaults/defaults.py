@@ -2,6 +2,7 @@ import logging
 import logging.handlers
 from dataclasses import dataclass
 
+import numpy as np
 import pandas as pd
 
 logger = logging.getLogger("defaults")
@@ -12,9 +13,63 @@ socketHandler = logging.handlers.SocketHandler(
 logger.addHandler(socketHandler)
 
 
-@dataclass
 class Mappings:
+    """
+    Read mappings from Excel file and provide them as properties.
+    Excel file is 1-indexed, but the properties are 0-indexed.
+    """
+
+    def __init__(self, file_path):
+        self.file_path = file_path
+        self.get_mappings()
+
+    def get_mappings(self):
+        hardcoded_mapping = pd.DataFrame(
+            {
+                "Resulting channel": np.arange(60),
+                "Resulting input selection": np.zeros(60),
+                "Resulting electrode": np.arange(60),
+            },
+            dtype=int,
+        )
+        try:
+            self.mapping = pd.read_excel(self.file_path, sheet_name=1)
+            self.mapping = self.mapping[
+                [
+                    "Resulting channel",
+                    "Resulting input selection",
+                    "Resulting electrode",
+                ]
+            ].copy()
+            self.mapping.dropna(inplace=True)
+            self.mapping = self.mapping.map(int)
+            self.mapping["Resulting channel"] = self.mapping["Resulting channel"] - 1
+            self.mapping["Resulting electrode"] = (
+                self.mapping["Resulting electrode"] - 1
+            )
+
+            logger.info("Mappings read from excel file")
+        except FileNotFoundError:
+            self.mapping = hardcoded_mapping.copy()
+            logger.warning("Couldn't read mappings from excel file, using defaults")
+
+    @property
+    def channel_input(self):
+        return self.mapping.set_index("Resulting channel")[
+            "Resulting input selection"
+        ].to_dict()
+
+    @property
+    def electrode_mapping(self):
+        return self.mapping.set_index("Resulting channel")[
+            "Resulting electrode"
+        ].to_dict()
+
+
+@dataclass
+class Snappings:
     # at initialization, get values from the excel file
+
     def __init__(self):
         try:
             self.mapping = pd.read_excel(
@@ -28,7 +83,10 @@ class Mappings:
                 ]
             ].copy()
             self.mapping.dropna(inplace=True)
-            self.mapping = self.mapping.map(int)
+            self.mapping["Resulting channel"] = self.mapping["Resulting channel"] - 1
+            self.mapping["Resulting electrode"] = (
+                self.mapping["Resulting electrode"] - 1
+            )
 
             self.channel_input = self.mapping.set_index("Resulting channel")[
                 "Resulting input selection"
@@ -39,55 +97,58 @@ class Mappings:
             ].to_dict()
             self.defaults = False
             logger.info("Mappings read from excel file")
+            print("Mappings read from excel file")
         except FileNotFoundError:
             logger.warning("Couldn't read mappings from excel file, using defaults")
+            print("Couldn't read mappings from excel file, using defaults")
             self.channel_input = {k: 0 for k in range(64)}
-            self.electrode_mapping = {
-                54: 1,
-                50: 2,
-                47: 3,
-                45: 4,
-                46: 5,
-                21: 6,
-                53: 7,
-                52: 8,
-                40: 9,
-                62: 10,
-                56: 11,
-                39: 12,
-                38: 13,
-                55: 14,
-                48: 15,
-                51: 16,
-                49: 17,
-                19: 18,
-                64: 19,
-                60: 20,
-                24: 21,
-                44: 22,
-                63: 24,
-                61: 25,
-                18: 26,
-                37: 27,
-                7: 28,
-                9: 29,
-                36: 30,
-                43: 31,
-                42: 33,
-                33: 34,
-                5: 37,
-                35: 38,
-                28: 40,
-                15: 41,
-                29: 42,
-                23: 44,
-                41: 46,
-                58: 47,
-                57: 48,
-                4: 52,
-                34: 54,
-                59: 56,
-            }
+            self.electrode_mapping = {k: v for k, v in range(64)}
+            # self.electrode_mapping = {
+            #     54: 1,
+            #     50: 2,
+            #     47: 3,
+            #     45: 4,
+            #     46: 5,
+            #     21: 6,
+            #     53: 7,
+            #     52: 8,
+            #     40: 9,
+            #     62: 10,
+            #     56: 11,
+            #     39: 12,
+            #     38: 13,
+            #     55: 14,
+            #     48: 15,
+            #     51: 16,
+            #     49: 17,
+            #     19: 18,
+            #     64: 19,
+            #     60: 20,
+            #     24: 21,
+            #     44: 22,
+            #     63: 24,
+            #     61: 25,
+            #     18: 26,
+            #     37: 27,
+            #     7: 28,
+            #     9: 29,
+            #     36: 30,
+            #     43: 31,
+            #     42: 33,
+            #     33: 34,
+            #     5: 37,
+            #     35: 38,
+            #     28: 40,
+            #     15: 41,
+            #     29: 42,
+            #     23: 44,
+            #     41: 46,
+            #     58: 47,
+            #     57: 48,
+            #     4: 52,
+            #     34: 54,
+            #     59: 56,
+            # }
             self.defaults = True
 
 

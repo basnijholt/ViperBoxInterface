@@ -54,7 +54,7 @@ class ViperBox:
         self.uploaded_settings = GeneralSettings()
         self.tracking = StatusTracking()
         self._box_ptrs: Any = {}
-        self.mapping = Mappings()
+        self.mapping = Mappings("defaults/electrode_mapping_short_cables.xlsx")
 
         self._session_datetime = _session_datetime
         self._rec_start_time: float | None = None
@@ -128,7 +128,7 @@ class ViperBox:
         self.boxless = boxless
         self.emulation = emulation
         self.logger.info(
-            f"ViperBox connect: probe list: {probe_list}, emulation: {emulation}, \
+            f"ViperBox connect: probe list: {probe_list}, emulation: {self.emulation}, \
 boxless: {boxless}."
         )
 
@@ -204,10 +204,10 @@ boxless: {boxless}."
         NVP.openBS(self._box_ptrs[box])
         self.logger.info(f"BS opened: {self._box_ptrs[box]}")
         if (
-            emulation is True
+            self.emulation is True
         ):  # Choose linear ramp emulation (1 sample shift between channels)
             NVP.setDeviceEmulatorMode(
-                self._box_ptrs[box], NVP.DeviceEmulatorMode.LINEAR
+                self._box_ptrs[box], NVP.DeviceEmulatorMode.STATIC
             )
             NVP.setDeviceEmulatorType(
                 self._box_ptrs[box], NVP.DeviceEmulatorType.EMULATED_PROBE
@@ -316,7 +316,7 @@ to ViperBox"
 
         # TODO multibox this should be added to general settings and loaded if the
         # instructions do not come from XML but from probably the GUI.
-        self.mapping = Mappings()
+        self.mapping = Mappings("defaults/electrode_mapping_short_cables.xlsx")
 
         for box in updated_tmp_settings.boxes.keys():
             for probe in updated_tmp_settings.boxes[box].probes.keys():
@@ -358,7 +358,8 @@ to ViperBox"
                     f"Writing Channel config: \
 {updated_tmp_settings.boxes[box].probes[probe]}"
                 )
-                NVP.writeChannelConfiguration(self._box_ptrs[box], probe, False)
+                if not self.emulation:
+                    NVP.writeChannelConfiguration(self._box_ptrs[box], probe, False)
 
     def _upload_stimulation_settings(self, updated_tmp_settings: GeneralSettings):
         self.logger.info(
@@ -698,7 +699,7 @@ to load default settings""",
                 return (
                     False,
                     f"Error in uploading recording settings, settings not applied and \
-    reverted to previous settings. Error: {self._er(e)}",
+reverted to previous settings. Error: {self._er(e)}",
                 )
 
         start_time = self._time()
@@ -1011,6 +1012,10 @@ Error: {e2}"
             count = len(packets)
 
             if count < self.BUFFER_SIZE:
+                # try:
+                #     self.logger.info(f"last databuffer size: {databuffer.size}")
+                # except as e:
+                #     pass
                 self.logger.warning("Out of packets")
                 break
 
@@ -1032,8 +1037,7 @@ Error: {e2}"
     def _os2chip_mat(self):
         mtx = np.zeros((64, 60), dtype="uint16")
         for k, v in self.mapping.electrode_mapping.items():
-            # both are 1 indexed
-            mtx[k - 1][v - 1] = 1
+            mtx[k][v] = 1
         return mtx
 
     def stop_recording(self) -> Tuple[bool, str]:
