@@ -188,8 +188,8 @@ def run_gui():
                 sg.Button("Change folder", key="button_select_recording_folder"),
             ],
             [
-                sg.Button("Start rec", size=(10, 1), key="button_rec", disabled=False),
-                sg.Button("Stop rec", size=(10, 1), key="button_stop"),
+                sg.Button("Start acq.", size=(10, 1), key="button_rec", disabled=False),
+                sg.Button("Stop acq.", size=(10, 1), key="button_stop"),
                 sg.Button(
                     "Stimulate",
                     size=(10, 1),
@@ -295,7 +295,7 @@ def run_gui():
     )
 
     upload_defaults_button = sg.Button(
-        "Upload defaults", key="upload_defaults", disabled=False
+        "Default settings", key="upload_defaults", disabled=False
     )
 
     recording_settings_frame = sg.Frame(
@@ -436,7 +436,7 @@ def run_gui():
     # ------------------------------------------------------------------
     # CF: LOG FRAME
 
-    log_frame = sg.Frame(
+    sg.Frame(
         "Log",
         [
             [
@@ -848,16 +848,18 @@ press OK'
         vertical_alignment="t",
         visible=visibility_swap,
     )
-    col_plot = sg.Column(
-        [
-            [plot_frame],
-        ],
-        k="col_plot",
-        vertical_alignment="t",
-    )
-    sg.Column(
-        [[log_frame]], k="col_log", vertical_alignment="t", expand_x=True, expand_y=True
-    )
+    # col_plot = sg.Column(
+    #     [
+    #         [plot_frame],
+    #     ],
+    #     k="col_plot",
+    #     vertical_alignment="t",
+    # )
+
+    # sg.Column(
+    #     [[log_frame]], k="col_log", vertical_alignment="t",
+    #       expand_x=True, expand_y=True
+    # )
     # for sublayout in [
     #     viperbox_control_frame,
     #     upload_settings_frame,
@@ -894,11 +896,15 @@ press OK'
                             # "Stimulation settings",
                             [
                                 [
-                                    sg.Column([[recording_settings_frame], [col_plot]]),
+                                    sg.Column(
+                                        [[recording_settings_frame], [plot_frame]],
+                                        vertical_alignment="t",
+                                    ),
                                     col_params,
                                     col_el_frame,
                                 ]
                             ],
+                            expand_y=True,
                         )
                     ],
                 ]
@@ -983,20 +989,21 @@ press OK'
         element.bind("<FocusOut>", "+FOCUS OUT")
 
     # Initialize viperbox with default settings
-    data = {"probe_list": "1", "emulation": "False", "boxless": "False"}
-    response = requests.post(url + "connect", json=data)
-    if handle_response(response, "Connected to ViperBox"):
-        SetLED(window, "led_connect_probe", True)
-        SetLED(window, "led_rec", False)
-    else:
-        SetLED(window, "led_connect_probe", False)
-        SetLED(window, "led_rec", False)
-    try:
-        response = requests.post(url + "default_settings", timeout=5)
-        if handle_response(response, "Default settings uploaded"):
-            pass
-    except requests.exceptions.Timeout:
-        sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
+    if __name__ != "__main__":
+        data = {"probe_list": "1", "emulation": "False", "boxless": "False"}
+        response = requests.post(url + "connect", json=data)
+        if handle_response(response, "Connected to ViperBox"):
+            SetLED(window, "led_connect_probe", True)
+            SetLED(window, "led_rec", False)
+        else:
+            SetLED(window, "led_connect_probe", False)
+            SetLED(window, "led_rec", False)
+        try:
+            response = requests.post(url + "default_settings", timeout=5)
+            if handle_response(response, "Default settings uploaded"):
+                pass
+        except requests.exceptions.Timeout:
+            sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
 
     while True:
         event, values = window.read()

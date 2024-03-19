@@ -49,9 +49,11 @@ class Mappings:
             )
 
             logger.info("Mappings read from excel file")
-        except FileNotFoundError:
+        except Exception as e:
             self.mapping = hardcoded_mapping.copy()
-            logger.warning("Couldn't read mappings from excel file, using defaults")
+            logger.warning(
+                f"Couldn't read mappings from excel file, using defaults. Error: {e}"
+            )
 
     @property
     def channel_input(self):
