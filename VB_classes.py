@@ -123,7 +123,7 @@ was {type(value)}: {e}"
 class ProbeSettings:
     channel: Dict[int, ChanSettings] = field(default_factory=dict)
     stim_unit_sett: Dict[int, SUSettings] = field(default_factory=dict)
-    stim_unit_elec: Dict[int, List[int]] = field(default_factory=dict)
+    stim_unit_os: Dict[int, List[int]] = field(default_factory=dict)
     _sus: int = 8
     _elecs: int = 128
 
@@ -133,13 +133,34 @@ class ProbeSettings:
 
     @property
     def os_data(self):
+        """
+        Returns a bytes array of format described in docs.
+        byte N: OSInputSU 2N+1 (3bit) | OSEnable 2N+1 (1bit) | OSInputSU 2N (3bit) |
+            OSEnable 2N (1bit)
+        For a total length of 64 bytes.
+        """
         os_data_array = np.zeros((self._sus, self._elecs))
-        if self.stim_unit_elec:
-            for su, elec_list in self.stim_unit_elec.items():
+        if self.stim_unit_os:
+            for su, elec_list in self.stim_unit_os.items():
                 for elec in elec_list:
                     os_data_array[su, elec] = 1
-            return os_data_array
-        # get sum over second axis of os_data_array
+            if os_data_array.sum(axis=0).max() > 1:
+                logger.warning(
+                    "Assigned electrode to multiple SU's, this is not allowed."
+                )
+            else:
+                lst = []
+                for index in range(self._elecs):
+                    su = np.where(os_data_array[:, index])[0]
+                    if su.size > 0:
+                        lst.append(su[0] << 1 | 1)
+                    else:
+                        lst.append(0)
+                bytes_list = [
+                    lst[2 * os_counter + 1] << 4 | lst[2 * os_counter]
+                    for os_counter in range(int(self._elecs / 2))
+                ]
+                return bytes[bytes_list]
 
     # def get_gains(self):
     #     np.zeros(64)
@@ -209,7 +230,7 @@ class GeneralSettings:
         for box, probes in connected_hp.items():
             for probe in probes:
                 self.boxes[box].probes[probe].stim_unit_sett = {}
-                self.boxes[box].probes[probe].stim_unit_elec = {}
+                self.boxes[box].probes[probe].stim_unit_os = {}
 
     def reset_probe_settings(self):
         connected_hp = self.connected
@@ -217,7 +238,7 @@ class GeneralSettings:
             for probe in probes:
                 self.boxes[box].probes[probe].channel = {}
                 self.boxes[box].probes[probe].stim_unit_sett = {}
-                self.boxes[box].probes[probe].stim_unit_elec = {}
+                self.boxes[box].probes[probe].stim_unit_os = {}
 
 
 @dataclass
@@ -355,8 +376,9 @@ def parse_numbers(
         result = result - 1
     if numstr != "-" and not set(result).issubset(set(all_values)):
         raise ValueError(
-            "Invalid values; following instances are not connected"
-            f":{set(result) - set(all_values)}."
+            "Invalid values; following instances are not connected;"
+            f" set selected: {set(result)}, set all values: {set(all_values)}."
+            f"Difference: {set(result) - set(all_values)}. Input was: {numstr}"
         )
     return result.tolist()
 

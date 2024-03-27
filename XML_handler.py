@@ -212,7 +212,7 @@ def update_settings_with_XML(
                                 XML_settings.attrib["stimunit"], list(range(8))
                             )
                             for mapping in all_mappings:
-                                local_settings.boxes[box].probes[probe].stim_unit_elec[
+                                local_settings.boxes[box].probes[probe].stim_unit_os[
                                     mapping
                                 ] = parse_numbers(
                                     XML_settings.attrib["electrodes"],

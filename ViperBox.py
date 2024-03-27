@@ -526,7 +526,7 @@ reverted to previous settings. Error: {self._er(e)}",
                     for mapping in (
                         updated_tmp_settings.boxes[box]
                         .probes[probe]
-                        .stim_unit_elec.keys()
+                        .stim_unit_os.keys()
                     ):
                         add_to_stimrec(
                             self.stim_file_path,
@@ -538,7 +538,7 @@ reverted to previous settings. Error: {self._er(e)}",
                                 "stimunit": mapping,
                                 "electrodes": updated_tmp_settings.boxes[box]
                                 .probes[probe]
-                                .stim_unit_elec[mapping],
+                                .stim_unit_os[mapping],
                             },
                             start_time,
                             dt_time,
@@ -1255,7 +1255,7 @@ settings first""",
                 )
 
         return_statement = f"Stimulation started on boxes {boxes} probe {probes} \
-            for SU's {SU_dict}"
+for SU's {SU_dict}"
         return True, return_statement
 
     def _er(self, error):
