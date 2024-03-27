@@ -14,6 +14,8 @@ import requests
 from lxml import etree
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+from defaults.defaults import Mappings
+
 # matplotlib.use("TkAgg")
 
 
@@ -257,7 +259,7 @@ def run_gui():
         "x60": 0,
         "x24": 1,
         "x12": 2,
-        "x0.16": 3,
+        # "x0.16": 3,
     }
     gain_button_matrix = [
         [
@@ -410,6 +412,7 @@ def run_gui():
             return "light gray"
 
     def get_electrodes(electrode_switch_matrix, save_purpose=False):
+        probe_mapping = Mappings("defaults/electrode_mapping_short_cables.xlsx")
         rows, cols = np.where(np.asarray(electrode_switch_matrix) == "on")
         if save_purpose:
             electrode_list = [str(i * MAX_ROWS + j + 1) for i, j in zip(cols, rows)]
@@ -417,11 +420,12 @@ def run_gui():
             return electrode_list
         else:
             electrode_list = [i * MAX_ROWS + j + 1 for i, j in zip(cols, rows)]
-            electrode_list.sort()
-            electrode_list = [str(i) for i in electrode_list]
-            if electrode_list == []:
+            os_list = [probe_mapping.probe_to_os_map[i] for i in electrode_list]
+            os_list.sort()
+            os_list = [str(i) for i in os_list]
+            if os_list == []:
                 return None
-            return ", ".join(electrode_list)
+            return ", ".join(os_list)
 
     def set_reference_matrix(electrode_list):
         electrode_switch_matrix = [
@@ -1069,7 +1073,7 @@ Please do the following: \n\
             SetLED(window, "led_rec", False)
         elif event == "button_stim":
             logger.info("Stimulate button pressed")
-            data = {"boxes": "1", "probes": "-", "stimunits": "-"}
+            data = {"boxes": "1", "probes": "-", "SU_input": "1"}
             response = requests.post(url + "start_stimulation", json=data, timeout=5)
             if handle_response(response, "Stimulation started"):
                 pass
