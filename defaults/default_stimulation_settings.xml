@@ -2,12 +2,12 @@
 <Program>
     <Settings>
         <StimulationWaveformSettings>
-            <Configuration box="-" probe="-" stimunit="-" polarity="0" pulses="20" prephase="0"
+            <Configuration box="-" probe="-" stimunit="1" polarity="0" pulses="20" prephase="0"
                 amplitude1="5" width1="170" interphase="60" amplitude2="5" width2="170"
                 discharge="200" duration="600" aftertrain="1000" />
         </StimulationWaveformSettings>
         <StimulationMappingSettings>
-            <Mapping box="-" probe="-" stimunit="-" electrodes="-" />
+            <Mapping box="-" probe="-" stimunit="1" electrodes="-" />
         </StimulationMappingSettings>
     </Settings>
 </Program>

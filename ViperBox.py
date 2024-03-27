@@ -40,7 +40,7 @@ from XML_handler import (
 class ViperBox:
     """Class for interacting with the IMEC Neuraviper API."""
 
-    BUFFER_SIZE = 500
+    NUM_SAMPLES = 500
     SKIP_SIZE = 20
     FREQ = 20000
     OS_WRITE_TIME = 1
@@ -383,7 +383,9 @@ settings to ViperBox"
                     NVP.setOSDischargeperm(self._box_ptrs[box], probe, OS, False)
                     NVP.setOSStimblank(self._box_ptrs[box], probe, OS, True)
 
-            for SU in range(8):
+            for SU in (
+                updated_tmp_settings.boxes[box].probes[probe].stim_unit_sett.keys()
+            ):
                 NVP.writeSUConfiguration(
                     self._box_ptrs[box],
                     probe,
@@ -971,7 +973,15 @@ Error: {e2}"
         """Send data packets to a UDP socket, such that Open Ephys and other systems
         can receive the raw data."""
 
-        bufferInterval: float = self.BUFFER_SIZE / self.FREQ
+        bufferInterval: float = self.NUM_SAMPLES / self.FREQ
+
+        # tcpServer = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+        # tcpServer.bind(('localhost', 9001))
+        # tcpServer.listen(1)
+
+        # self.logger.info("Waiting for external connection to start...")
+        # (tcpClient, address) = tcpServer.accept()
+        # self.logger.info("Connected.")
 
         serverAddressPort: Tuple[str, int] = ("127.0.0.1", 9001)
         # TODO: update settings of socket
@@ -1008,10 +1018,10 @@ Error: {e2}"
         while self.oe_socket is True:
             counter += 1
 
-            packets = NVP.streamReadData(send_data_read_handle, self.BUFFER_SIZE)
+            packets = NVP.streamReadData(send_data_read_handle, self.NUM_SAMPLES)
             count = len(packets)
 
-            if count < self.BUFFER_SIZE:
+            if count < self.NUM_SAMPLES:
                 # try:
                 #     self.logger.info(f"last databuffer size: {databuffer.size}")
                 # except as e:
@@ -1020,7 +1030,7 @@ Error: {e2}"
                 break
 
             databuffer = np.asarray(
-                [packets[i].data for i in range(self.BUFFER_SIZE)], dtype="uint16"
+                [packets[i].data for i in range(self.NUM_SAMPLES)], dtype="uint16"
             )
             databuffer = (databuffer @ mtx).T
             databuffer = databuffer.copy(order="C")

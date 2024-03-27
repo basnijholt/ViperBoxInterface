@@ -8,12 +8,12 @@
             <Channel box="-" probe="-" channel="-" references="b" gain="0" input="0" />
         </RecordingSettings>
         <StimulationWaveformSettings>
-            <Configuration box="-" probe="-" stimunit="-" polarity="0" pulses="20"
+            <Configuration box="-" probe="-" stimunit="1" polarity="0" pulses="20"
                 prephase="0" amplitude1="1" width1="170" interphase="60" amplitude2="1" width2="170"
                 discharge="200" duration="600" aftertrain="1000" />
         </StimulationWaveformSettings>
         <StimulationMappingSettings>
-            <Mapping box="-" probe="-" stimunit="-" electrodes="-" />
+            <Mapping box="-" probe="-" stimunit="1" electrodes="-" />
         </StimulationMappingSettings>
     </Settings>
 </Program>

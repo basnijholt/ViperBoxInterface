@@ -160,7 +160,7 @@ class ProbeSettings:
                     lst[2 * os_counter + 1] << 4 | lst[2 * os_counter]
                     for os_counter in range(int(self._elecs / 2))
                 ]
-                return bytes[bytes_list]
+                return bytes(bytes_list)
 
     # def get_gains(self):
     #     np.zeros(64)
