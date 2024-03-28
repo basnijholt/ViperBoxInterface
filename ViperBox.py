@@ -13,6 +13,7 @@ import numpy as np
 import requests
 import urllib3
 from lxml import etree
+from scipy import signal
 
 import NeuraviperPy as NVP
 from defaults.defaults import Mappings
@@ -970,29 +971,26 @@ Error: {e2}"
                 )
 
     def _send_data_to_socket(self, probe: int) -> None:
-        """Send data packets to a UDP socket, such that Open Ephys and other systems
-        can receive the raw data."""
+        """
+        Send data packets to a TCP socket, such that Open Ephys can receive the raw
+        data.
+        """
+        NUM_CHANNELS = 60
+
+        f0 = 50.0  # self.Frequency to be removed from signal (Hz)
+        Q = 30.0  # Quality factor
+        b, a = signal.iirnotch(f0, Q, self.FREQ)
+        z = np.zeros((NUM_CHANNELS, 2))
 
         bufferInterval: float = self.NUM_SAMPLES / self.FREQ
 
-        # tcpServer = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
-        # tcpServer.bind(('localhost', 9001))
-        # tcpServer.listen(1)
+        self.tcpServer = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+        self.tcpServer.bind(("localhost", 9001))
+        self.tcpServer.listen(1)
 
-        # self.logger.info("Waiting for external connection to start...")
-        # (tcpClient, address) = tcpServer.accept()
-        # self.logger.info("Connected.")
-
-        serverAddressPort: Tuple[str, int] = ("127.0.0.1", 9001)
-        # TODO: update settings of socket
-        MULTICAST_TTL = 2
-        UDPClientSocket: socket.socket = socket.socket(
-            socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
-        )
-
-        UDPClientSocket.setsockopt(
-            socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL
-        )
+        self.logger.info("Waiting for external connection to start...")
+        (tcpClient, address) = self.tcpServer.accept()
+        self.logger.info("Connected.")
 
         # TODO: check if this is necessary
         time.sleep(0.1)
@@ -1000,15 +998,22 @@ Error: {e2}"
         # TODO: How to handle data streams from multiple probes? align on timestamp?
         send_data_read_handle = NVP.streamOpenFile(str(self._rec_path), probe)
 
-        # TODO: remove packages with wrong session
-        # status = NVP.readDiagStats(self._box)
-        # skip_packages = status.session_mismatch
-        # print('skip_packages: ', skip_packages)
-        # dump_count = 0
-        # while dump_count < skip_packages:
-        #     _ = NVP.streamReadData(self._read_handle, self.SKIP_SIZE)
-        #     dump_count += self.SKIP_SIZE
-        # print('dump_count: ', dump_count)
+        # ---- DEFINE HEADER VALUES ---- #
+        offset = 0  # Offset of bytes in this packet; only used for buffers > ~64 kB
+        dataType = 2  # Enumeration value based on OpenCV.Mat data types
+        elementSize = 2  # Number of bytes per element. elementSize = 2 for U16
+        # Data types:   [ U8, S8, U16, S16, S32, F32, F64 ]
+        # Enum value:   [  0,  1,   2,   3,   4,   5,   6 ]
+        # Element Size: [  1,  1,   2,   2,   4,   4,   8 ]
+        bytesPerBuffer = NUM_CHANNELS * self.NUM_SAMPLES * elementSize
+
+        header = (
+            np.array([offset, bytesPerBuffer], dtype="i4").tobytes()
+            + np.array([dataType], dtype="i2").tobytes()
+            + np.array(
+                [elementSize, NUM_CHANNELS, self.NUM_SAMPLES], dtype="i4"
+            ).tobytes()
+        )
 
         self.logger.info("Started sending data to Open Ephys")
         mtx = self._os2chip_mat()
@@ -1022,10 +1027,6 @@ Error: {e2}"
             count = len(packets)
 
             if count < self.NUM_SAMPLES:
-                # try:
-                #     self.logger.info(f"last databuffer size: {databuffer.size}")
-                # except as e:
-                #     pass
                 self.logger.warning("Out of packets")
                 break
 
@@ -1033,8 +1034,11 @@ Error: {e2}"
                 [packets[i].data for i in range(self.NUM_SAMPLES)], dtype="uint16"
             )
             databuffer = (databuffer @ mtx).T
+            databuffer, z = signal.lfilter(b, a, databuffer, axis=1, zi=z)
+            databuffer = databuffer.astype("uint16")
             databuffer = databuffer.copy(order="C")
-            UDPClientSocket.sendto(databuffer, serverAddressPort)
+            databuffer = databuffer.tobytes()
+            tcpClient.sendto(header + databuffer, address)
 
             # t2 = time.time_ns() // 1e9
             t2 = self._time()
@@ -1371,6 +1375,25 @@ for SU's {SU_dict}"
     # TODO: handle stimulation mappings (SU->input->mzipa->probe) and
     # recording (probe->MZIPA->OS->chan)
     # TODO: implement gain_vec in vb classes for usage in recording settings
+
+
+# class oe_socket:
+#     """
+#     create a tcpServer object of type AF_INET and SOCK_STREAM
+#     bind to localhost at port 9001
+#     set timeout to none
+#     """
+#     def __init__(self):
+#         self.tcpServer = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+#         self.tcpServer.bind(("localhost", 9001))
+#         self.tcpServer.listen(1)
+#         self.tcpServer.settimeout(None)
+
+#         self.logger.info("Waiting for external connection to start...")
+#         (tcpClient, address) = self.tcpServer.accept()
+#         self.logger.info("Connected.")
+#         self.address = address
+#         self.tcpClient = tcpClient
 
 
 # if __name__ == "__main__":
