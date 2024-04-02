@@ -42,6 +42,7 @@ class ViperBox:
     """Class for interacting with the IMEC Neuraviper API."""
 
     NUM_SAMPLES = 500
+    NUM_CHANNELS = 60
     SKIP_SIZE = 20
     FREQ = 20000
     OS_WRITE_TIME = 1
@@ -65,15 +66,11 @@ class ViperBox:
         log_folder.mkdir(parents=True, exist_ok=True)
         self._log = log_folder.joinpath(log_file)
         self.stim_file_path: Path | None = None
-
         self._rec_path: Path | None = None
 
         self.start_oe = start_oe
         self.boxless = False
         self.emulation = False
-
-        # for handler in logging.root.handlers[:]:
-        #     logging.root.removeHandler(handler)
 
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
@@ -81,37 +78,9 @@ class ViperBox:
             "localhost", logging.handlers.DEFAULT_TCP_LOGGING_PORT
         )
         self.logger.addHandler(socketHandler)
-
-        # self.logger = logging.getLogger(__name__)
-        # # handler = logging.StreamHandler(sys.stdout)
-        # # self.logger.addHandler(handler)
-
-        # TODO take out this
-        # self.connect("1", True, True)
-
-        # self.logger.info("ViperBox initialized")
+        self.mtx = self._os2chip_mat()
 
         return None
-
-    def empty_socket(self, lifetime=5) -> None:
-        serverAddressPort = ("127.0.0.1", 9001)
-        MULTICAST_TTL = 2
-        UDPClientSocket: socket.socket = socket.socket(
-            socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP
-        )
-
-        UDPClientSocket.setsockopt(
-            socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, MULTICAST_TTL
-        )
-        databuffer = np.ones((60, 500), dtype="uint16")
-        i = 0
-        while i < 10 * lifetime:
-            # global stop_threads
-            UDPClientSocket.sendto(databuffer, serverAddressPort)
-            time.sleep(0.1)
-            i += 1
-            # if stop_threads:
-            #     break
 
     def connect(
         self,
@@ -160,8 +129,6 @@ boxless: {boxless}."
                 False,
                 f"Invalid probe list: {self._er(e)}",
             )
-
-        threading.Thread(target=self.empty_socket, daemon=True).start()
 
         if self.start_oe:
             threading.Thread(
@@ -248,6 +215,19 @@ boxless: {boxless}."
         # print(self.local_settings)
 
         self.uploaded_settings = copy.deepcopy(self.local_settings)
+
+        self.data_thread = _DataSenderThread(
+            self.NUM_SAMPLES, self.FREQ, self.NUM_CHANNELS, self.mtx
+        )
+        self.data_thread.start("asdf", 0, empty=True)
+        try:
+            _ = requests.put(
+                "http://localhost:37497/api/status",
+                json={"mode": "ACQUIRE"},
+                timeout=1,
+            )
+        except Exception as e:
+            self.logger.warning(f"Couldn't start acquiring data. Error: {self._er(e)}")
 
         # TODO boxfix: also loop over boxes
         return (
@@ -874,14 +854,7 @@ upload your custom settings and then try again.""",
         self.oe_socket = True
         probe = 0
         self.logger.debug("Start sending data")
-        threading.Thread(
-            target=self._send_data_to_socket, args=(probe,), daemon=True
-        ).start()
-
-        if self.start_oe:
-            threading.Thread(
-                target=self._start_eo_acquire, args=(True,), daemon=True
-            ).start()
+        self.data_thread.start(self._rec_path, probe, empty=False)
 
         self.logger.info(f"Recording started: {recording_name}")
         return True, f"Recording started: {recording_name}"
@@ -969,84 +942,6 @@ Error: {e2}"
                     """Open Ephys not detected, please start it manually if it is \
                         not running"""
                 )
-
-    def _send_data_to_socket(self, probe: int) -> None:
-        """
-        Send data packets to a TCP socket, such that Open Ephys can receive the raw
-        data.
-        """
-        NUM_CHANNELS = 60
-
-        f0 = 50.0  # self.Frequency to be removed from signal (Hz)
-        Q = 30.0  # Quality factor
-        b, a = signal.iirnotch(f0, Q, self.FREQ)
-        z = np.zeros((NUM_CHANNELS, 2))
-
-        bufferInterval: float = self.NUM_SAMPLES / self.FREQ
-
-        self.tcpServer = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
-        self.tcpServer.bind(("localhost", 9001))
-        self.tcpServer.listen(1)
-
-        self.logger.info("Waiting for external connection to start...")
-        (tcpClient, address) = self.tcpServer.accept()
-        self.logger.info("Connected.")
-
-        # TODO: check if this is necessary
-        time.sleep(0.1)
-
-        # TODO: How to handle data streams from multiple probes? align on timestamp?
-        send_data_read_handle = NVP.streamOpenFile(str(self._rec_path), probe)
-
-        # ---- DEFINE HEADER VALUES ---- #
-        offset = 0  # Offset of bytes in this packet; only used for buffers > ~64 kB
-        dataType = 2  # Enumeration value based on OpenCV.Mat data types
-        elementSize = 2  # Number of bytes per element. elementSize = 2 for U16
-        # Data types:   [ U8, S8, U16, S16, S32, F32, F64 ]
-        # Enum value:   [  0,  1,   2,   3,   4,   5,   6 ]
-        # Element Size: [  1,  1,   2,   2,   4,   4,   8 ]
-        bytesPerBuffer = NUM_CHANNELS * self.NUM_SAMPLES * elementSize
-
-        header = (
-            np.array([offset, bytesPerBuffer], dtype="i4").tobytes()
-            + np.array([dataType], dtype="i2").tobytes()
-            + np.array(
-                [elementSize, NUM_CHANNELS, self.NUM_SAMPLES], dtype="i4"
-            ).tobytes()
-        )
-
-        self.logger.info("Started sending data to Open Ephys")
-        mtx = self._os2chip_mat()
-        counter = 0
-        # t0 = time.time_ns() // 1e9
-        t0 = self._time()
-        while self.oe_socket is True:
-            counter += 1
-
-            packets = NVP.streamReadData(send_data_read_handle, self.NUM_SAMPLES)
-            count = len(packets)
-
-            if count < self.NUM_SAMPLES:
-                self.logger.warning("Out of packets")
-                break
-
-            databuffer = np.asarray(
-                [packets[i].data for i in range(self.NUM_SAMPLES)], dtype="uint16"
-            )
-            databuffer = (databuffer @ mtx).T
-            databuffer, z = signal.lfilter(b, a, databuffer, axis=1, zi=z)
-            databuffer = databuffer.astype("uint16")
-            databuffer = databuffer.copy(order="C")
-            databuffer = databuffer.tobytes()
-            tcpClient.sendto(header + databuffer, address)
-
-            # t2 = time.time_ns() // 1e9
-            t2 = self._time()
-            while (t2 - t0) < counter * bufferInterval:
-                # t2 = time.time_ns() // 1e9
-                t2 = self._time()
-
-        NVP.streamClose(send_data_read_handle)
 
     def _os2chip_mat(self):
         mtx = np.zeros((64, 60), dtype="uint16")
@@ -1274,6 +1169,122 @@ for SU's {SU_dict}"
 
     def _er(self, error):
         return "".join(traceback.TracebackException.from_exception(error).format())
+
+
+class _DataSenderThread(threading.Thread):
+    def __init__(self, NUM_SAMPLES: int, FREQ: int, NUM_CHANNELS: int, mtx: np.ndarray):
+        super().__init__()
+        self.thread = None
+        self.stop_stream = None
+        # self.logger = logger
+
+        self.NUM_SAMPLES = NUM_SAMPLES
+        self.FREQ = FREQ
+        self.NUM_CHANNELS = NUM_CHANNELS
+        self.bufferInterval = self.NUM_SAMPLES / self.FREQ
+        self._prep_lfilter(f0=50.0, Q=30.0, FREQ=self.FREQ)
+        self._create_header(
+            NUM_CHANNELS=self.NUM_CHANNELS, NUM_SAMPLES=self.NUM_SAMPLES
+        )
+        self.mtx = mtx
+        self.tcpServer = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
+        self.tcpServer.bind(("localhost", 3333))
+        self.tcpServer.listen(1)
+        self.tcpServer.settimeout(None)
+        self.tcpServer.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        print("Waiting for external connection to start...")
+        (tcpClient, socket_address) = self.tcpServer.accept()
+        print("Connected.")
+        self.tcpClient = tcpClient
+        self.socket_address = socket_address
+
+    def _prep_lfilter(self, f0: float = 50.0, Q: float = 30.0, FREQ: int = 20000):
+        b, a = signal.iirnotch(f0, Q, FREQ)
+        z = np.zeros((60, 2))
+        self.b, self.a, self.z = b, a, z
+
+    def _create_header(self, NUM_CHANNELS: int = 60, NUM_SAMPLES: int = 500):
+        # ---- DEFINE HEADER VALUES ---- #
+        offset = 0  # Offset of bytes in this packet; only used for buffers > ~64 kB
+        dataType = 2  # Enumeration value based on OpenCV.Mat data types
+        elementSize = 2  # Number of bytes per element. elementSize = 2 for U16
+        # Data types:   [ U8, S8, U16, S16, S32, F32, F64 ]
+        # Enum value:   [  0,  1,   2,   3,   4,   5,   6 ]
+        # Element Size: [  1,  1,   2,   2,   4,   4,   8 ]
+        bytesPerBuffer = NUM_CHANNELS * NUM_SAMPLES * elementSize
+        self.header = (
+            np.array([offset, bytesPerBuffer], dtype="i4").tobytes()
+            + np.array([dataType], dtype="i2").tobytes()
+            + np.array([elementSize, NUM_CHANNELS, NUM_SAMPLES], dtype="i4").tobytes()
+        )
+
+    def _time(self):
+        return time.time_ns() / (10**9)
+
+    def _prepare_databuffer(self, databuffer: np.ndarray, z) -> tuple:
+        databuffer = (databuffer @ self.mtx).T
+        databuffer, z = signal.lfilter(self.b, self.a, databuffer, axis=1, zi=z)
+        databuffer = databuffer.astype("uint16")
+        databuffer = databuffer.copy(order="C")
+        return databuffer.tobytes(), z
+
+    def send_data(self, rec_path, probe):
+        print("Started sending data to Open Ephys")
+        # TODO: How to handle data streams from multiple probes? align on timestamp?
+        send_data_read_handle = NVP.streamOpenFile(str(rec_path), probe)
+        counter = 0
+        t0 = self._time()
+        while not self.stop_stream.is_set():
+            counter += 1
+            packets = NVP.streamReadData(send_data_read_handle, self.NUM_SAMPLES)
+            count = len(packets)
+            if count < self.NUM_SAMPLES:
+                print("Out of packets")
+                break
+
+            databuffer = np.asarray(
+                [packets[i].data for i in range(self.NUM_SAMPLES)], dtype="uint16"
+            )
+            databuffer, self.z = self._prepare_databuffer(databuffer, self.z)
+            self.tcpClient.sendto(self.header + databuffer, self.socket_address)
+            t2 = self._time()
+            while (t2 - t0) < counter * self.bufferInterval:
+                t2 = self._time()
+        NVP.streamClose(send_data_read_handle)
+
+    def _send_empty(self):
+        print("Started sending empty data to Open Ephys")
+        counter = 0
+        t0 = self._time()
+        for i in range(10):
+            counter += 1
+            databuffer = np.zeros((60, 500), dtype="uint16").tobytes()
+            self.tcpClient.sendto(self.header + databuffer, self.socket_address)
+            t2 = self._time()
+            while (t2 - t0) < counter * self.bufferInterval:
+                t2 = self._time()
+
+    def start(self, recording_path, probe, empty=False):
+        if self.thread is not None and self.thread.is_alive():
+            print("Thread already running")
+            return
+        if empty:
+            self.stop_stream = threading.Event()
+            self.thread = threading.Thread(target=self._send_empty, daemon=True)
+            self.thread.start()
+        else:
+            self.stop_stream = threading.Event()
+            self.thread = threading.Thread(
+                target=self.send_data, args=(recording_path, probe), daemon=True
+            )
+            self.thread.start()
+
+    def stop(self):
+        if self.thread is None or not self.thread.is_alive():
+            print("Thread not running")
+            return
+        self.stop_stream.set()
+        self.thread.join()
 
     # def TTL_start(
     #     self, probe: str, TTL_channel: str, SU_input: str

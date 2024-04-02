@@ -60,17 +60,7 @@ To start using it, you need to
 Recording files will show up in the /Recordings folder.
 Stimulation records will show up in the /Stimulations folder.
 """
-# tags_metadata = [
-#     {
-#         "name": "connect",
-#         "description": "Connect to the ViperBox. This is the first step to "
-#         "stimulating and recording 🧠",
-#     },
-#     {
-#         "name": "disconnect",
-#         "description": "Disconnect from the ViperBox.",
-#     },
-# ]
+
 app = FastAPI(
     title="ViperBox API",
     description=docs,
@@ -86,12 +76,8 @@ app = FastAPI(
         "url": "https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html",
     },
 )
+
 VB = ViperBox(_session_datetime=session_datetime, start_oe=True)
-
-
-# @app.get("/test")#, tags=["test"])
-# async def test():
-#     return {"result": True, "feedback": "test"}
 
 
 @app.post("/connect")  # , tags=["connect"])
@@ -350,4 +336,5 @@ async def kill():
 
 if __name__ == "__main__":
     print("##############################you shouldn't see this")
+    logger.warning("You shouldn't see this either")
     uvicorn.run(app, host="127.0.0.1", port=8000)
