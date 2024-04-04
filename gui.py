@@ -149,6 +149,7 @@ def run_gui():
         ],
         size=(420, 360),
         visible=visibility_swap,
+        expand_y=True,
     )
 
     # ------------------------------------------------------------------
@@ -162,18 +163,36 @@ def run_gui():
             [
                 sg.Push(),
                 sg.Column(
+                    # [
+                    #     [
+                    #         sg.Text("ViperBox connected"),  # , size=(10, 0)),
+                    #         LEDIndicator("led_connect_probe"),
+                    #     ],
+                    #     [
+                    #         sg.Button("Connect", key="button_connect", disabled=True),
+                    #         sg.Button(
+                    #             "Disconnect", key="button_disconnect", disabled=True
+                    #         ),
+                    #     ],
+                    # ],
                     [
                         [
-                            sg.Text("ViperBox connected"),  # , size=(10, 0)),
-                            LEDIndicator("led_connect_probe"),
+                            sg.Button(
+                                "Connect ViperBox",
+                                key="button_connect",
+                                size=(18, 1),
+                                disabled=True,
+                            )
                         ],
                         [
-                            sg.Button("Connect", key="button_connect", disabled=True),
                             sg.Button(
-                                "Disconnect", key="button_disconnect", disabled=True
+                                "Connect Open Ephys",
+                                key="button_connect_oe",
+                                size=(18, 1),
+                                disabled=True,
                             ),
                         ],
-                    ],
+                    ]
                 ),
                 sg.Push(),
             ],
@@ -378,7 +397,7 @@ def run_gui():
     ]
     electrode_button_matrix = electrode_button_matrix[::-1]
     electrode_frame = sg.Frame(
-        "Stimulation mapping",
+        "Stimulation electrode selection",
         [
             [sg.Column(electrode_button_matrix)],
             [
@@ -536,7 +555,7 @@ press OK'
             delete = [
                 # "led_connect_hardware",
                 # "led_connect_BS",
-                "led_connect_probe",
+                # "led_connect_probe",
                 "input_filename",
                 "led_rec",
                 "checkbox_rec_wo_stim",
@@ -700,15 +719,16 @@ press OK'
         element_justification="r",
         expand_x=True,
     )
-    pulse_shape_frame = sg.Frame(
+    waveform_settings_frame = sg.Frame(
         "Waveform settings",
         [
+            [sg.VPush()],
             [pulse_shape_col_settings],
-            # [collapse(pulse_shape_col_el_frame, "pulse_shape_col_el_frame")],
-            # [pulse_shape_col_el_frame],
+            [sg.VPush()],
         ],
         element_justification="r",
         expand_x=True,
+        expand_y=True,
     )
 
     # ------------------------------------------------------------------
@@ -832,19 +852,6 @@ press OK'
     # ------------------------------------------------------------------
     # INTEGRATION OF COMPONENTS
 
-    # col_settings = sg.Column(
-    #     [
-    #         [viperbox_control_frame],
-    #         [upload_settings_frame],
-    #         [viperbox_recording_settings_frame],
-    #         [recording_settings_frame],
-    #         [open_ephys_frame],
-    #     ],
-    #     k="col_settings",
-    #     vertical_alignment="t",
-    #     expand_y=True,
-    # )
-
     col_el_frame = sg.Column(
         [[electrode_frame]],
         k="col_el_frame",
@@ -852,76 +859,43 @@ press OK'
         visible=visibility_swap,
     )
 
-    col_params = sg.Column(
+    control_frame = sg.Frame(
+        "ViperBox control",
         [
-            [pulse_shape_frame],
-            # [pulse_train_frame],
-            # [parameter_sweep]
+            [
+                viperbox_control_frame,
+                sg.VSeparator(),
+                viperbox_recording_settings_frame,
+                sg.VSeparator(),
+                upload_settings_frame,
+            ],
         ],
-        k="col_params",
-        vertical_alignment="t",
-        visible=visibility_swap,
+        expand_y=True,
+        expand_x=True,
+        element_justification="c",
     )
-    # col_plot = sg.Column(
-    #     [
-    #         [plot_frame],
-    #     ],
-    #     k="col_plot",
-    #     vertical_alignment="t",
-    # )
 
-    # sg.Column(
-    #     [[log_frame]], k="col_log", vertical_alignment="t",
-    #       expand_x=True, expand_y=True
-    # )
-    # for sublayout in [
-    #     viperbox_control_frame,
-    #     upload_settings_frame,
-    #     viperbox_recording_settings_frame,
-    #     col_el_frame,
-    #     col_params,
-    #     col_plot,
-    # ]:
-    #     print(sublayout)
+    pulse_col = sg.Column(
+        [[waveform_settings_frame, plot_frame]], expand_x=True, expand_y=True
+    )
+
+    rec_pulse_col = sg.Column(
+        [[recording_settings_frame], [pulse_col]], expand_x=True, expand_y=True
+    )
+
+    settings_col = sg.Column(
+        [[rec_pulse_col, col_el_frame]], expand_x=True, expand_y=True
+    )
 
     layout += [
         [
             sg.Column(
                 [
-                    [
-                        sg.Frame(
-                            "ViperBox control",
-                            [
-                                [
-                                    viperbox_control_frame,
-                                    sg.VSeparator(),
-                                    viperbox_recording_settings_frame,
-                                    sg.VSeparator(),
-                                    upload_settings_frame,
-                                ],
-                            ],
-                            expand_y=True,
-                            expand_x=True,
-                            element_justification="c",
-                        )
-                    ],
-                    [
-                        sg.Column(
-                            # "Stimulation settings",
-                            [
-                                [
-                                    sg.Column(
-                                        [[recording_settings_frame], [plot_frame]],
-                                        vertical_alignment="t",
-                                    ),
-                                    col_params,
-                                    col_el_frame,
-                                ]
-                            ],
-                            expand_y=True,
-                        )
-                    ],
-                ]
+                    [control_frame],
+                    [settings_col],
+                ],
+                expand_x=True,
+                expand_y=True,
             )
         ]
     ]
@@ -979,7 +953,7 @@ press OK'
     url = "http://127.0.0.1:8000/"
     tmp_path = ""
     _, values = window.read(timeout=0)
-    SetLED(window, "led_connect_probe", False)
+    # SetLED(window, "led_connect_probe", False)
     SetLED(window, "led_rec", False)
     fig = generate_plot()
     figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
@@ -1008,10 +982,10 @@ press OK'
         data = {"probe_list": "1", "emulation": "False", "boxless": "False"}
         response = requests.post(url + "connect", json=data)
         if handle_response(response, "Connected to ViperBox"):
-            SetLED(window, "led_connect_probe", True)
+            # SetLED(window, "led_connect_probe", True)
             SetLED(window, "led_rec", False)
         else:
-            SetLED(window, "led_connect_probe", False)
+            # SetLED(window, "led_connect_probe", False)
             SetLED(window, "led_rec", False)
         # Upload default settings
         try:
@@ -1030,8 +1004,9 @@ in Ephys Socket, in Open Ephys"
             pass
 
     disabled_startup_buttons = [
-        "button_disconnect",
+        # "button_disconnect",
         "button_connect",
+        "button_connect_oe",
         "button_rec",
         "button_stop",
         "upload_recording_settings",
@@ -1071,16 +1046,24 @@ in Ephys Socket, in Open Ephys"
             data = {"probe_list": "1", "emulation": "False", "boxless": "False"}
             response = requests.post(url + "connect", json=data)
             if handle_response(response, "Connected to ViperBox"):
-                SetLED(window, "led_connect_probe", True)
+                # SetLED(window, "led_connect_probe", True)
                 SetLED(window, "led_rec", False)
             else:
-                SetLED(window, "led_connect_probe", False)
+                # SetLED(window, "led_connect_probe", False)
                 SetLED(window, "led_rec", False)
-        elif event == "button_disconnect":
-            response = requests.post(url + "disconnect")
-            if handle_response(response, "Disconnected from ViperBox"):
-                SetLED(window, "led_connect_probe", False)
-                SetLED(window, "led_rec", False)
+        # elif event == "button_disconnect":
+        #     response = requests.post(url + "disconnect")
+        #     if handle_response(response, "Disconnected from ViperBox"):
+        #         # SetLED(window, "led_connect_probe", False)
+        #         SetLED(window, "led_rec", False)
+        elif event == "button_connect_oe":
+            sg.popup_ok(
+                "After you press OK here, you have 10 seconds to press 'CONNECT' \
+in Ephys Socket, in Open Ephys"
+            )
+            response = requests.post(url + "connect_oe_reset")
+            if handle_response(response, "Connected to Open Ephys"):
+                pass
         elif event == "button_select_recording_folder":
             tmp_path = sg.popup_get_folder("Select recording folder")
             logger.info(f"Updated recordings file path to: {tmp_path}")
