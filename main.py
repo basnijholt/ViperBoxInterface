@@ -118,6 +118,17 @@ async def connect_oe():
     return {"result": result, "feedback": feedback}
 
 
+@app.post("/connect_oe_reset")
+async def connect_oe_reset():
+    """
+    Starts Open Ephys, creates data thread and connects to OE.
+    """
+    logger.info("/connect_oe_reset called")
+    result, feedback = VB.connect_oe(reset=True)
+    logger.info(f"/connect_oe_reset returned with {result}; {feedback}")
+    return {"result": result, "feedback": feedback}
+
+
 @app.post("/disconnect")  # , tags=["disconnect"])
 async def disconnect():
     """

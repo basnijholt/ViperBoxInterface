@@ -81,7 +81,7 @@ class ViperBox:
 
         return None
 
-    def connect_oe(self) -> Tuple[bool, str]:
+    def connect_oe(self, reset=False) -> Tuple[bool, str]:
         """
         Check if Open Ephys is running and start it if not.
         Connect once TCP to Open Ephys once it started, send some data and maybe wait
@@ -121,17 +121,7 @@ class ViperBox:
             return True, "Open Ephys was already running. Data thread created."
 
         # check if data thread is connected
-        if self.data_thread.is_connected():
-            r = requests.get("http://localhost:37497/api/status", timeout=0.1)
-            if r.json()["mode"] != "ACQUIRE":
-                self.data_thread.start("", 0, empty=True)
-                r = requests.put(
-                    "http://localhost:37497/api/status",
-                    json={"mode": "ACQUIRE"},
-                    timeout=1,
-                )
-            return True, "Open Ephys running and connected"
-        else:
+        if reset:
             self.data_thread.shutdown()
             self.data_thread = _DataSenderThread(
                 self.NUM_SAMPLES, self.FREQ, self.NUM_CHANNELS, self.mtx
@@ -146,6 +136,16 @@ class ViperBox:
                 True,
                 "Both Open Ephys and data thread were running, data thread recreated",
             )
+        else:
+            r = requests.get("http://localhost:37497/api/status", timeout=0.1)
+            if r.json()["mode"] != "ACQUIRE":
+                self.data_thread.start("", 0, empty=True)
+                r = requests.put(
+                    "http://localhost:37497/api/status",
+                    json={"mode": "ACQUIRE"},
+                    timeout=1,
+                )
+            return True, "Open Ephys running and connected"
 
     def connect(
         self,
@@ -1194,6 +1194,15 @@ class _DataSenderThread(threading.Thread):
         self._create_header(
             NUM_CHANNELS=self.NUM_CHANNELS, NUM_SAMPLES=self.NUM_SAMPLES
         )
+        # if port is None:
+        #     port = random.randint(1000, 9999)
+        #     while port == 8000 or port == logging.handlers.DEFAULT_TCP_LOGGING_PORT:
+        #         port = random.randint(1000, 9999)
+        #     config_string = f"ES PORT {port}"
+        #     requests.put(
+        #         "http://localhost:37497/api/processors/111/config",
+        #         json={"text": config_string},
+        #     )
         self.mtx = mtx
         self.tcpServer = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
         self.tcpServer.bind(("localhost", port))
@@ -1288,9 +1297,6 @@ class _DataSenderThread(threading.Thread):
             self.thread.start()
 
     def stop(self):
-        if self.thread is None or not self.thread.is_alive():
-            print("Thread not running")
-            return
         self.stop_stream.set()
         self.thread.join()
 
