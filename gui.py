@@ -145,7 +145,7 @@ def run_gui():
         "Pulse preview",
         [
             [sg.Canvas(key="-CANVAS-")],
-            [sg.Button("Reload")],
+            [sg.Button("Reload", key="button_reload", disabled=True)],
         ],
         size=(420, 360),
         visible=visibility_swap,
@@ -168,8 +168,10 @@ def run_gui():
                             LEDIndicator("led_connect_probe"),
                         ],
                         [
-                            sg.Button("Connect", key="button_connect"),
-                            sg.Button("Disconnect", key="button_disconnect"),
+                            sg.Button("Connect", key="button_connect", disabled=True),
+                            sg.Button(
+                                "Disconnect", key="button_disconnect", disabled=True
+                            ),
                         ],
                     ],
                 ),
@@ -187,11 +189,13 @@ def run_gui():
             [
                 sg.Text("Subject"),
                 sg.Input("Recording", key="input_filename", size=(15, 1)),
-                sg.Button("Change folder", key="button_select_recording_folder"),
+                sg.Button(
+                    "Change folder", key="button_select_recording_folder", disabled=True
+                ),
             ],
             [
-                sg.Button("Start acq.", size=(10, 1), key="button_rec", disabled=False),
-                sg.Button("Stop acq.", size=(10, 1), key="button_stop"),
+                sg.Button("Start acq.", size=(10, 1), key="button_rec", disabled=True),
+                sg.Button("Stop acq.", size=(10, 1), key="button_stop", disabled=True),
                 sg.Button(
                     "Stimulate",
                     size=(10, 1),
@@ -234,7 +238,7 @@ def run_gui():
             key=(f"reference_{0}"),
             pad=(1, 1),
             button_color="red",
-            disabled=False,
+            disabled=True,
         )
     ]
     reference_button_matrix.extend(
@@ -245,7 +249,7 @@ def run_gui():
                 key=(f"reference_{i+1}"),
                 pad=(1, 1),
                 button_color="light gray",
-                disabled=False,
+                disabled=True,
             )
             for i in range(ref_MAX_COL)
         ]
@@ -269,7 +273,7 @@ def run_gui():
                 key=(f"gain_{j}"),
                 pad=(1, 1),
                 button_color="red" if i == "x60" else "light gray",
-                disabled=False,
+                disabled=True,
             )
             for i, j in gain_dict.items()
         ]
@@ -289,15 +293,15 @@ def run_gui():
     )
 
     upload_rec_button = sg.Button(
-        "Recording settings", key="upload_recording_settings", disabled=False
+        "Recording settings", key="upload_recording_settings", disabled=True
     )
 
     upload_stim_button = sg.Button(
-        "Stimulation settings", key="upload_stimulation_settings", disabled=False
+        "Stimulation settings", key="upload_stimulation_settings", disabled=True
     )
 
     upload_defaults_button = sg.Button(
-        "Default settings", key="upload_defaults", disabled=False
+        "Default settings", key="upload_defaults", disabled=True
     )
 
     recording_settings_frame = sg.Frame(
@@ -366,6 +370,7 @@ def run_gui():
                 key=(f"el_button_{i*MAX_ROWS+j+1}"),
                 pad=(10, 1),
                 button_color="red",
+                disabled=True,
             )
             for i in range(MAX_COL)
         ]
@@ -386,9 +391,14 @@ def run_gui():
                                 expand_x=True,
                                 key="button_all",
                                 button_color="red",
+                                disabled=True,
                             ),
                             sg.Button(
-                                "None", size=(4, 0), expand_x=True, key="button_none"
+                                "None",
+                                size=(4, 0),
+                                expand_x=True,
+                                key="button_none",
+                                disabled=True,
                             ),
                         ]
                     ],
@@ -974,7 +984,7 @@ press OK'
     fig = generate_plot()
     figure_agg = draw_figure(window["-CANVAS-"].TKCanvas, fig)
 
-    elements_names = [
+    focus_out_elements = [
         "anodic_cathodic",
         "number_of_pulses",
         "pulse_delay",
@@ -987,7 +997,7 @@ press OK'
         "pulse_duration",
         "discharge_time_extra",
     ]
-    elements = [window[key] for key in elements_names]
+    elements = [window[key] for key in focus_out_elements]
 
     for element in elements:
         element.bind("<FocusOut>", "+FOCUS OUT")
@@ -1018,6 +1028,25 @@ in Ephys Socket, in Open Ephys"
         response = requests.post(url + "connect_oe", timeout=10)
         if handle_response(response, "Connected to Open Ephys"):
             pass
+
+    disabled_startup_buttons = [
+        "button_disconnect",
+        "button_connect",
+        "button_rec",
+        "button_stop",
+        "upload_recording_settings",
+        "upload_stimulation_settings",
+        "upload_defaults",
+        "button_select_recording_folder",
+        "button_all",
+        "button_none",
+        "button_reload",
+    ]
+    disabled_startup_buttons.extend([f"reference_{i}" for i in range(9)])
+    disabled_startup_buttons.extend([f"gain_{i}" for i in range(3)])
+    disabled_startup_buttons.extend([f"el_button_{i+1}" for i in range(60)])
+
+    [window[item].update(disabled=False) for item in disabled_startup_buttons]
 
     while True:
         event, values = window.read()
