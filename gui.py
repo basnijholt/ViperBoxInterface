@@ -994,6 +994,7 @@ press OK'
 
     # Initialize viperbox with default settings
     if __name__ != "__main__":
+        # Connect to ViperBox
         data = {"probe_list": "1", "emulation": "False", "boxless": "False"}
         response = requests.post(url + "connect", json=data)
         if handle_response(response, "Connected to ViperBox"):
@@ -1002,12 +1003,21 @@ press OK'
         else:
             SetLED(window, "led_connect_probe", False)
             SetLED(window, "led_rec", False)
+        # Upload default settings
         try:
             response = requests.post(url + "default_settings", timeout=5)
             if handle_response(response, "Default settings uploaded"):
                 pass
         except requests.exceptions.Timeout:
             sg.popup_ok("Connection to ViperBox timed out, is the ViperBox busy?")
+        # Start OE and connect to it
+        sg.popup_ok(
+            "After you press OK here, you have 10 seconds to press 'CONNECT' \
+in Ephys Socket, in Open Ephys"
+        )
+        response = requests.post(url + "connect_oe", timeout=10)
+        if handle_response(response, "Connected to Open Ephys"):
+            pass
 
     while True:
         event, values = window.read()

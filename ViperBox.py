@@ -11,7 +11,6 @@ from typing import Any, List, Tuple
 
 import numpy as np
 import requests
-import urllib3
 from lxml import etree
 from scipy import signal
 
@@ -82,6 +81,72 @@ class ViperBox:
 
         return None
 
+    def connect_oe(self) -> Tuple[bool, str]:
+        """
+        Check if Open Ephys is running and start it if not.
+        Connect once TCP to Open Ephys once it started, send some data and maybe wait
+        for a connections response.
+
+        Treats following variables:
+        - OE running
+        - Data thread existing
+        - Connected
+        """
+
+        # Start OE
+        self.logger.info("Checking if Open Ephys is running")
+        try:
+            r = requests.get("http://localhost:37497/api/status", timeout=0.1)
+            self.logger.info("Open Ephys is running")
+        except Exception:
+            threading.Thread(target=self._start_oe, daemon=True).start()
+            self.logger.info("Open Ephys not running, starting it")
+            time.sleep(2)
+            # Wait for OE finish starting
+            r = requests.get("http://localhost:37497/api/status", timeout=5)
+
+        # Check if data thread exists
+        if hasattr(self, "data_thread"):
+            self.logger.info("Data thread exists")
+        else:
+            self.data_thread = _DataSenderThread(
+                self.NUM_SAMPLES, self.FREQ, self.NUM_CHANNELS, self.mtx
+            )
+            self.data_thread.start("", 0, empty=True)
+            r = requests.put(
+                "http://localhost:37497/api/status",
+                json={"mode": "ACQUIRE"},
+                timeout=1,
+            )
+            return True, "Open Ephys was already running. Data thread created."
+
+        # check if data thread is connected
+        if self.data_thread.is_connected():
+            r = requests.get("http://localhost:37497/api/status", timeout=0.1)
+            if r.json()["mode"] != "ACQUIRE":
+                self.data_thread.start("", 0, empty=True)
+                r = requests.put(
+                    "http://localhost:37497/api/status",
+                    json={"mode": "ACQUIRE"},
+                    timeout=1,
+                )
+            return True, "Open Ephys running and connected"
+        else:
+            self.data_thread.shutdown()
+            self.data_thread = _DataSenderThread(
+                self.NUM_SAMPLES, self.FREQ, self.NUM_CHANNELS, self.mtx
+            )
+            self.data_thread.start("", 0, empty=True)
+            r = requests.put(
+                "http://localhost:37497/api/status",
+                json={"mode": "ACQUIRE"},
+                timeout=1,
+            )
+            return (
+                True,
+                "Both Open Ephys and data thread were running, data thread recreated",
+            )
+
     def connect(
         self,
         probe_list: str = "1",
@@ -131,9 +196,7 @@ boxless: {boxless}."
             )
 
         if self.start_oe:
-            threading.Thread(
-                target=self._start_eo_acquire, args=(True,), daemon=True
-            ).start()
+            threading.Thread(target=self._start_oe, daemon=True).start()
 
         # Scan for devices
         NVP.scanBS()
@@ -216,19 +279,6 @@ boxless: {boxless}."
 
         self.uploaded_settings = copy.deepcopy(self.local_settings)
 
-        self.data_thread = _DataSenderThread(
-            self.NUM_SAMPLES, self.FREQ, self.NUM_CHANNELS, self.mtx
-        )
-        self.data_thread.start("asdf", 0, empty=True)
-        try:
-            _ = requests.put(
-                "http://localhost:37497/api/status",
-                json={"mode": "ACQUIRE"},
-                timeout=1,
-            )
-        except Exception as e:
-            self.logger.warning(f"Couldn't start acquiring data. Error: {self._er(e)}")
-
         # TODO boxfix: also loop over boxes
         return (
             True,
@@ -238,6 +288,10 @@ boxless: {boxless}."
 
     def disconnect(self) -> Tuple[bool, str]:
         """Disconnects from the ViperBox and closes the API channel."""
+        try:
+            self.data_thread.shutdown()
+        except Exception:
+            pass
 
         if self.boxless is True:
             return True, "Boxless mode, no connection to ViperBox"
@@ -889,59 +943,11 @@ upload your custom settings and then try again.""",
         self.logger.info(f"Created file: {folder.joinpath(file)}")
         return folder.joinpath(file)
 
-    def _start_eo_acquire(self, startup_oe=False):
-        # time.sleep(0.5)
-        self.logger.info(
-            "If OE has been started, try to switch to acquire mode, otherwise start it."
-        )
-        acquiring = False
-        # check if open ephys is running
+    def _start_oe(self):
         try:
-            r = requests.get("http://localhost:37497/api/status", timeout=0.1)
-            if r.json()["mode"] != "ACQUIRE":
-                r = requests.put(
-                    "http://localhost:37497/api/status",
-                    json={"mode": "ACQUIRE"},
-                    timeout=1,
-                )
-        except (
-            TimeoutError,
-            requests.exceptions.Timeout,
-            urllib3.exceptions.ConnectTimeoutError,
-            urllib3.exceptions.MaxRetryError,
-            requests.exceptions.ConnectTimeout,
-            requests.exceptions.RequestException,
-        ):
-            if startup_oe:
-                self.logger.info("OE not running, trying to start it")
-                try:
-                    os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
-                    time.sleep(2)
-                    r = requests.get("http://localhost:37497/api/status", timeout=1)
-                    if r.json()["mode"] != "ACQUIRE":
-                        while not acquiring:
-                            try:
-                                r = requests.put(
-                                    "http://localhost:37497/api/status",
-                                    json={"mode": "ACQUIRE"},
-                                    timeout=1,
-                                )
-                                acquiring = True
-                            except Exception as e:
-                                self.logger.warning(
-                                    f"Couldn't start acquiring data. \
-Error: {self._er(e)}"
-                                )
-                except Exception as e2:
-                    self.logger.warning(
-                        f"Couldn't get OE status, maybe still starting. \
-Error: {e2}"
-                    )
-            else:
-                self.logger.warning(
-                    """Open Ephys not detected, please start it manually if it is \
-                        not running"""
-                )
+            requests.get("http://localhost:37497/api/status", timeout=0.1)
+        except Exception:
+            os.startfile("C:\Program Files\Open Ephys\open-ephys.exe")
 
     def _os2chip_mat(self):
         mtx = np.zeros((64, 60), dtype="uint16")
@@ -1172,7 +1178,9 @@ for SU's {SU_dict}"
 
 
 class _DataSenderThread(threading.Thread):
-    def __init__(self, NUM_SAMPLES: int, FREQ: int, NUM_CHANNELS: int, mtx: np.ndarray):
+    def __init__(
+        self, NUM_SAMPLES: int, FREQ: int, NUM_CHANNELS: int, mtx: np.ndarray, port=9001
+    ):
         super().__init__()
         self.thread = None
         self.stop_stream = None
@@ -1188,7 +1196,7 @@ class _DataSenderThread(threading.Thread):
         )
         self.mtx = mtx
         self.tcpServer = socket.socket(family=socket.AF_INET, type=socket.SOCK_STREAM)
-        self.tcpServer.bind(("localhost", 3333))
+        self.tcpServer.bind(("localhost", port))
         self.tcpServer.listen(1)
         self.tcpServer.settimeout(None)
         self.tcpServer.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -1285,6 +1293,18 @@ class _DataSenderThread(threading.Thread):
             return
         self.stop_stream.set()
         self.thread.join()
+
+    def shutdown(self):
+        self.stop()
+        self.tcpServer.close()
+        self.tcpClient.close()
+
+    def is_connected(self):
+        try:
+            self.tcpClient.getpeername()
+            return True
+        except OSError:
+            return False
 
     # def TTL_start(
     #     self, probe: str, TTL_channel: str, SU_input: str

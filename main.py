@@ -107,6 +107,17 @@ async def init(connect: Connect):
     return {"result": result, "feedback": feedback}
 
 
+@app.post("/connect_oe")
+async def connect_oe():
+    """
+    Starts Open Ephys, creates data thread and connects to OE.
+    """
+    logger.info("/connect_oe called")
+    result, feedback = VB.connect_oe()
+    logger.info(f"/connect_oe returned with {result}; {feedback}")
+    return {"result": result, "feedback": feedback}
+
+
 @app.post("/disconnect")  # , tags=["disconnect"])
 async def disconnect():
     """
