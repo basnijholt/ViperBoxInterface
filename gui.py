@@ -1190,7 +1190,7 @@ Please do the following: \n\
                     "Mapping": {
                         "box": "-",
                         "probe": "-",
-                        "stimunit": "-",
+                        "stimunit": "1",
                         "electrodes": electrode_list,
                     },
                 },

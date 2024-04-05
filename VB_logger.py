@@ -3,7 +3,6 @@ import logging.handlers
 import pickle
 import socketserver
 import struct
-import sys
 import time
 from pathlib import Path
 
@@ -93,7 +92,7 @@ def start_log_server(session_datetime):
         datefmt="%H:%M:%S",
         handlers=[
             logging.FileHandler(log_file_path),
-            logging.StreamHandler(sys.stdout),
+            # logging.StreamHandler(sys.stdout),
         ],
     )
     tcpserver = LogRecordSocketReceiver()
