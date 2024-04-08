@@ -1257,9 +1257,9 @@ Please do the following: \n\
                         )
                     except requests.exceptions.RequestException:
                         pass
-                    _ = response = requests.post(url + "disconnect")
-                    time.sleep(5)
-                    _ = response = requests.post(url + "kill")
+                    _ = requests.post(url + "disconnect")
+                    time.sleep(1)
+                    _ = requests.post(url + "kill")
                     logger.info("Closing GUI")
                     break
                 else:

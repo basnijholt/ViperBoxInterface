@@ -307,6 +307,7 @@ boxless: {boxless}."
             self._deviceId = 0
             self.tracking.box_connected = False
             self.uploaded_settings = GeneralSettings()
+            self.logger.info("ViperBox disconnected")
         except KeyError as e:
             self.logger.debug(
                 f"Can't disconnect from ViperBox, no ViperBox connection. \
