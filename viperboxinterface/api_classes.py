@@ -1,9 +1,9 @@
+from __future__ import annotations
+
 import xml.etree.ElementTree as ET
-from typing import List
 
 from pydantic import BaseModel, field_validator
 from pydantic.dataclasses import dataclass
-
 from VB_classes import parse_numbers
 
 """
@@ -25,7 +25,7 @@ class Connect(BaseModel):
         except ValueError as e:
             raise ValueError(
                 f"probes must be a list of integers, separated by \
-                            commas and in the range 1-4. Error: {e}"
+                            commas and in the range 1-4. Error: {e}",
             )
         return probes
 
@@ -112,7 +112,7 @@ class apiStartStim(BaseModel):
         except ValueError as e:
             raise ValueError(
                 f"probes must be a list of integers, separated by \
-                            commas and in the range 1-4. Error: {e}"
+                            commas and in the range 1-4. Error: {e}",
             )
         return probes
 
@@ -124,7 +124,7 @@ class apiStartStim(BaseModel):
         except ValueError as e:
             raise ValueError(
                 f"SU_input must be a list of integers, separated by \
-                            commas and in the range 1-8. Error: {e}"
+                            commas and in the range 1-8. Error: {e}",
             )
         return SU_input
 
@@ -153,7 +153,7 @@ class apiTTLStart(BaseModel):
 
     @field_validator("SU_bit_mask")
     @classmethod
-    def check_SU_bit_mask(cls, SU_bit_mask: List[int]) -> List[int]:
+    def check_SU_bit_mask(cls, SU_bit_mask: list[int]) -> list[int]:
         if len(SU_bit_mask) != 8:
             raise ValueError("SU_bit_mask must contain exactly 8 integers")
         for i in SU_bit_mask:

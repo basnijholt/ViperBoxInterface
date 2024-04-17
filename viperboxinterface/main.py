@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import logging.handlers
 import multiprocessing
@@ -10,9 +12,8 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 
-import gui
-import VB_logger
-from api_classes import (
+from viperboxinterface import VB_logger, gui
+from viperboxinterface.api_classes import (
     Connect,
     apiRecSettings,
     apiStartRec,
@@ -20,7 +21,7 @@ from api_classes import (
     apiStimSettings,
     apiVerifyXML,
 )
-from ViperBox import ViperBox
+from viperboxinterface.ViperBox import ViperBox
 
 # TODO: all return values should be caught and logged
 
@@ -37,7 +38,8 @@ multiprocessing.Process(target=gui.run_gui, daemon=True).start()
 logger = logging.getLogger("SERVER")
 logger.setLevel(logging.DEBUG)
 socketHandler = logging.handlers.SocketHandler(
-    "localhost", logging.handlers.DEFAULT_TCP_LOGGING_PORT
+    "localhost",
+    logging.handlers.DEFAULT_TCP_LOGGING_PORT,
 )
 logger.addHandler(socketHandler)
 
@@ -82,10 +84,10 @@ VB = ViperBox(_session_datetime=session_datetime, start_oe=True)
 
 @app.post("/connect")  # , tags=["connect"])
 async def init(connect: Connect):
-    """
-    Initializes the ViperBoxInterface.
+    """Initializes the ViperBoxInterface.
 
     Args:
+    ----
     - probes (default: "1") list of connected ASIC's (also called probes). "1" for
     only one probe, "1,2" for two probes, etc. Max 4 probes.
     - emulation (default: false): whether data should be emulated (true) or real data
@@ -94,6 +96,7 @@ async def init(connect: Connect):
     to the computer.
 
     Returns:
+    -------
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
@@ -109,9 +112,7 @@ async def init(connect: Connect):
 
 @app.post("/connect_oe")
 async def connect_oe():
-    """
-    Starts Open Ephys, creates data thread and connects to OE.
-    """
+    """Starts Open Ephys, creates data thread and connects to OE."""
     logger.info("/connect_oe called")
     result, feedback = VB.connect_oe()
     logger.info(f"/connect_oe returned with {result}; {feedback}")
@@ -120,9 +121,7 @@ async def connect_oe():
 
 @app.post("/connect_oe_reset")
 async def connect_oe_reset():
-    """
-    Starts Open Ephys, creates data thread and connects to OE.
-    """
+    """Starts Open Ephys, creates data thread and connects to OE."""
     logger.info("/connect_oe_reset called")
     result, feedback = VB.connect_oe(reset=True)
     logger.info(f"/connect_oe_reset returned with {result}; {feedback}")
@@ -131,10 +130,10 @@ async def connect_oe_reset():
 
 @app.post("/disconnect")  # , tags=["disconnect"])
 async def disconnect():
-    """
-    Disconnects from the ViperBox.
+    """Disconnects from the ViperBox.
 
-    Returns:
+    Returns
+    -------
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
@@ -146,11 +145,11 @@ async def disconnect():
 
 @app.post("/shutdown")  # , tags=["shutdown"])
 async def shutdown():
-    """
-    Shuts down the ViperBoxInterface, apart from disconnect, it also tries to close
+    """Shuts down the ViperBoxInterface, apart from disconnect, it also tries to close
     Open Ephys.
 
-    Returns:
+    Returns
+    -------
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
@@ -162,12 +161,12 @@ async def shutdown():
 
 @app.post("/verify_xml/")  # , tags=["verify_xml"])
 async def verify_xml(api_verify_xml: apiVerifyXML):
-    """
-    Verify XML in string format (plain text). The settings that are in the uploaded
+    """Verify XML in string format (plain text). The settings that are in the uploaded
     XML are also checked with the existing settings. For example, if they contain
     settings for probes that are not connected, an error will be thrown.
 
     Args:
+    ----
     - XML: Settings XML to be checked.
     - check_topic: must be one of 'all', 'recording' or 'stimulation'. This says
     something about which part of the settings will be checked. If 'stimulation'
@@ -175,16 +174,19 @@ async def verify_xml(api_verify_xml: apiVerifyXML):
     StimulationMappingSettings will be checked.
 
     Returns:
+    -------
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
     logger.info(f"/verify_xml called with {api_verify_xml.__dict__}")
     try:
         result, feedback = VB.verify_xml_with_local_settings(
-            api_verify_xml.dictionary, api_verify_xml.XML, api_verify_xml.check_topic
+            api_verify_xml.dictionary,
+            api_verify_xml.XML,
+            api_verify_xml.check_topic,
         )
     except ValueError as e:
-        result, feedback = False, f"Incorrect value provided: {str(e)}"
+        result, feedback = False, f"Incorrect value provided: {e!s}"
     logger.info(f"/verify_xml returned with {result}; {feedback}")
     # TODO: add default value to feedback
     return {"result": result, "feedback": feedback}
@@ -192,10 +194,10 @@ async def verify_xml(api_verify_xml: apiVerifyXML):
 
 @app.post("/recording_settings/")  # , tags=["recording_settings"])
 async def recording_settings(api_rec_settings: apiRecSettings):
-    """
-    Upload recording settings.
+    """Upload recording settings.
 
-    Parameters:
+    Parameters
+    ----------
     - recording_XML (string): Recording settings XML.
     - reset (boolean): To do a reset of all settings and start with a clean slate;
     select true, else select false (default).
@@ -203,7 +205,8 @@ async def recording_settings(api_rec_settings: apiRecSettings):
     be ignored and default recording settings will be uploaded from
     /defaults/default_recording_settings.xml
 
-    Returns:
+    Returns
+    -------
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
@@ -219,10 +222,10 @@ async def recording_settings(api_rec_settings: apiRecSettings):
 
 @app.post("/stimulation_settings/")  # , tags=["stimulation_settings"])
 async def stimulation_settings(api_stim_settings: apiStimSettings):
-    """
-    Upload stimulation settings.
+    """Upload stimulation settings.
 
-    Parameters:
+    Parameters
+    ----------
     - stimulation_XML (string): Stimulation settings XML.
     - reset (boolean): To do a reset of all settings and start with a clean slate;
     select true, else select false (default).
@@ -230,7 +233,8 @@ async def stimulation_settings(api_stim_settings: apiStimSettings):
     be ignored and default stimulation settings will be uploaded from
     /defaults/default_stimulation_settings.xml
 
-    Returns:
+    Returns
+    -------
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
@@ -246,10 +250,10 @@ async def stimulation_settings(api_stim_settings: apiStimSettings):
 
 @app.post("/default_settings/")
 async def default_settings():
-    """
-    Upload default settings.
+    """Upload default settings.
 
-    Returns:
+    Returns
+    -------
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
@@ -261,15 +265,16 @@ async def default_settings():
 
 @app.post("/start_recording")  # , tags=["start_recording"])
 async def start_recording(api_start_rec: apiStartRec):
-    """
-    Starts recording with the specified recording name. Recording is saved in
+    """Starts recording with the specified recording name. Recording is saved in
     /Recordings. Also creates a record of all the actions and stimulations that have
     been performed by the user in /Stimulations.
 
-    Parameters:
+    Parameters
+    ----------
     - recording_name (string): Recording name.
 
-    Returns:
+    Returns
+    -------
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
@@ -281,10 +286,10 @@ async def start_recording(api_start_rec: apiStartRec):
 
 @app.post("/stop_recording")  # , tags=["stop_recording"])
 async def stop_recording():
-    """
-    Stops the recording.
+    """Stops the recording.
 
-    Returns:
+    Returns
+    -------
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
@@ -296,10 +301,10 @@ async def stop_recording():
 
 @app.post("/start_stimulation/")  # , tags=["start_stimulation"])
 async def start_stimulation(api_start_stim: apiStartStim):
-    """
-    Triggers the selected stimulation units.
+    """Triggers the selected stimulation units.
 
     Args:
+    ----
     - boxes (string) (default: "1", only implemented for 1): All ViperBoxes on
     which stimulation should occur. "1" for only one ViperBox, "1,2" for two boxes,
     etc. Max 3 boxes.
@@ -309,6 +314,7 @@ async def start_stimulation(api_start_stim: apiStartStim):
     which stimulation should occur. Max 8 SU's.
 
     Returns:
+    -------
     - boolean: true if correctly executed, otherwise false.
     - feedback: More information on execution.
     """
