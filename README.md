@@ -298,4 +298,3 @@ The format is as follows:
 ```
 
 As can be seen from the sample, at the highest level there is the program element. Below that there are settings or instructions. In settings there are RecordingSettings, StimulationWaveformSettings and StimulationMapping settings. -->
-.
