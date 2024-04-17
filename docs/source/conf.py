@@ -179,6 +179,7 @@ def fix_anchors_with_named_emojis(input_file: Path, output_file: Path) -> None:
         "desktop_computer",
         "hammer_and_wrench",
         "warning",
+        "question",
     ]
     with input_file.open("r") as infile:
         content = infile.read()
