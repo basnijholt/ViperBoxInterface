@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import json
 import logging
 import logging.handlers
@@ -12,10 +13,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import PySimpleGUI as sg
 import requests
+from defaults.defaults import Mappings
 from lxml import etree
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-
-from defaults.defaults import Mappings
 
 # matplotlib.use("TkAgg")
 
@@ -26,7 +26,8 @@ def run_gui():
     logger = logging.getLogger("GUI")
     logger.setLevel(logging.DEBUG)
     socketHandler = logging.handlers.SocketHandler(
-        "localhost", logging.handlers.DEFAULT_TCP_LOGGING_PORT
+        "localhost",
+        logging.handlers.DEFAULT_TCP_LOGGING_PORT,
     )
     logger.addHandler(socketHandler)
 
@@ -54,7 +55,7 @@ def run_gui():
                 visible=manual_stim,
                 element_justification="r",
                 expand_x=True,
-            )
+            ),
         )
 
     def LEDIndicator(key=None, radius=15):
@@ -183,7 +184,7 @@ def run_gui():
                                 key="button_connect",
                                 size=(18, 1),
                                 disabled=True,
-                            )
+                            ),
                         ],
                         [
                             sg.Button(
@@ -193,7 +194,7 @@ def run_gui():
                                 disabled=True,
                             ),
                         ],
-                    ]
+                    ],
                 ),
                 sg.Push(),
             ],
@@ -210,7 +211,9 @@ def run_gui():
                 sg.Text("Subject"),
                 sg.Input("Recording", key="input_filename", size=(15, 1)),
                 sg.Button(
-                    "Change folder", key="button_select_recording_folder", disabled=True
+                    "Change folder",
+                    key="button_select_recording_folder",
+                    disabled=True,
                 ),
             ],
             [
@@ -231,7 +234,7 @@ def run_gui():
                             sg.Text("Recording status:"),
                             LEDIndicator("led_rec"),
                         ],
-                    ]
+                    ],
                 ),
             ],
         ],
@@ -259,7 +262,7 @@ def run_gui():
             pad=(1, 1),
             button_color="red",
             disabled=True,
-        )
+        ),
     ]
     reference_button_matrix.extend(
         [
@@ -272,7 +275,7 @@ def run_gui():
                 disabled=True,
             )
             for i in range(ref_MAX_COL)
-        ]
+        ],
     )
     reference_button_matrix = [reference_button_matrix]
 
@@ -296,7 +299,7 @@ def run_gui():
                 disabled=True,
             )
             for i, j in gain_dict.items()
-        ]
+        ],
     ]
 
     reference_frame = sg.Column(
@@ -313,15 +316,21 @@ def run_gui():
     )
 
     upload_rec_button = sg.Button(
-        "Recording settings", key="upload_recording_settings", disabled=True
+        "Recording settings",
+        key="upload_recording_settings",
+        disabled=True,
     )
 
     upload_stim_button = sg.Button(
-        "Stimulation settings", key="upload_stimulation_settings", disabled=True
+        "Stimulation settings",
+        key="upload_stimulation_settings",
+        disabled=True,
     )
 
     upload_defaults_button = sg.Button(
-        "Default settings", key="upload_defaults", disabled=True
+        "Default settings",
+        key="upload_defaults",
+        disabled=True,
     )
 
     recording_settings_frame = sg.Frame(
@@ -368,7 +377,7 @@ def run_gui():
 
     def get_references(reference_switch_matrix):
         bin_input_list = "".join(
-            ["1" if item == "on" else "0" for item in reference_switch_matrix]
+            ["1" if item == "on" else "0" for item in reference_switch_matrix],
         )
         # ref_integer = int(bin_input_list, 2)
         ref_list = [str(i) for i in range(9) if bin_input_list[i] == "1"]
@@ -420,10 +429,10 @@ def run_gui():
                                 key="button_none",
                                 disabled=True,
                             ),
-                        ]
+                        ],
                     ],
                     expand_x=True,
-                )
+                ),
             ],
         ],
         expand_y=True,
@@ -445,11 +454,15 @@ def run_gui():
         probe_mapping = Mappings("defaults/electrode_mapping_short_cables.xlsx")
         rows, cols = np.where(np.asarray(electrode_switch_matrix) == "on")
         if save_purpose:
-            electrode_list = [str(i * MAX_ROWS + j + 1) for i, j in zip(cols, rows)]
+            electrode_list = [
+                str(i * MAX_ROWS + j + 1) for i, j in zip(cols, rows, strict=False)
+            ]
             electrode_list.sort()
             return electrode_list
         else:
-            electrode_list = [i * MAX_ROWS + j + 1 for i, j in zip(cols, rows)]
+            electrode_list = [
+                i * MAX_ROWS + j + 1 for i, j in zip(cols, rows, strict=False)
+            ]
             os_list = [probe_mapping.probe_to_os_map[i] for i in electrode_list]
             os_list.sort()
             os_list = [str(i) for i in os_list]
@@ -483,7 +496,7 @@ def run_gui():
                     disabled=True,
                     font=("Cascadia Mono", 8),
                     default_text="Initializing ViperBox...",
-                )
+                ),
             ],
         ],
         size=(420, 200),
@@ -548,7 +561,7 @@ def run_gui():
         if filename in existing_settings:
             answer = sg.popup_ok_cancel(
                 f'Setting "{filename}" already exists, if you want to continue, \
-press OK'
+press OK',
             )
         if answer == "OK":
             filename = filename + ".cfg"
@@ -877,15 +890,21 @@ press OK'
     )
 
     pulse_col = sg.Column(
-        [[waveform_settings_frame, plot_frame]], expand_x=True, expand_y=True
+        [[waveform_settings_frame, plot_frame]],
+        expand_x=True,
+        expand_y=True,
     )
 
     rec_pulse_col = sg.Column(
-        [[recording_settings_frame], [pulse_col]], expand_x=True, expand_y=True
+        [[recording_settings_frame], [pulse_col]],
+        expand_x=True,
+        expand_y=True,
     )
 
     settings_col = sg.Column(
-        [[rec_pulse_col, col_el_frame]], expand_x=True, expand_y=True
+        [[rec_pulse_col, col_el_frame]],
+        expand_x=True,
+        expand_y=True,
     )
 
     layout += [
@@ -897,8 +916,8 @@ press OK'
                 ],
                 expand_x=True,
                 expand_y=True,
-            )
-        ]
+            ),
+        ],
     ]
 
     def to_settings_xml_string(settings_input: dict) -> str:
@@ -918,12 +937,12 @@ press OK'
         return etree.tostring(program).decode("utf-8")
 
     def handle_response(response, message):
-        if not response.status_code == 200:
+        if response.status_code != 200:
             logger.debug(
-                f"Server error: {response.status_code}. Response: {response.__dict__}"
+                f"Server error: {response.status_code}. Response: {response.__dict__}",
             )
             sg.popup_ok(
-                f"Something went wrong:  {response.status_code}. {response.__dict__}"
+                f"Something went wrong:  {response.status_code}. {response.__dict__}",
             )
             return False
         else:
@@ -948,7 +967,10 @@ press OK'
     gain = 0
 
     window = sg.Window(
-        "ViperBox Control", layout, finalize=False, icon=r".\\setup\\logo.ico"
+        "ViperBox Control",
+        layout,
+        finalize=False,
+        icon=r".\\setup\\logo.ico",
     )
 
     url = "http://127.0.0.1:8000/"
@@ -998,7 +1020,7 @@ press OK'
         # Start OE and connect to it
         sg.popup_ok(
             "After you press OK here, you have 10 seconds to press 'CONNECT' \
-in Ephys Socket, in Open Ephys"
+in Ephys Socket, in Open Ephys",
         )
         response = requests.post(url + "connect_oe", timeout=10)
         if handle_response(response, "Connected to Open Ephys"):
@@ -1029,7 +1051,8 @@ in Ephys Socket, in Open Ephys"
         if event == sg.WIN_CLOSED or event == "Exit":
             try:
                 _ = requests.put(
-                    "http://localhost:37497/api/status", json={"mode": "IDLE"}
+                    "http://localhost:37497/api/status",
+                    json={"mode": "IDLE"},
                 )
                 _ = requests.put(
                     "http://localhost:37497/api/window",
@@ -1060,7 +1083,7 @@ in Ephys Socket, in Open Ephys"
         elif event == "button_connect_oe":
             sg.popup_ok(
                 "After you press OK here, you have 10 seconds to press 'CONNECT' \
-in Ephys Socket, in Open Ephys"
+in Ephys Socket, in Open Ephys",
             )
             response = requests.post(url + "connect_oe_reset")
             if handle_response(response, "Connected to Open Ephys"):
@@ -1082,7 +1105,7 @@ in Ephys Socket, in Open Ephys"
 Please do the following: \n\
 1. restart the Viperbox\
 2. install ViperBox driver patch located in setup>DowngradeFTDI>downgrade.bat\
-3. restart the Viperbox"
+3. restart the Viperbox",
                 )
                 continue
             if handle_response(response, "Recording started"):
@@ -1102,7 +1125,7 @@ Please do the following: \n\
                 pass
         elif event[:3] == "el_":
             window[event].update(
-                button_color=toggle_2d_color(event, electrode_switch_matrix)
+                button_color=toggle_2d_color(event, electrode_switch_matrix),
             )
         elif event == "button_all":
             electrode_switch_matrix = [
@@ -1118,7 +1141,7 @@ Please do the following: \n\
                 window[f"el_button_{electrode}"].update(button_color="light gray")
         elif event[:3] == "ref":
             window[event].update(
-                button_color=toggle_1d_color(event, reference_switch_matrix)
+                button_color=toggle_1d_color(event, reference_switch_matrix),
             )
         elif event[:3] == "gai":
             window["gain_0"].update(button_color="light grey")
@@ -1126,7 +1149,7 @@ Please do the following: \n\
             window["gain_2"].update(button_color="light grey")
             window["gain_3"].update(button_color="light grey")
             window[event].update(
-                button_color=toggle_gain_color(event, gain_switch_matrix)
+                button_color=toggle_gain_color(event, gain_switch_matrix),
             )
             gain = int(event[-1])
         elif event == "Reload":
@@ -1148,7 +1171,7 @@ Please do the following: \n\
                         "references": get_references(reference_switch_matrix),
                         "gain": str(gain),
                         "input": "0",
-                    }
+                    },
                 },
             )
             data = {
@@ -1158,7 +1181,9 @@ Please do the following: \n\
             }
             try:
                 response = requests.post(
-                    url + "recording_settings", json=data, timeout=5
+                    url + "recording_settings",
+                    json=data,
+                    timeout=5,
                 )
                 if handle_response(response, "Recording settings uploaded"):
                     pass
@@ -1203,7 +1228,9 @@ Please do the following: \n\
             }
             try:
                 response = requests.post(
-                    url + "stimulation_settings", json=data, timeout=5
+                    url + "stimulation_settings",
+                    json=data,
+                    timeout=5,
                 )
                 if handle_response(response, "Stimulation settings uploaded"):
                     pass
@@ -1249,7 +1276,8 @@ Please do the following: \n\
                     )
                     try:
                         _ = requests.put(
-                            "http://localhost:37497/api/status", json={"mode": "IDLE"}
+                            "http://localhost:37497/api/status",
+                            json={"mode": "IDLE"},
                         )
                         _ = requests.put(
                             "http://localhost:37497/api/window",

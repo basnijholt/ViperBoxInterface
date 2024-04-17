@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import json
 import logging
 import logging.handlers
@@ -18,7 +19,8 @@ from lxml import etree
 logger = logging.getLogger("VB_classes")
 logger.setLevel(logging.DEBUG)
 socketHandler = logging.handlers.SocketHandler(
-    "localhost", logging.handlers.DEFAULT_TCP_LOGGING_PORT
+    "localhost",
+    logging.handlers.DEFAULT_TCP_LOGGING_PORT,
 )
 logger.addHandler(socketHandler)
 
@@ -96,7 +98,7 @@ class SUSettings:
                     logger.debug(f"Error converting {field_name} to {field_type}: {e}")
                     raise ValueError(
                         f"Error converting {field_name} to {field_type}, supplied type \
-was {type(value)}: {e}"
+was {type(value)}: {e}",
                     )
             else:
                 # tmp_dct[field_name] = env[field_name]
@@ -134,8 +136,7 @@ class ProbeSettings:
 
     @property
     def os_data(self):
-        """
-        Returns a bytes array of format described in docs.
+        """Returns a bytes array of format described in docs.
         byte N: OSInputSU 2N+1 (3bit) | OSEnable 2N+1 (1bit) | OSInputSU 2N (3bit) |
             OSEnable 2N (1bit)
         For a total length of 64 bytes.
@@ -147,7 +148,7 @@ class ProbeSettings:
                     os_data_array[su, elec] = 1
             if os_data_array.sum(axis=0).max() > 1:
                 logger.warning(
-                    "Assigned electrode to multiple SU's, this is not allowed."
+                    "Assigned electrode to multiple SU's, this is not allowed.",
                 )
             else:
                 lst = []
@@ -253,33 +254,23 @@ class ConnectedBoxes:
 
 
 def printable_dtd(obj: Any) -> None:
-    """
-    Recursively convert dataclass instances to dictionaries.
-    """
-
+    """Recursively convert dataclass instances to dictionaries."""
     print(json.dumps(dataclass_to_dict(obj), indent=4, sort_keys=True))
 
 
 def readable_dtd(obj: Any) -> Any:
-    """
-    Recursively convert dataclass instances to dictionaries.
-    """
-
+    """Recursively convert dataclass instances to dictionaries."""
     return json.dumps(dataclass_to_dict(obj), indent=4, sort_keys=True)
 
 
 def printet(obj: Any) -> None:
-    """
-    Readable print of an ET object.
-    """
+    """Readable print of an ET object."""
     # print(etree.tostring(obj, pretty_print=True, indent=4).decode())
     print(etree.tostring(obj, pretty_print=True).decode())
 
 
 def dataclass_to_dict(obj: Any) -> Any:
-    """
-    Recursively convert dataclass instances to dictionaries.
-    """
+    """Recursively convert dataclass instances to dictionaries."""
     if is_dataclass(obj):
         return {k: dataclass_to_dict(v) for k, v in asdict(obj).items()}
     elif isinstance(obj, list):
@@ -293,10 +284,10 @@ def dataclass_to_dict(obj: Any) -> Any:
 
 
 def dict_to_dataclass(cls: Any, dict_obj: Any) -> Any:
-    """
-    Recursively convert dictionaries to dataclass instances.
+    """Recursively convert dictionaries to dataclass instances.
 
     Arguments:
+    ---------
     - cls: The given dataclass type to convert to.
     - dict_obj: The dictionary to convert.
     """
@@ -307,14 +298,16 @@ def dict_to_dataclass(cls: Any, dict_obj: Any) -> Any:
                 k: dict_to_dataclass(field_types[k], v)
                 for k, v in dict_obj.items()
                 if k in field_types
-            }
+            },
         )
     else:
         return dict_obj
 
 
 def parse_numbers(
-    numstr: str, all_values: list[int], treat_dash: list[int] = []
+    numstr: str,
+    all_values: list[int],
+    treat_dash: list[int] = [],
 ) -> list[int]:
     """Parse a string of numbers, converts to 0 indexed and compare to an
     available list.
@@ -323,17 +316,18 @@ def parse_numbers(
     These are inputs like: '1,2,3,4-6,8' or '-' for all possible values.
 
     Arguments:
+    ---------
     - numstr: str. 1 indexed; string of numbers to parse
     - all_values: list[int]. 0 indexed; list of all possible values
 
     Returns:
+    -------
     - result {numpy.ndarray} -- numpy array of parsed integers in sequential order
 
     Test cases:
     - wrong ranges: '1-2-3', '1-', '1,,2', '1--2', '-1'
     might be more.
     """
-
     if ",," in numstr:
         raise ValueError("Invalid input, can't have double commas")
     if "--" in numstr:
@@ -363,11 +357,11 @@ def parse_numbers(
                     raise ValueError("Invalid range")
                 elif int(split_item[0]) > int(split_item[1]):
                     np_item = np.asarray(
-                        range(int(split_item[1]), int(split_item[0]) + 1)
+                        range(int(split_item[1]), int(split_item[0]) + 1),
                     )
                 else:
                     np_item = np.asarray(
-                        range(int(split_item[0]), int(split_item[1]) + 1)
+                        range(int(split_item[0]), int(split_item[1]) + 1),
                     )
             else:
                 np_item = np.asarray(int(item))
@@ -379,7 +373,7 @@ def parse_numbers(
         raise ValueError(
             "Invalid values; following instances are not connected;"
             f" set selected: {set(result)}, set all values: {set(all_values)}."
-            f"Difference: {set(result) - set(all_values)}. Input was: {numstr}"
+            f"Difference: {set(result) - set(all_values)}. Input was: {numstr}",
         )
     return result.tolist()
 
@@ -391,17 +385,18 @@ def parse_references(refstr: str) -> str:
     These are inputs like: '1,2,3,4-6,8' or '-' for all possible values.
 
     Arguments:
+    ---------
     - refstr {str} -- string of numbers to parse
     - all_values {list[int]} -- list of all possible values for the numbers
 
     Returns:
+    -------
     - result {numpy.ndarray} -- numpy array of parsed integers in sequential order
 
     Test cases:
     - wrong ranges: '1-2-3', '1-', '1,,2', '1--2', '-1'
     might be more.
     """
-
     all_values = list(range(9))
     if ",," in refstr:
         raise ValueError("Invalid input, can't have double commas")
@@ -427,11 +422,11 @@ def parse_references(refstr: str) -> str:
                     raise ValueError("Invalid range")
                 elif int(split_item[0]) > int(split_item[1]):
                     np_item = np.asarray(
-                        range(int(split_item[1]), int(split_item[0]) + 1)
+                        range(int(split_item[1]), int(split_item[0]) + 1),
                     )
                 else:
                     np_item = np.asarray(
-                        range(int(split_item[0]), int(split_item[1]) + 1)
+                        range(int(split_item[0]), int(split_item[1]) + 1),
                     )
             else:
                 if int(item) > 8:
@@ -442,7 +437,7 @@ def parse_references(refstr: str) -> str:
     if not set(result).issubset(set(all_values)):
         raise ValueError(
             f"Invalid references; following instances are not connected. Set of input: \
-{set(result)}, set of available instances: {set(all_values)}. Input was: {refstr}"
+{set(result)}, set of available instances: {set(all_values)}. Input was: {refstr}",
         )
     string_result = "".join(["1" if i in result else "0" for i in all_values])
     return string_result
@@ -452,9 +447,11 @@ def get_boxes(settings):
     """Get the boxes of all settings in the settings dictionary
 
     Arguments:
+    ---------
     - settings {dict} -- dictionary of settings
 
     Returns:
+    -------
     - boxes {list} -- list of boxes
     """
     boxes = [int(i) for i in settings["boxes"].keys()]
@@ -467,10 +464,12 @@ def get_probes(box: int, settings):
     """Get the probes of a box
 
     Arguments:
+    ---------
     - box {int} -- box of the setting
     - settings {dict} -- dictionary of settings
 
     Returns:
+    -------
     - probes {list} -- list of probes
     """
     probes = [int(i) for i in settings["boxes"][str(box)]["probes"].keys()]
@@ -483,6 +482,7 @@ def __check_boxes_exist(data, existing_boxes):
     """Check if xml boxes are in existing boxes. If not, throw ValueError, else pass
 
     Arguments:
+    ---------
     - data: xml data of type lxml.etree._ElementTree
     - existing_boxes: list of existing boxes
     TODO: existing boxes should be changed to something that comes from the local

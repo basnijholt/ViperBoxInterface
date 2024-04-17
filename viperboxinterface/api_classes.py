@@ -1,9 +1,9 @@
 from __future__ import annotations
+
 import xml.etree.ElementTree as ET
 
 from pydantic import BaseModel, field_validator
 from pydantic.dataclasses import dataclass
-
 from VB_classes import parse_numbers
 
 """
@@ -25,7 +25,7 @@ class Connect(BaseModel):
         except ValueError as e:
             raise ValueError(
                 f"probes must be a list of integers, separated by \
-                            commas and in the range 1-4. Error: {e}"
+                            commas and in the range 1-4. Error: {e}",
             )
         return probes
 
@@ -112,7 +112,7 @@ class apiStartStim(BaseModel):
         except ValueError as e:
             raise ValueError(
                 f"probes must be a list of integers, separated by \
-                            commas and in the range 1-4. Error: {e}"
+                            commas and in the range 1-4. Error: {e}",
             )
         return probes
 
@@ -124,7 +124,7 @@ class apiStartStim(BaseModel):
         except ValueError as e:
             raise ValueError(
                 f"SU_input must be a list of integers, separated by \
-                            commas and in the range 1-8. Error: {e}"
+                            commas and in the range 1-8. Error: {e}",
             )
         return SU_input
 
