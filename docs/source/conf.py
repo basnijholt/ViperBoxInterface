@@ -153,10 +153,14 @@ def replace_image_links(input_file: Path, output_file: Path) -> None:
     """Replace relative links to `./imgs/` files with absolute links to GitHub."""
     with input_file.open("r") as infile:
         content = infile.read()
-    new_content = content.replace(
-        "(./imgs/",
-        "(https://github.com/sbalk/ViperBoxInterface/blob/dev/imgs/",
-    ).replace(".png)", ".png?raw=true)")
+    new_content = (
+        content.replace(
+            "(./imgs/",
+            "(https://github.com/sbalk/ViperBoxInterface/blob/dev/imgs/",
+        )
+        .replace(".png)", ".png?raw=true)")
+        .replace(".gif)", ".gif?raw=true)")
+    )
     with output_file.open("w") as outfile:
         outfile.write(new_content)
 
