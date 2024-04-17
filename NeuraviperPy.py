@@ -178,6 +178,7 @@ class Struct(ctypes.Structure):
 
 class LogLevel(IntEnum):
     "Enumeration for logging level"
+
     VERBOSE = 5
     DEBUG = 4
     INFO = 3
@@ -188,6 +189,7 @@ class LogLevel(IntEnum):
 
 class NPPlatform(IntEnum):
     "Enumeration for Neuropixels Platform types."
+
     NONE = 0
     USB = 1
 
@@ -231,6 +233,7 @@ ElectrodeInput = c_int
 
 class BasestationID(Struct):
     "BasestationID"
+
     _fields_ = [("platformid", c_int), ("ID", c_int)]
 
 
@@ -239,6 +242,7 @@ _HARDWAREID_PN_LEN = 40
 
 class HardwareID(Struct):
     "HardwareID"
+
     _pack_ = 1
     _fields_ = [
         ("version_major", ctypes.c_uint8),
@@ -272,6 +276,7 @@ class HardwareID(Struct):
 
 class PacketInfo(Struct):
     "PacketInfo"
+
     _fields_ = [
         ("Timestamp", ctypes.c_uint32),
         ("Status", ctypes.c_uint16),
@@ -291,6 +296,7 @@ class Packet:
 
 class DiagStats(Struct):
     "DiagStats"
+
     _fields_ = [
         ("total_bytes", ctypes.c_uint64),
         ("packet_count", ctypes.c_uint32),

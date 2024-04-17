@@ -435,12 +435,12 @@ def add_to_stimrec(
     }
     if main_type not in ["Settings", "Instructions"]:
         raise ValueError(
-            f"""{main_type} is not a valid type, should be 'Settings' or 
+            f"""{main_type} is not a valid type, should be 'Settings' or
                         'Instructions'"""
         )
     if sub_type not in sub_type_map.keys():
         raise ValueError(
-            f"""{sub_type} is not a valid sub_type, should be 'Channel', 
+            f"""{sub_type} is not a valid sub_type, should be 'Channel',
                         'Configuration' or 'Mapping'"""
         )
 
@@ -511,20 +511,20 @@ if __name__ == "__main__":
                     target_box="1" target_probe="1" target_SU="-" />
             </TTLSettings>
             <RecordingSettings>
-                <Channel box="-" probe="-" channel="1-3" references="100101000" 
+                <Channel box="-" probe="-" channel="1-3" references="100101000"
                 gain="1" input="0" />
-                <Channel box="1" probe="3" channel="63" references="100000000" 
+                <Channel box="1" probe="3" channel="63" references="100000000"
                 gain="1" input="0" />
             </RecordingSettings>
             <StimulationWaveformSettings>
-                <Configuration box="1" probe="1,2,3,4" stimunit="5-8,2,1" 
+                <Configuration box="1" probe="1,2,3,4" stimunit="5-8,2,1"
                 polarity="0" pulses="20"
-                    prephase="0" amplitude1="5" width1="170" interphase="60" 
+                    prephase="0" amplitude1="5" width1="170" interphase="60"
                     amplitude2="5" width2="170"
                     discharge="200" duration="600" aftertrain="1000" />
-                <Configuration box="2" probe="1" stimunit="1" polarity="0" 
+                <Configuration box="2" probe="1" stimunit="1" polarity="0"
                 pulses="20" prephase="0"
-                    amplitude1="5" width1="170" interphase="60" amplitude2="5" 
+                    amplitude1="5" width1="170" interphase="60" amplitude2="5"
                     width2="170"
                     discharge="200" duration="600" aftertrain="1000" />
             </StimulationWaveformSettings>
@@ -560,7 +560,7 @@ if __name__ == "__main__":
         except KeyError:
             connected_boxes_probes[box] = []
     print(
-        f"""boxes: {list(connected_boxes_probes.keys())} and \nbox probe 
+        f"""boxes: {list(connected_boxes_probes.keys())} and \nbox probe
         dict: {connected_boxes_probes}"""
     )
 
