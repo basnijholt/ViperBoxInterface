@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ViperBoxInterface"
-version = "0.0.7"
 authors = [
     { name = "Stijn Balk", email = "stijn@phosphoenix.nl" },
 ]
 description = ""
 readme = "README.md"
 requires-python = ">=3.11"
+dynamic = ["version", "dependencies"]
 
 [tool.unidep]
 dependencies = [
@@ -23,7 +23,7 @@ dependencies = [
     "PySimpleGUI",
     "requests",
     "scipy",
-    "pandas"
+    "pandas",
     "versioningit",
 ]
 channels = ["conda-forge"]
