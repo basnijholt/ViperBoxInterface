@@ -3,7 +3,7 @@ requires = ["setuptools", "unidep[toml]==0.56.0", "versioningit"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ViperBoxInterface"
+name = "viperboxinterface"
 authors = [
     { name = "Stijn Balk", email = "stijn@phosphoenix.nl" },
 ]
