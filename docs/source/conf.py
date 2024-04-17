@@ -36,12 +36,14 @@ os.environ["PYTHONPATH"] = f"{package_path}:{PYTHON_PATH}"
 docs_path = Path("..").resolve()
 sys.path.insert(1, str(docs_path))
 
+from viperboxinterface import __version__  # noqa: E402
+
 project = "ViperBoxInterface"
 copyright = "2024, Stijn Balk"  # noqa: A001
 author = "Stijn Balk"
 
-version = "0.0.6"
-release = "0.0.6"
+version = __version__
+release = __version__
 
 extensions = [
     "sphinx.ext.autodoc",
