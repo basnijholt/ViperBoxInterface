@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "unidep[toml]==0.56.0"]
+requires = ["setuptools", "unidep[toml]==0.56.0", "versioningit"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -24,6 +24,7 @@ dependencies = [
     "requests",
     "scipy",
     "pandas"
+    "versioningit",
 ]
 channels = ["conda-forge"]
 
@@ -47,3 +48,5 @@ line-length = 88
 
 [tool.ruff.lint]
 ignore = ["E501"]
+
+[tool.versioningit]
