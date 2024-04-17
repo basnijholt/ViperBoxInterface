@@ -71,7 +71,7 @@ default_role = "autolink"
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
 }
-html_logo = "https://github.com/sbalk/nijho.lt/raw/2cf0045f9609a176cb53422c591fde946459669d/content/project/ViperBoxInterface/ViperBoxInterface-logo.webp"
+html_logo = "https://github.com/sbalk/ViperBoxInterface/blob/dev/imgs/viperboxinterface.png?raw=true"
 
 
 def replace_named_emojis(input_file: Path, output_file: Path) -> None:
