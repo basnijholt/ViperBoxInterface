@@ -155,3 +155,37 @@ Note that in the resulting recording in Open Ephys, the 'Duplicate' channels wil
         - ViperBox SerDes side
             - White: headstage connected or emulation active
             - off: otherwise
+
+
+## :robot: Using the API
+
+The API can be used to communicate with the ViperBox. It can be used to connect to the ViperBox, upload recording and stimulation settings and start and stop recordings and stimulations.
+The API can be manually controlled from the web interface by clicking the dropdown next to the function, then clicking "Try it out" and then clicking the blue "Execute" button.
+The typical workflow to do a recording and stimulation is to run the following commands:
+- `/connect`: to connect to the ViperBox
+<figure align="center">
+    <img src="imgs/connect.gif" style="width: 80%; height: auto;">
+    <!-- <figcaption>Overview of all the settings for one ViperBox</figcaption> -->
+</figure>
+
+- `/upload_recording_settings`: to upload the recording settings. Default [XML settings](#xml-scripts) are selected by default.
+    - To edit the settings, open an editor and copy the default settings from the defaults folder into it. Adjust them and copy and paste everything into the ViperBox API. See below.
+<figure align="center">
+    <img src="imgs/recording_settings.gif" style="width: 80%; height: auto;">
+    <!-- <figcaption>Overview of all the settings for one ViperBox</figcaption> -->
+</figure>
+
+- `/upload_stimulation_settings`: to upload the stimulation settings. Default settings are selected by default. XML settings can be added here, too.
+- `/start_recording`: to start the recording. Don't forget to give up a name.
+- `/start_stimulation`: to start the stimulation.
+- `/stop_recording`: to stop the recording. The recording will be saved in the Recordings folder. The settings that you used to record will be saved in the Settings folder under the same name but as XML file.
+
+During a recording, new stimulation settings can be uploaded and a new stimulation can be started.
+
+> [!WARNING]
+> **Before version 0.0.4**, there is a problem with the driver that is necessary to connect to the ViperBox. An incompatible driver is installed automatically overnight. Every time you start the ViperBoxInterface, you need to reinstall the driver. This can be done by following these steps:
+
+> 1.	Connect ViperBox to PC and power on
+> 2.	Navigate to setup/DowngradeFTDI, and run the downgrade.bat batch file
+> 3.	Power cycle ViperBox
+> 4.	Optionally: verify driver version in Device Manager
