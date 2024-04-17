@@ -1,3 +1,44 @@
+[build-system]
+requires = ["setuptools", "unidep[toml]==0.56.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ViperBoxInterface"
+version = "0.0.7"
+authors = [
+    { name = "Stijn Balk", email = "stijn@phosphoenix.nl" },
+]
+description = ""
+readme = "README.md"
+requires-python = ">=3.11"
+
+[tool.unidep]
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "lxml",
+    "matplotlib",
+    "numpy",
+    "PySimpleGUI",
+    "requests",
+    "scipy",
+    "pandas"
+]
+channels = ["conda-forge"]
+
+[tool.unidep.optional_dependencies]
+docs = [
+    "myst-parser",
+    "sphinx",
+    "furo",
+    "emoji",
+    "sphinx-autodoc-typehints",
+]
+
+[tool.setuptools.packages.find]
+include = ["viperboxinterface", "viperboxinterface.*"]
+
 [tool.ruff]
 line-length = 88
 
