@@ -41,7 +41,7 @@ docs = [
 include = ["viperboxinterface", "viperboxinterface.*"]
 
 [tool.setuptools.package-data]
-"*" = ["*.json", "*.xml", "*.xlsx"]
+"*" = ["*.json", "*.xml", "*.xlsx", "*.dll", "*.h", "*.lib"]
 
 [tool.ruff]
 line-length = 88
