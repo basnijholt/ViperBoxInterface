@@ -189,3 +189,132 @@ During a recording, new stimulation settings can be uploaded and a new stimulati
 > 2.	Navigate to setup/DowngradeFTDI, and run the downgrade.bat batch file
 > 3.	Power cycle ViperBox
 > 4.	Optionally: verify driver version in Device Manager
+
+## :hammer_and_wrench: Overview of ViperBox settings
+
+<figure align="center">
+    <img src="imgs/settings_mindmap.png" style="width: 80%; height: auto;">
+    <figcaption>Overview of all the settings for one ViperBox</figcaption>
+</figure>
+
+- box: there are up to 3 boxes
+- probes: each box can have up to 4 probes connected to them
+- stimunit waveform settings: define the waveform that the stimunit generates
+- stimunit connected electrodes: each stimunit can be connected to any or all of the 128 electrodes.
+- recording channels: each box has 64 recording channels that each have several settings 
+
+## :memo: Changing settings through XML scripts
+
+The way to communicate settings with the ViperBox is through XML scripts. These scripts can be used to define settings and to start and stop recording and stimulation. The XML scripts can be sent to the ViperBox through the API.
+
+### RecordingSettings
+
+Here is an example for setting the recording settings in XML format. The default recording settings are the following:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<Program>
+    <Settings>
+        <RecordingSettings>
+            <Channel box="-" probe="-" channel="-" references="-" gain="1" input="0"/>
+        </RecordingSettings>
+    </Settings>
+</Program>
+```
+
+In the above code, the default recording settings are stored in the `Channel` element. The first part defines for which component the settings are meant, the second part describes the settings.
+
+- `box="-"` means for all boxes that are connected.
+- `probe="-"` means for all probes that are connected.
+- `channel="-"` means for all recording channels (always 64).
+- `references="-"` means all [reference](#references-and-input-settings), this means the Body reference and references 1-8.
+- `gain="1"` means the channel [gain](#gain-settings). The possible values are:
+    - "0": x 60
+    - "1": x 24
+    - "2": x 12
+- `input="0"` means which [input](#choosing-probe-electrodes) electrode should be connected to the recording channel.
+
+You can also specify the settings more precisely. For example, if you want recording channels 1, 6, 7 and 8 to have fewer references, namely only reference 'b' (body) and '3':
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<Program>
+    <Settings>
+        <RecordingSettings>
+            <Channel box="-" probe="-" channel="-" references="-" gain="1" input="0"/>
+            <Channel box="-" probe="-" channel="1,6-8" references="b,3" gain="1" input="0"/>
+        </RecordingSettings>
+    </Settings>
+</Program>
+```
+
+In the above case, the first line will be loaded to the ViperBox first and then the latter channel settings will be overwritten to the specific channels.
+
+### Stimulation settings
+
+The default stimulation settings are the following:
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<Program>
+    <Settings>
+        <StimulationWaveformSettings>
+            <Configuration box="-" probe="-" stimunit="-" polarity="0" pulses="20" prephase="0"
+                amplitude1="5" width1="170" interphase="60" amplitude2="5" width2="170"
+                discharge="200" duration="600" aftertrain="1000" />
+        </StimulationWaveformSettings>
+        <StimulationMappingSettings>
+            <Mapping box="-" probe="-" stimunit="-" electrodes="-" />
+        </StimulationMappingSettings>
+    </Settings>
+</Program>
+```
+
+In StimulationWaveformSettings, `stimunit` means stimulation unit which is a waveform generator, there are 8 stimulation units per probe.
+In StimulationMappingSettings, these stimulation units can be connected to any or all of the electrodes.
+
+<figure>
+    <img src="imgs/stimulation_timing.png" style="width: 90%; height: auto;">
+    <figcaption align="center">Stimulation timing</figcaption>
+</figure>
+
+The possible parameters for the stimulation units are:
+
+| Setting      | Description                                              | Unit    | Range     | Step size | Default |
+| ------------ | -------------------------------------------------------- | ------- | --------- | --------- | ------- |
+| `polarity`   | Polarity of the stimulation waveform                     | boolean | 0-1       | 1         | 0       |
+| `pulses`     | Number of pulses in the waveform                         | number  | 1-255     | 1         | 20      |
+| `prephase`   | Time in microseconds before the first pulse              | μs      | 100-25500 | 100       | 0       |
+| `amplitude1` | Amplitude of the first phase                             | μA      | 0-255     | 1         | 5       |
+| `width1`     | Width of the first phase                                 | μs      | 10-2550   | 10        | 170     |
+| `interphase` | Time between the first and second phase                  | μs      | 10-25500  | 10        | 60      |
+| `amplitude2` | Amplitude of the second phase                            | μA      | 0-255     | 1         | 5       |
+| `width2`     | Width of the second phase                                | μs      | 10-2550   | 10        | 170     |
+| `discharge`  | Time in microseconds after the last pulse                | μs      | 100-25500 | 100       | 200     |
+| `duration`   | Duration of the entire train                             | μs      | 100-25500 | 100       | 600     |
+| `aftertrain` | Time in microseconds after the entire train has finished | μs      | 100-25500 | 100       | 1000    |
+
+<!-- ## XML control scripts
+XML scripts can have full or partial control over the ViperBox. They can be used for:
+- defining settings
+- starting and stopping recording and stimulation
+
+The format is as follows:
+```xml
+<Program>
+    <Settings>
+        <RecordingSettings>
+            <Channel box="-" probe="-" channel="-" references="100000000" gain="1" input="0" />
+        </RecordingSettings>
+        <StimulationWaveformSettings>
+            <Configuration box="-" probe="-" stimunit="-" polarity="0" pulses="20"
+                prephase="0" amplitude1="1" width1="170" interphase="60" amplitude2="1" width2="170"
+                discharge="200" duration="600" aftertrain="1000" />
+        </StimulationWaveformSettings>
+        <StimulationMappingSettings>
+            <Mapping box="-" probe="-" stimunit="-" electrodes="-" />
+        </StimulationMappingSettings>
+    </Settings>
+</Program>
+```
+
+As can be seen from the sample, at the highest level there is the program element. Below that there are settings or instructions. In settings there are RecordingSettings, StimulationWaveformSettings and StimulationMapping settings. -->
+.
