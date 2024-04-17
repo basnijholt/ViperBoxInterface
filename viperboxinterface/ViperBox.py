@@ -15,8 +15,8 @@ from lxml import etree
 from scipy import signal
 
 import NeuraviperPy as NVP
-from defaults.defaults import Mappings
-from VB_classes import (
+from viperboxinterface.defaults.defaults import Mappings
+from viperboxinterface.VB_classes import (
     BoxSettings,
     ConnectedBoxes,
     ConnectedProbes,

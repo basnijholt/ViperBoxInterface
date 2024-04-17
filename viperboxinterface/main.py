@@ -10,9 +10,9 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 
-import gui
-import VB_logger
-from api_classes import (
+from viperboxinterface import gui
+from viperboxinterface import VB_logger
+from viperboxinterface.api_classes import (
     Connect,
     apiRecSettings,
     apiStartRec,
@@ -20,7 +20,7 @@ from api_classes import (
     apiStimSettings,
     apiVerifyXML,
 )
-from ViperBox import ViperBox
+from viperboxinterface.ViperBox import ViperBox
 
 # TODO: all return values should be caught and logged
 
