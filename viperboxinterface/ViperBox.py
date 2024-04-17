@@ -11,7 +11,6 @@ import traceback
 from pathlib import Path
 from typing import Any
 
-import NeuraviperPy as NVP
 import numpy as np
 import requests
 from lxml import etree
@@ -25,6 +24,7 @@ from XML_handler import (
     verify_step_min_max,
 )
 
+import viperboxinterface.NeuraviperPy as NVP
 from viperboxinterface.defaults.defaults import Mappings
 from viperboxinterface.VB_classes import (
     BoxSettings,
