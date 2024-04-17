@@ -1,8 +1,6 @@
 # :brain: ViperBoxInterface
 
-    <img src="./imgs/viperboxinterface.png" style="width: 50%; height: auto;">
-    <!-- <figcaption>Overview of all the settings for one ViperBox</figcaption> -->
-</figure>
+![Overview of all the settings for one ViperBox](./imgs/viperboxinterface.png)
 
 > ViperBoxInterface is a piece of software that streamlines interaction with the ViperBox developed for the NeuraViPeR project.
 > It streams data through [Open Ephys](#open-ephys).

@@ -154,9 +154,9 @@ def replace_image_links(input_file: Path, output_file: Path) -> None:
     with input_file.open("r") as infile:
         content = infile.read()
     new_content = content.replace(
-        "./imgs/",
-        "https://github.com/sbalk/ViperBoxInterface/blob/dev/imgs/",
-    )
+        "(./imgs/",
+        "(https://github.com/sbalk/ViperBoxInterface/blob/dev/imgs/",
+    ).replace(".png)", ".png?raw=true)")
     with output_file.open("w") as outfile:
         outfile.write(new_content)
 
