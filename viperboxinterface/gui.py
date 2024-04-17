@@ -573,7 +573,7 @@ press OK'
 
     def read_saved_settings(location, filename):
         full_path = Path.joinpath(Path(location), filename + ".cfg")
-        with open(full_path, "r") as f:
+        with open(full_path) as f:
             return json.load(f)
 
     def load_settings_folder(location):

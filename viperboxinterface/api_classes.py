@@ -1,6 +1,5 @@
 from __future__ import annotations
 import xml.etree.ElementTree as ET
-from typing import List
 
 from pydantic import BaseModel, field_validator
 from pydantic.dataclasses import dataclass
@@ -154,7 +153,7 @@ class apiTTLStart(BaseModel):
 
     @field_validator("SU_bit_mask")
     @classmethod
-    def check_SU_bit_mask(cls, SU_bit_mask: List[int]) -> List[int]:
+    def check_SU_bit_mask(cls, SU_bit_mask: list[int]) -> list[int]:
         if len(SU_bit_mask) != 8:
             raise ValueError("SU_bit_mask must contain exactly 8 integers")
         for i in SU_bit_mask:

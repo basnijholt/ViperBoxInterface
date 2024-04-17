@@ -62,7 +62,6 @@ from enum import IntEnum
 from inspect import signature
 from sys import platform as _platform
 from types import FunctionType
-from typing import List, Tuple
 
 # logger = logging.getLogger(__name__)
 logger = logging.getLogger("NVP")
@@ -265,7 +264,7 @@ class HardwareID(Struct):
         self._product_number = value.encode("ASCII")
 
     @property
-    def version(self) -> Tuple[c_uint8, c_uint8]:
+    def version(self) -> tuple[c_uint8, c_uint8]:
         return (self.version_major, self.version_minor)
 
     @version.setter
@@ -427,7 +426,7 @@ def setLogLevel(level: LogLevel) -> None:
 
 
 @_wrap_function("getAPIVersion", None, [POINTER(c_int), POINTER(c_int), POINTER(c_int)])
-def getAPIVersion() -> Tuple[int, int, int]:
+def getAPIVersion() -> tuple[int, int, int]:
     """Get the API version.
 
     :return: A tuple with the major, minor, and patch version numbers
@@ -446,7 +445,7 @@ def scanBS() -> None:
 
 
 @_wrap_function("getDeviceList", c_int, [POINTER(BasestationID), c_int])
-def getDeviceList(count: int) -> List[BasestationID]:
+def getDeviceList(count: int) -> list[BasestationID]:
     """Returns a list of connected devices.
 
     :param count: Maximum number of devices to be reported
@@ -830,7 +829,7 @@ def bistStartPRBS(handle: DeviceHandle):
 @_wrap_function(
     "bistStopPRBS", NVP_ErrorCode, [DeviceHandle, POINTER(c_int), POINTER(c_int)]
 )
-def bistStopPRBS(handle: DeviceHandle) -> Tuple[int, int]:
+def bistStopPRBS(handle: DeviceHandle) -> tuple[int, int]:
     prbs_err_data = c_int(0)
     prbs_err_ctrl = c_int(0)
     __assertnvperror(_c_fn(handle, prbs_err_data, prbs_err_ctrl))
@@ -840,7 +839,7 @@ def bistStopPRBS(handle: DeviceHandle) -> Tuple[int, int]:
 @_wrap_function(
     "bistReadPRBS", NVP_ErrorCode, [DeviceHandle, POINTER(c_int), POINTER(c_int)]
 )
-def bistReadPRBS(handle: DeviceHandle) -> Tuple[int, int]:
+def bistReadPRBS(handle: DeviceHandle) -> tuple[int, int]:
     prbs_err_data = c_int(0)
     prbs_err_ctrl = c_int(0)
     __assertnvperror(_c_fn(handle, prbs_err_data, prbs_err_ctrl))
@@ -986,7 +985,7 @@ if __name__ == "__main__":
 
     import sys
 
-    print("API Version: %s.%s.%s" % getAPIVersion())
+    print("API Version: {}.{}.{}".format(*getAPIVersion()))
 
     # scanBS() happens automatically, but we can use it to force re-discovery of devices
     scanBS()

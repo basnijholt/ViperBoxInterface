@@ -3,7 +3,7 @@ import json
 import logging
 import logging.handlers
 from dataclasses import asdict, dataclass, field, is_dataclass
-from typing import Any, Dict, List, get_type_hints
+from typing import Any, get_type_hints
 
 import numpy as np
 from lxml import etree
@@ -35,7 +35,7 @@ class StatusTracking:
     BIST_number: int | None = None
     box_connected: bool = False
     # probe_connected: bool = False
-    active_TTLs: List[bool] = field(default_factory=list)
+    active_TTLs: list[bool] = field(default_factory=list)
     _SU_busy = "0" * 16
 
 
@@ -122,9 +122,9 @@ was {type(value)}: {e}"
 
 @dataclass
 class ProbeSettings:
-    channel: Dict[int, ChanSettings] = field(default_factory=dict)
-    stim_unit_sett: Dict[int, SUSettings] = field(default_factory=dict)
-    stim_unit_os: Dict[int, List[int]] = field(default_factory=dict)
+    channel: dict[int, ChanSettings] = field(default_factory=dict)
+    stim_unit_sett: dict[int, SUSettings] = field(default_factory=dict)
+    stim_unit_os: dict[int, list[int]] = field(default_factory=dict)
     _sus: int = 8
     _elecs: int = 128
 
@@ -185,19 +185,19 @@ class TTLSettings:
 
 @dataclass
 class TTL_probes:
-    TTL_probes: Dict[int, TTLSettings] = field(default_factory=dict)
+    TTL_probes: dict[int, TTLSettings] = field(default_factory=dict)
 
 
 @dataclass
 class TTL_boxes:
-    TTL_boxes: Dict[int, TTLSettings] = field(default_factory=dict)
+    TTL_boxes: dict[int, TTLSettings] = field(default_factory=dict)
 
 
 @dataclass
 class BoxSettings:
     hardware_id_base_station: IDInformation | None = None
     hardware_id_head_stage: IDInformation | None = None
-    probes: Dict[int, ProbeSettings] = field(default_factory=dict)
+    probes: dict[int, ProbeSettings] = field(default_factory=dict)
 
 
 @dataclass
@@ -206,7 +206,7 @@ class GeneralSettings:
     session_starting_datetime: str = ""
     api_version_minor: str = ""
     api_version_major: str = ""
-    boxes: Dict[int, BoxSettings] = field(default_factory=dict)
+    boxes: dict[int, BoxSettings] = field(default_factory=dict)
 
     @property
     def connected(self):
@@ -244,12 +244,12 @@ class GeneralSettings:
 
 @dataclass
 class ConnectedProbes:
-    probes: Dict[int, bool] = field(default_factory=dict)
+    probes: dict[int, bool] = field(default_factory=dict)
 
 
 @dataclass
 class ConnectedBoxes:
-    boxes: Dict[int, ConnectedProbes] = field(default_factory=dict)
+    boxes: dict[int, ConnectedProbes] = field(default_factory=dict)
 
 
 def printable_dtd(obj: Any) -> None:

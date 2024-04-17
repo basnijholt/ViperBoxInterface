@@ -4,7 +4,7 @@ import json
 import logging
 import logging.handlers
 from pathlib import Path
-from typing import Any, Tuple
+from typing import Any
 
 import numpy as np
 from lxml import etree
@@ -275,7 +275,7 @@ def check_xml_boxprobes_exist_and_verify_data_with_settings(
     settings: GeneralSettings,
     connected: ConnectedBoxes,
     check_topic: str = "all",
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """
     - boxes and probes are available
     - possible settings are valid with existing local_settings.

@@ -8,7 +8,7 @@ import threading
 import time
 import traceback
 from pathlib import Path
-from typing import Any, List, Tuple
+from typing import Any
 
 import numpy as np
 import requests
@@ -82,7 +82,7 @@ class ViperBox:
 
         return None
 
-    def connect_oe(self, reset=False) -> Tuple[bool, str]:
+    def connect_oe(self, reset=False) -> tuple[bool, str]:
         """
         Check if Open Ephys is running and start it if not.
         Connect once TCP to Open Ephys once it started, send some data and maybe wait
@@ -153,7 +153,7 @@ class ViperBox:
         probe_list: str = "1",
         emulation: bool = False,
         boxless: bool = False,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """Initiates ViperBox and connects to probes. Box is created and emulation\
         type is set.
 
@@ -287,7 +287,7 @@ boxless: {boxless}."
 {self.local_settings.connected}""",
         )
 
-    def disconnect(self) -> Tuple[bool, str]:
+    def disconnect(self) -> tuple[bool, str]:
         """Disconnects from the ViperBox and closes the API channel."""
         try:
             self.data_thread.shutdown()
@@ -322,7 +322,7 @@ Please restart the ViperBox and the software and try again.",
 
         return True, "ViperBox disconnected"
 
-    def shutdown(self) -> Tuple[bool, str]:
+    def shutdown(self) -> tuple[bool, str]:
         self.disconnect()
         # if not self.headless:
         # try:
@@ -439,7 +439,7 @@ settings to ViperBox"
         reset: bool = False,
         default_values: bool = False,
         read_mapping_xlsx: bool = False,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """Loads the recording settings from an XML string or default file."""
 
         if self.boxless is True:
@@ -589,7 +589,7 @@ reverted to previous settings. Error: {self._er(e)}",
         xml_string: str | None = None,
         reset: bool = False,
         default_values: bool = True,
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """Loads the stimulation settings from an XML file."""
 
         if self.boxless is True:
@@ -658,7 +658,7 @@ reverted to previous settings. Error: {self._er(e)}",
 
     def verify_xml_with_local_settings(
         self, XML_dictionary: dict, XML_data: Any, check_topic: str = "all"
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """API Verifies the XML string."""
 
         tmp_data = copy.deepcopy(self.local_settings)
@@ -691,7 +691,7 @@ reverted to previous settings. Error: {self._er(e)}",
         # TODO:
         return result, feedback
 
-    def default_settings(self) -> Tuple[bool, str]:
+    def default_settings(self) -> tuple[bool, str]:
         """Loads the default settings from an XML file."""
 
         if self.boxless is True:
@@ -761,7 +761,7 @@ reverted to previous settings. Error: {self._er(e)}",
 
         return True, "Default recording and stimulation settings loaded"
 
-    def start_recording(self, recording_name: str = "") -> Tuple[bool, str]:
+    def start_recording(self, recording_name: str = "") -> tuple[bool, str]:
         """Start recording.
 
         Arguments:
@@ -957,7 +957,7 @@ upload your custom settings and then try again.""",
             mtx[k][v] = 1
         return mtx
 
-    def stop_recording(self) -> Tuple[bool, str]:
+    def stop_recording(self) -> tuple[bool, str]:
         if self.tracking.box_connected is False:
             return False, "Not connected to ViperBox"
 
@@ -1036,14 +1036,14 @@ upload your custom settings and then try again.""",
         # TODO: not implemented
         pass
 
-    def _SU_list_to_bitmask(self, SU_list: List[int]) -> int:
+    def _SU_list_to_bitmask(self, SU_list: list[int]) -> int:
         # convert SUs to NVP format
         SU_string = "".join(["1" if i in SU_list else "0" for i in range(8)])
         return int(SU_string, 2)
 
     def start_stimulation(
         self, boxes: str, probes: str, SU_input: str
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """Starts stimulation on the specified box(s), probe(s) and SU(s).
         First checks if the SUs are configured for their respective boxes and probes.
 
